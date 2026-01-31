@@ -16,10 +16,12 @@ amplifyconfiguration*
 /.pnp
 .pnp.js
 
-# AWS Amplify Gen 2 (Critical to ignore backend outputs)
-.amplify/
-amplify_outputs*
-amplifyconfiguration*
+# Amplify (ignore local generated folders, but keep outputs json tracked)
+amplify/.config/
+amplify/#current-cloud-backend/
+amplify/backend/amplify-meta.json
+amplify/backend/awscloudformation/
+
 
 # Environment variables (Secrets)
 .env
