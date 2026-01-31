@@ -6,6 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "lint": "eslint \"app/**/*.{js,jsx,ts,tsx}\" \"components/**/*.{js,jsx,ts,tsx}\" \"utils/**/*.{js,jsx,ts,tsx}\"",
     "lint:fix": "eslint \"app/**/*.{js,jsx,ts,tsx}\" \"components/**/*.{js,jsx,ts,tsx}\" \"utils/**/*.{js,jsx,ts,tsx}\" --fix"
   },
@@ -33,6 +35,7 @@
     "globals": "^17.2.0",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
   }
 }
