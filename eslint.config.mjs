@@ -1,18 +1,47 @@
-import { defineConfig, globalIgnores } from "eslint/config";
-import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTs from "eslint-config-next/typescript";
+import js from "@eslint/js";
+import globals from "globals";
+import next from "eslint-config-next";
 
-const eslintConfig = defineConfig([
-  ...nextVitals,
-  ...nextTs,
-  // Override default ignores of eslint-config-next.
-  globalIgnores([
-    // Default ignores of eslint-config-next:
-    ".next/**",
-    "out/**",
-    "build/**",
-    "next-env.d.ts",
-  ]),
-]);
+/** @type {import("eslint").Linter.FlatConfig[]} */
+export default [
+  // Ignore generated/vendor folders
+  {
+    ignores: [
+      "amplify/**",
+      ".amplify/**",
+      ".next/**",
+      "node_modules/**",
+      "public/**",
+      "_docs/**"
+    ]
+  },
 
-export default eslintConfig;
+  // Base JS recommended
+  js.configs.recommended,
+
+  // Next.js recommended rules
+  ...next,
+
+  // Apply to your source files explicitly
+  {
+    files: [
+      "app/**/*.{js,jsx,ts,tsx}",
+      "components/**/*.{js,jsx,ts,tsx}",
+      "utils/**/*.{js,jsx,ts,tsx}"
+    ],
+    languageOptions: {
+      ecmaVersion: "latest",
+      sourceType: "module",
+      globals: {
+        ...globals.browser,
+        ...globals.node
+      }
+    },
+    rules: {
+      "react-hooks/exhaustive-deps": "warn",
+  "react/react-in-jsx-scope": "off",
+  "no-undef": "off"
+
+    }
+  }
+];

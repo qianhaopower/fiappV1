@@ -65,7 +65,7 @@ export async function POST(req: Request) {
       },
       { status: 200, headers: resHeaders }
     );
-  } catch (e) {
+  } catch  {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: resHeaders });
   }
 }
