@@ -162,7 +162,6 @@ npm test
 ```
 
 ---
-
 ## Quick Checklist (Before Shipping)
 - [ ] Page uses one of the 4 layouts
 - [ ] Only UI components from `@/components/ui`

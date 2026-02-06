@@ -92,7 +92,7 @@ describe("Auth API Routes", () => {
 
     it("should handle empty cookie list without errors", () => {
       // Signout with no cookies should still succeed
-      const emptyCookieList = [];
+      const emptyCookieList: string[] = [];
 
       expect(emptyCookieList.length).toBe(0);
       expect(Array.isArray(emptyCookieList)).toBe(true);
