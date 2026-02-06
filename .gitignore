@@ -65,10 +65,15 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Legacy local docs (deprecated)
+DESIGN_SYSTEM.md
+DEV_GUIDE.md
+REUSABLE_STRUCTURE.md
+SETUP_COMPLETE.md
+
 # Playwright
 test-results/
 playwright-report/
-
 # Env
 .env
 .env.local

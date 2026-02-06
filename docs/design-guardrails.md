@@ -143,6 +143,25 @@ npm run test:e2e
 
 ---
 
+## 15) DynamoDB Test Strategy (Mocked)
+
+We use a **fast mock client** for DynamoDB via `aws-sdk-client-mock`.
+
+### Wrapper
+- `utils/dynamoClient.ts` provides a small wrapper using `DynamoDBDocumentClient`.
+- The wrapper accepts a `tableName` and optional injected client (used in tests).
+
+### Example Test
+See `tests/dynamo-client.test.ts` for an integration-style test that:
+- mocks `PutCommand` and `GetCommand`
+- verifies calls via the wrapper
+
+### How to run
+```bash
+npm test
+```
+
+---
 ## Quick Checklist (Before Shipping)
 - [ ] Page uses one of the 4 layouts
 - [ ] Only UI components from `@/components/ui`
