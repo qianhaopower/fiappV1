@@ -2,6 +2,7 @@
 
 import { Authenticator } from "@aws-amplify/ui-react";
 import { signOut as amplifySignOut } from "aws-amplify/auth";
+import { AppShell } from "@/components/layout";
 
 export default function AuthenticatorWrapper({
   children,
@@ -17,15 +18,9 @@ export default function AuthenticatorWrapper({
   return (
     <Authenticator>
       {() => (
-        <>
-          <button
-            onClick={handleSignOut}
-            style={{ position: "absolute", top: 12, right: 12 }}
-          >
-            Sign out
-          </button>
+        <AppShell onSignOut={handleSignOut}>
           {children}
-        </>
+        </AppShell>
       )}
     </Authenticator>
   );
