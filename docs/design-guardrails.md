@@ -133,6 +133,16 @@ Then export from `components/ui/index.ts`.
 
 ---
 
+## 14) E2E Smoke Tests
+
+Run smoke tests with:
+
+```bash
+npm run test:e2e
+```
+
+---
+
 ## Quick Checklist (Before Shipping)
 - [ ] Page uses one of the 4 layouts
 - [ ] Only UI components from `@/components/ui`

@@ -219,7 +219,7 @@ export default function DesignPage() {
                   <Checkbox
                     id="checkbox-1"
                     checked={checkboxState}
-                    onCheckedChange={setCheckboxState}
+                    onCheckedChange={(checked) => setCheckboxState(checked === true)}
                   />
                   <Label htmlFor="checkbox-1" className="cursor-pointer">
                     I agree to the terms and conditions
