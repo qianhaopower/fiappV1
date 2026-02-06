@@ -136,3 +136,140 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Amplify Authenticator: full custom skin inside FIApp card */
+.fiapp-auth {
+  width: 100%;
+  --amplify-components-authenticator-container-width: 100%;
+  --amplify-components-authenticator-container-max-width: 100%;
+  --amplify-components-authenticator-container-padding: 0;
+  --amplify-components-authenticator-container-border-radius: 0;
+  --amplify-components-authenticator-container-box-shadow: none;
+  --amplify-components-authenticator-container-border-width: 0;
+  --amplify-components-card-border-width: 0;
+  --amplify-components-card-box-shadow: none;
+  --amplify-components-card-padding: 0;
+  --amplify-components-fieldcontrol-border-radius: 10px;
+  --amplify-components-button-border-radius: 10px;
+  --amplify-components-field-label-font-size: 0.875rem;
+  --amplify-components-field-label-color: oklch(0.38 0.01 260);
+  --amplify-colors-brand-primary: var(--primary);
+  --amplify-colors-brand-secondary: var(--primary);
+  --amplify-colors-border-primary: var(--primary);
+}
+
+.fiapp-auth-shell {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+
+.fiapp-auth [data-amplify-authenticator],
+.fiapp-auth .amplify-authenticator__container,
+.fiapp-auth .amplify-card,
+.fiapp-auth .amplify-flex,
+.fiapp-auth .amplify-view {
+  box-shadow: none !important;
+  border: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  align-self: center;
+  box-sizing: border-box;
+}
+
+.fiapp-auth .amplify-tabs {
+  width: 100%;
+}
+
+.fiapp-auth .amplify-tabs__list {
+  width: 100%;
+  border-bottom: 1px solid var(--border) !important;
+  gap: 0;
+}
+
+.fiapp-auth .amplify-tabs__item {
+  flex: 1;
+  text-align: center;
+  padding: 0.75rem 0;
+  color: var(--muted-foreground) !important;
+  font-weight: 600;
+  border-bottom: 2px solid transparent !important;
+  border-top: 2px solid transparent !important;
+}
+
+.fiapp-auth .amplify-tabs__item--active {
+  color: var(--foreground) !important;
+  border-bottom-color: var(--primary) !important;
+  border-top-color: var(--primary) !important;
+  box-shadow: none !important;
+}
+
+.fiapp-auth .amplify-tabs__item--active::after,
+.fiapp-auth .amplify-tabs__item--active::before {
+  background: var(--primary) !important;
+}
+
+.fiapp-auth .amplify-field {
+  margin-top: 1rem;
+}
+
+.fiapp-auth .amplify-field__label {
+  font-size: 0.875rem;
+  color: var(--muted-foreground) !important;
+}
+
+.fiapp-auth .amplify-field__control,
+.fiapp-auth .amplify-input,
+.fiapp-auth .amplify-input--quiet {
+  border-radius: 10px !important;
+  border: 1px solid var(--border) !important;
+  background: var(--card) !important;
+  box-shadow: none !important;
+  padding: 0.65rem 0.8rem !important;
+}
+
+.fiapp-auth .amplify-field__control:focus-within,
+.fiapp-auth .amplify-input:focus {
+  outline: 2px solid var(--primary) !important;
+  border-color: var(--primary) !important;
+}
+
+.fiapp-auth .amplify-button {
+  width: 100% !important;
+  border-radius: 10px !important;
+  padding: 0.7rem 1rem !important;
+  font-weight: 600;
+}
+
+.fiapp-auth .amplify-button--primary {
+  background: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.fiapp-auth .amplify-button--primary:hover {
+  filter: brightness(0.98);
+}
+
+.fiapp-auth .amplify-button--link {
+  color: var(--primary) !important;
+  font-weight: 600;
+}
+
+.fiapp-auth .amplify-text,
+.fiapp-auth .amplify-label,
+.fiapp-auth .amplify-link {
+  color: var(--muted-foreground) !important;
+}
+
+.fiapp-auth .amplify-alert {
+  border-radius: 10px !important;
+  border: 1px solid var(--border) !important;
+  background: color-mix(in oklch, var(--muted) 30%, transparent) !important;
+}

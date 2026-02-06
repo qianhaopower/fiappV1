@@ -13,10 +13,14 @@ export default function Home() {
       <h1 style={{ fontSize: 24, fontWeight: 600 }}>FIApp v1</h1>
 
       <div style={{ marginTop: 12 }}>
-        <div style={{ opacity: 0.8, marginBottom: 8 }}>Signed in as</div>
-        <div style={{ fontFamily: "monospace" }}>
-          {user?.signInDetails?.loginId ?? user?.username ?? "(unknown)"}
+        <div style={{ opacity: 0.8, marginBottom: 8 }}>
+          {user ? "Signed in as" : "Signed out"}
         </div>
+        {user && (
+          <div style={{ fontFamily: "monospace" }}>
+            {user?.signInDetails?.loginId ?? user?.username ?? "(unknown)"}
+          </div>
+        )}
       </div>
 
       <button

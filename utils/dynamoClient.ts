@@ -3,9 +3,11 @@ import {
   DynamoDBDocumentClient,
   GetCommand,
   PutCommand,
+  UpdateCommand,
   QueryCommand,
   type GetCommandInput,
   type PutCommandInput,
+  type UpdateCommandInput,
   type QueryCommandInput,
 } from "@aws-sdk/lib-dynamodb";
 
@@ -50,6 +52,15 @@ export class DynamoClient {
       Item: item,
     };
     await this.client.send(new PutCommand(input));
+  }
+
+  async updateItem(input: Omit<UpdateCommandInput, "TableName">) {
+    await this.client.send(
+      new UpdateCommand({
+        TableName: this.tableName,
+        ...input,
+      })
+    );
   }
 
   async query<T>(input: Omit<QueryCommandInput, "TableName">) {

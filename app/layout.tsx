@@ -4,9 +4,8 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 
-import AuthenticatorWrapper from "@/components/AuthenticatorWrapper";
 import { Toaster } from "@/components/ui";
-import ConfigureAmplifyClientSide from '@/components/ConfigureAmplifyClientSide';
+import AmplifyProvider from "@/components/AmplifyProvider";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -23,11 +22,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.variable} font-sans antialiased`}>
-        {/* ✅ configure Amplify on the client */}
-        <ConfigureAmplifyClientSide />
-
-        {/* ✅ then render Auth */}
-        <AuthenticatorWrapper>{children}</AuthenticatorWrapper>
+        <AmplifyProvider>{children}</AmplifyProvider>
         <Toaster />
       </body>
     </html>
