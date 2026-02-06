@@ -99,6 +99,24 @@ Use only components from `@/components/ui`.
 
 ---
 
+## Pillar Color Usage Rules (Locked)
+
+Pillar colours are secondary accents only.
+
+Use them for:
+- Pill / chip backgrounds
+- Small icons
+- Section markers
+
+Never for:
+- Primary buttons
+- Full backgrounds
+- Critical navigation
+
+
+
+---
+
 ## 11) File Structure (Design-Specific)
 
 ```

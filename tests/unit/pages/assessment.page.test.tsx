@@ -22,26 +22,30 @@ describe("Assessment page", () => {
   it("shows first question and progress, next disabled until answered", () => {
     render(<AssessmentPage />);
 
-    expect(screen.getByText("1 / 35")).toBeInTheDocument();
+    expect(screen.getByText(/Question\s*1\s*\/\s*35/)).toBeInTheDocument();
     expect(screen.getByText(assessmentQuestions[0].text)).toBeInTheDocument();
 
     const nextButton = screen.getByRole("button", { name: "Next" });
     expect(nextButton).toBeDisabled();
+
+    // Auto-advances once answered.
+    fireEvent.click(screen.getByRole("button", { name: "Yes" }));
+    expect(screen.getByText(/Question\s*2\s*\/\s*35/)).toBeInTheDocument();
+    expect(screen.getByText(assessmentQuestions[1].text)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
   });
 
   it("advances with next and supports back with preserved answer", () => {
     render(<AssessmentPage />);
 
     fireEvent.click(screen.getByRole("button", { name: "Yes" }));
-    const nextButton = screen.getByRole("button", { name: "Next" });
-    expect(nextButton).not.toBeDisabled();
 
-    fireEvent.click(nextButton);
-    expect(screen.getByText("2 / 35")).toBeInTheDocument();
+    // Auto-advanced to question 2.
+    expect(screen.getByText(/Question\s*2\s*\/\s*35/)).toBeInTheDocument();
     expect(screen.getByText(assessmentQuestions[1].text)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
-    expect(screen.getByText("1 / 35")).toBeInTheDocument();
+    expect(screen.getByText(/Question\s*1\s*\/\s*35/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Next" })).not.toBeDisabled();
   });
 
@@ -56,12 +60,10 @@ describe("Assessment page", () => {
 
     for (let i = 0; i < assessmentQuestions.length; i += 1) {
       fireEvent.click(screen.getByRole("button", { name: "Yes" }));
-      if (i < assessmentQuestions.length - 1) {
-        fireEvent.click(screen.getByRole("button", { name: "Next" }));
-      }
     }
 
     const submitButton = screen.getByRole("button", { name: "Submit" });
+    expect(submitButton).not.toBeDisabled();
     fireEvent.click(submitButton);
 
     await waitFor(() => {
@@ -81,9 +83,6 @@ describe("Assessment page", () => {
 
     for (let i = 0; i < assessmentQuestions.length; i += 1) {
       fireEvent.click(screen.getByRole("button", { name: "Yes" }));
-      if (i < assessmentQuestions.length - 1) {
-        fireEvent.click(screen.getByRole("button", { name: "Next" }));
-      }
     }
 
     fireEvent.click(screen.getByRole("button", { name: "Submit" }));
@@ -92,7 +91,7 @@ describe("Assessment page", () => {
       expect(screen.getByText("Something went wrong. Please try again.")).toBeInTheDocument();
     });
 
-    expect(screen.getByText("35 / 35")).toBeInTheDocument();
+    expect(screen.getByText(/Question\s*35\s*\/\s*35/)).toBeInTheDocument();
     expect(replaceMock).not.toHaveBeenCalled();
   });
 
@@ -107,9 +106,6 @@ describe("Assessment page", () => {
 
     for (let i = 0; i < assessmentQuestions.length; i += 1) {
       fireEvent.click(screen.getByRole("button", { name: "Yes" }));
-      if (i < assessmentQuestions.length - 1) {
-        fireEvent.click(screen.getByRole("button", { name: "Next" }));
-      }
     }
 
     fireEvent.click(screen.getByRole("button", { name: "Submit" }));
