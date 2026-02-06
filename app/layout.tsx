@@ -6,6 +6,7 @@ import "./globals.css";
 
 import { Toaster } from "@/components/ui";
 import AmplifyProvider from "@/components/AmplifyProvider";
+import AppChrome from "@/components/AppChrome";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -22,7 +23,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.variable} font-sans antialiased`}>
-        <AmplifyProvider>{children}</AmplifyProvider>
+        <AmplifyProvider>
+          <AppChrome>{children}</AppChrome>
+        </AmplifyProvider>
         <Toaster />
       </body>
     </html>

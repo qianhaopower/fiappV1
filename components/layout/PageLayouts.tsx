@@ -42,14 +42,18 @@ export function NarrowFormPage({
   actions,
   children,
 }: BasePageProps) {
+  const showHeader = Boolean(title) || Boolean(description) || Boolean(actions)
+
   return (
     <div className="max-w-[600px] mx-auto">
-      <PageHeader
-        eyebrow={metaLabel}
-        title={title}
-        description={description}
-        actions={actions}
-      />
+      {showHeader && (
+        <PageHeader
+          eyebrow={metaLabel}
+          title={title}
+          description={description}
+          actions={actions}
+        />
+      )}
       {children}
     </div>
   )
