@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-
-import { runWithAmplifyServerContext } from "@/utils/amplifyServerUtils";
-import { getCurrentUser } from "aws-amplify/auth/server";
 import { createDynamoClient } from "@/utils/dynamoClient";
+import {
+  getUserId,
+  isUnauthorizedError,
+  unauthorizedResponse,
+} from "@/utils/authServer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,13 +23,7 @@ type AssessmentItem = {
 
 export async function GET() {
   try {
-    const { user } = await runWithAmplifyServerContext({
-      nextServerContext: { cookies },
-      operation: async (contextSpec) => {
-        const u = await getCurrentUser(contextSpec);
-        return { user: { userId: u.userId, username: u.username } };
-      },
-    });
+    const user = await getUserId();
 
     const client = createDynamoClient();
     const pk = `USER#${user.userId}`;
@@ -57,7 +52,11 @@ export async function GET() {
     }
 
     return NextResponse.json(assessment, { status: 200 });
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  } catch (error) {
+    if (isUnauthorizedError(error)) {
+      return unauthorizedResponse();
+    }
+
+    return unauthorizedResponse();
   }
 }

@@ -16,9 +16,23 @@ export default function AppChrome({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { signOut } = useAuthenticator((context) => [context.signOut]);
 
+  async function handleSignOut() {
+    try {
+      await fetch("/api/auth/signout", {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch {
+      // ignore network errors – still run Amplify signOut
+    } finally {
+      await signOut();
+      window.location.href = "/auth";
+    }
+  }
+
   if (!shouldUseAppShell(pathname)) {
     return <>{children}</>;
   }
 
-  return <AppShell onSignOut={signOut}>{children}</AppShell>;
+  return <AppShell onSignOut={handleSignOut}>{children}</AppShell>;
 }
