@@ -1,5 +1,8 @@
 import React from 'react'
 import { Button } from '@/components/ui'
+import { PlanBadge } from '@/components/PlanBadge'
+import { UpgradeButton } from '@/components/UpgradeButton'
+import { DevSubscriptionToggle } from '@/components/DevSubscriptionToggle'
 
 interface AppShellProps {
   children: React.ReactNode
@@ -28,6 +31,9 @@ export function AppShell({ children, onSignOut }: AppShellProps) {
             </nav>
           </div>
           <div className="flex items-center gap-2">
+            <PlanBadge />
+            <DevSubscriptionToggle />
+            <UpgradeButton />
             <Button variant="ghost" size="sm" className="hidden sm:inline-flex">
               Account
             </Button>

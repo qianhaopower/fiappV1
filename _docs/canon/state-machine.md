@@ -12,7 +12,7 @@ The router/guards depend on:
 
 1. `isAuthed`
 2. `hasAssessment` (PROFILE.latestAssessmentId)
-3. `subscriptionStatus` (`free|paid`)
+3. `subscriptionStatus` (`FREE|PAID`)
 4. `activePracticeIds.length`
 5. `todayFocusPracticeId` (optional)
 6. Trial presence (TRIAL items) (optional for routing, important for UI)

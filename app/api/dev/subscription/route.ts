@@ -1,10 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDataClient } from "@/utils/dataServerClient";
-import {
-  getUserId,
-  isUnauthorizedError,
-  unauthorizedResponse,
-} from "@/utils/authServer";
+import { withAuth } from "@/utils/authServer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,21 +28,12 @@ export async function POST(req: Request) {
     );
   }
 
-  try {
-    // 1) Prove what identity the SERVER sees (canonical helper)
-    const auth = await getUserId(req);
-
+  return withAuth(req, async (auth) => {
     const client = getDataClient();
-
-    // 2) Read BEFORE
     const before = await client.queries.getMyProfile();
-
-    // 3) Mutate
     const mutation = await client.mutations.setMySubscriptionStatus({
       subscriptionStatus: body.subscriptionStatus,
     });
-
-    // 4) Read AFTER
     const after = await client.queries.getMyProfile();
 
     return NextResponse.json(
@@ -60,11 +47,5 @@ export async function POST(req: Request) {
       },
       { status: 200, headers: resHeaders }
     );
-  } catch (error) {
-    if (isUnauthorizedError(error)) {
-      return unauthorizedResponse();
-    }
-
-    return unauthorizedResponse();
-  }
+  });
 }

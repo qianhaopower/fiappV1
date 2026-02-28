@@ -1,10 +1,6 @@
 import { NextResponse } from "next/server";
 import { createDynamoClient } from "@/utils/dynamoClient";
-import {
-  getUserId,
-  isUnauthorizedError,
-  unauthorizedResponse,
-} from "@/utils/authServer";
+import { withAuth } from "@/utils/authServer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,9 +18,7 @@ type AssessmentItem = {
 };
 
 export async function GET() {
-  try {
-    const user = await getUserId();
-
+  return withAuth(undefined, async (user) => {
     const client = createDynamoClient();
     const pk = `USER#${user.userId}`;
     const profile = await client.getItem<ProfileItem>({
@@ -52,11 +46,5 @@ export async function GET() {
     }
 
     return NextResponse.json(assessment, { status: 200 });
-  } catch (error) {
-    if (isUnauthorizedError(error)) {
-      return unauthorizedResponse();
-    }
-
-    return unauthorizedResponse();
-  }
+  });
 }

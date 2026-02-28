@@ -109,8 +109,8 @@ This endpoint is the **only** way to modify active/trial/paused/focus state.
 
 **Server rules**
 - Enforce caps based on `subscriptionStatus`:
-  - free cap=1
-  - paid cap=10
+  - FREE cap=1
+  - PAID cap=10
 - Warning thresholds on paid:
   - at 5 → include warning
   - at 7 → strong warning

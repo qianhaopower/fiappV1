@@ -24,9 +24,11 @@
 ### 1.1 PROFILE creation
 - [ ] `GET /api/me` creates PROFILE if missing
 - [ ] PROFILE contains required fields with safe defaults:
-  - `subscriptionStatus` default (free unless dev override)
+  - `subscriptionStatus` default (FREE unless dev override)
   - `activePracticeIds` defaults to `[]`
   - `latestAssessmentId` defaults to `null`
+- [ ] PROFILE creation is idempotent: calling `GET /api/me` twice returns same profile (no overwrite)
+- **Manual verification:** Sign in → call `GET /api/me` twice → both return same `userId`, `subscriptionStatus`, `createdAt`; default fields present
 
 ### 1.2 Returns table shape
 - [ ] `POST /api/return` writes to **FIAPP_RETURNS**:

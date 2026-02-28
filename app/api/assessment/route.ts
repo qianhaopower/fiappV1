@@ -7,19 +7,13 @@ import {
   assessmentQuestionsById,
 } from "@/lib/assessment/questions";
 import { computeScores, pickFocusPillar } from "../../../lib/assessment/scoring";
-import {
-  getUserId,
-  isUnauthorizedError,
-  unauthorizedResponse,
-} from "@/utils/authServer";
+import { withAuth } from "@/utils/authServer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
-  try {
-    const user = await getUserId(req);
-
+  return withAuth(req, async (user) => {
     const body = (await req.json()) as {
       answers?: Record<string, boolean>;
     };
@@ -92,12 +86,5 @@ export async function POST(req: Request) {
       { assessmentId, focusPillar, scoresByPillar },
       { status: 200 }
     );
-  } catch (error) {
-    if (isUnauthorizedError(error)) {
-      return unauthorizedResponse();
-    }
-
-    // Preserve existing behavior for now (including tests): treat internal failures as unauthorized.
-    return unauthorizedResponse();
-  }
+  });
 }

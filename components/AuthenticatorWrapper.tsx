@@ -2,8 +2,26 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Authenticator } from "@aws-amplify/ui-react";
+import { Authenticator, useAuthenticator } from "@aws-amplify/ui-react";
 import { ensureAmplifyConfigured } from "@/lib/amplifyClient";
+
+function SignInFooter() {
+  const { toForgotPassword } = useAuthenticator();
+  return (
+    <div className="mt-3 flex flex-col items-center gap-2">
+      <button
+        type="button"
+        onClick={toForgotPassword}
+        className="text-xs text-primary hover:text-primary/80 font-medium"
+      >
+        Forgot password?
+      </button>
+      <p className="text-xs text-muted-foreground">
+        We&apos;ll never share your data.
+      </p>
+    </div>
+  );
+}
 
 function AuthRedirect() {
   const router = useRouter();
@@ -63,11 +81,7 @@ export default function AuthenticatorWrapper() {
             }}
             components={{
               SignIn: {
-                Footer: () => (
-                  <p className="mt-3 text-center text-xs text-muted-foreground">
-                    We’ll never share your data.
-                  </p>
-                ),
+                Footer: SignInFooter,
               },
             }}
           >
