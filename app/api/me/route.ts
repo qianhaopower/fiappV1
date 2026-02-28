@@ -1,25 +1,19 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 
-import { runWithAmplifyServerContext } from "@/utils/amplifyServerUtils";
-import { getCurrentUser } from "aws-amplify/auth/server";
 import { getDataClient } from "@/utils/dataServerClient";
+import {
+  getUserId,
+  isUnauthorizedError,
+  unauthorizedResponse,
+} from "@/utils/authServer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    // 1) Server-verified identity
-    const { user } = await runWithAmplifyServerContext({
-      nextServerContext: { cookies },
-      operation: async (contextSpec) => {
-        const u = await getCurrentUser(contextSpec);
-        return {
-          user: { userId: u.userId, username: u.username },
-        };
-      },
-    });
+    // 1) Server-verified identity (canonical helper)
+    const user = await getUserId(req);
 
     const client = getDataClient();
 
@@ -56,9 +50,12 @@ export async function GET() {
     const res = NextResponse.json({ user, profile: created.data }, { status: 200 });
     res.headers.set("Cache-Control", "no-store");
     return res;
-  } catch {
-    const res = NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    res.headers.set("Cache-Control", "no-store");
-    return res;
+  } catch (error) {
+    if (isUnauthorizedError(error)) {
+      return unauthorizedResponse();
+    }
+
+    // Preserve existing behavior for now: treat unexpected errors as unauthorized.
+    return unauthorizedResponse();
   }
 }

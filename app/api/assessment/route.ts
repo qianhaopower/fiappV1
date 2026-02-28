@@ -1,28 +1,24 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import crypto from "crypto";
 
-import { runWithAmplifyServerContext } from "@/utils/amplifyServerUtils";
-import { getCurrentUser } from "aws-amplify/auth/server";
 import { createDynamoClient } from "@/utils/dynamoClient";
 import {
   assessmentQuestionIds,
   assessmentQuestionsById,
 } from "@/lib/assessment/questions";
 import { computeScores, pickFocusPillar } from "../../../lib/assessment/scoring";
+import {
+  getUserId,
+  isUnauthorizedError,
+  unauthorizedResponse,
+} from "@/utils/authServer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   try {
-    const { user } = await runWithAmplifyServerContext({
-      nextServerContext: { cookies },
-      operation: async (contextSpec) => {
-        const u = await getCurrentUser(contextSpec);
-        return { user: { userId: u.userId, username: u.username } };
-      },
-    });
+    const user = await getUserId(req);
 
     const body = (await req.json()) as {
       answers?: Record<string, boolean>;
@@ -96,7 +92,12 @@ export async function POST(req: Request) {
       { assessmentId, focusPillar, scoresByPillar },
       { status: 200 }
     );
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  } catch (error) {
+    if (isUnauthorizedError(error)) {
+      return unauthorizedResponse();
+    }
+
+    // Preserve existing behavior for now (including tests): treat internal failures as unauthorized.
+    return unauthorizedResponse();
   }
 }

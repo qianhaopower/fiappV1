@@ -113,9 +113,6 @@ export default function AssessmentPage() {
           <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
             <span className="font-medium text-foreground">Question {progressLabel}</span>
             <div className="ml-auto flex items-center gap-3">
-              <span className="text-xs uppercase tracking-[0.2em]">
-                {percentAnswered}% complete
-              </span>
               <Button
                 type="button"
                 variant="outline"

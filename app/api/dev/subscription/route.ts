@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-
-import { runWithAmplifyServerContext } from "@/utils/amplifyServerUtils";
-import { getCurrentUser } from "aws-amplify/auth/server";
 import { getDataClient } from "@/utils/dataServerClient";
+import {
+  getUserId,
+  isUnauthorizedError,
+  unauthorizedResponse,
+} from "@/utils/authServer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,14 +33,8 @@ export async function POST(req: Request) {
   }
 
   try {
-    // 1) Prove what identity the SERVER sees
-    const auth = await runWithAmplifyServerContext({
-      nextServerContext: { cookies },
-      operation: async (contextSpec) => {
-        const u = await getCurrentUser(contextSpec);
-        return { userId: u.userId, username: u.username };
-      },
-    });
+    // 1) Prove what identity the SERVER sees (canonical helper)
+    const auth = await getUserId(req);
 
     const client = getDataClient();
 
@@ -65,7 +60,11 @@ export async function POST(req: Request) {
       },
       { status: 200, headers: resHeaders }
     );
-  } catch  {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: resHeaders });
+  } catch (error) {
+    if (isUnauthorizedError(error)) {
+      return unauthorizedResponse();
+    }
+
+    return unauthorizedResponse();
   }
 }
