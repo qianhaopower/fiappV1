@@ -4,6 +4,7 @@ import { type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { useAuthenticator } from "@aws-amplify/ui-react";
 import { AppShell } from "@/components/layout";
+import { ProfileProvider } from "@/contexts/ProfileContext";
 
 function shouldUseAppShell(pathname: string | null) {
   if (!pathname) return true;
@@ -30,9 +31,13 @@ export default function AppChrome({ children }: { children: ReactNode }) {
     }
   }
 
-  if (!shouldUseAppShell(pathname)) {
-    return <>{children}</>;
-  }
-
-  return <AppShell onSignOut={handleSignOut}>{children}</AppShell>;
+  return (
+    <ProfileProvider>
+      {!shouldUseAppShell(pathname) ? (
+        <>{children}</>
+      ) : (
+        <AppShell onSignOut={handleSignOut}>{children}</AppShell>
+      )}
+    </ProfileProvider>
+  );
 }

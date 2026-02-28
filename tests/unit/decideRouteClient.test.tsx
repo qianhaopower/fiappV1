@@ -1,39 +1,37 @@
-import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import DecideRouteClient from "@/components/DecideRouteClient";
 
 const replaceMock = vi.fn();
+const useProfileMock = vi.fn();
+let mockAuthStatus = "authenticated";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: replaceMock }),
 }));
 
-type MockResponse = {
-  status: number;
-  json: () => Promise<unknown>;
-};
+vi.mock("@aws-amplify/ui-react", () => ({
+  useAuthenticator: () => ({ authStatus: mockAuthStatus }),
+}));
 
-function makeResponse(status: number, body: unknown): MockResponse {
-  return {
-    status,
-    json: async () => body,
-  };
-}
+vi.mock("@/contexts/ProfileContext", () => ({
+  useProfile: () => useProfileMock(),
+}));
 
 describe("DecideRouteClient", () => {
   beforeEach(() => {
     replaceMock.mockReset();
-    vi.stubGlobal("fetch", vi.fn());
+    useProfileMock.mockReset();
+    mockAuthStatus = "authenticated";
   });
 
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it("shows loading while fetch is pending", () => {
-    (global.fetch as unknown as Mock).mockImplementation(
-      () => new Promise(() => {})
-    );
+  it("shows loading while profile is pending", () => {
+    useProfileMock.mockReturnValue({
+      profile: null,
+      loading: true,
+      error: null,
+      refetch: vi.fn(),
+    });
 
     render(<DecideRouteClient />);
 
@@ -42,15 +40,16 @@ describe("DecideRouteClient", () => {
   });
 
   it("redirects to /assessment when no assessment", async () => {
-    (global.fetch as unknown as Mock).mockResolvedValue(
-      makeResponse(200, {
-        profile: {
-          latestAssessmentId: null,
-          activePracticeIds: ["p1"],
-          todayFocusPracticeId: "p1",
-        },
-      })
-    );
+    useProfileMock.mockReturnValue({
+      profile: {
+        latestAssessmentId: null,
+        activePracticeIds: ["p1"],
+        todayFocusPracticeId: "p1",
+      },
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
 
     render(<DecideRouteClient />);
 
@@ -60,15 +59,16 @@ describe("DecideRouteClient", () => {
   });
 
   it("redirects to /results when no active practices", async () => {
-    (global.fetch as unknown as Mock).mockResolvedValue(
-      makeResponse(200, {
-        profile: {
-          latestAssessmentId: "a1",
-          activePracticeIds: [],
-          todayFocusPracticeId: "p1",
-        },
-      })
-    );
+    useProfileMock.mockReturnValue({
+      profile: {
+        latestAssessmentId: "a1",
+        activePracticeIds: [],
+        todayFocusPracticeId: "p1",
+      },
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
 
     render(<DecideRouteClient />);
 
@@ -78,15 +78,16 @@ describe("DecideRouteClient", () => {
   });
 
   it("redirects to /practices when no focus practice", async () => {
-    (global.fetch as unknown as Mock).mockResolvedValue(
-      makeResponse(200, {
-        profile: {
-          latestAssessmentId: "a1",
-          activePracticeIds: ["p1"],
-          todayFocusPracticeId: null,
-        },
-      })
-    );
+    useProfileMock.mockReturnValue({
+      profile: {
+        latestAssessmentId: "a1",
+        activePracticeIds: ["p1"],
+        todayFocusPracticeId: null,
+      },
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
 
     render(<DecideRouteClient />);
 
@@ -96,15 +97,16 @@ describe("DecideRouteClient", () => {
   });
 
   it("redirects to /today when focus practice exists", async () => {
-    (global.fetch as unknown as Mock).mockResolvedValue(
-      makeResponse(200, {
-        profile: {
-          latestAssessmentId: "a1",
-          activePracticeIds: ["p1"],
-          todayFocusPracticeId: "p1",
-        },
-      })
-    );
+    useProfileMock.mockReturnValue({
+      profile: {
+        latestAssessmentId: "a1",
+        activePracticeIds: ["p1"],
+        todayFocusPracticeId: "p1",
+      },
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
 
     render(<DecideRouteClient />);
 
@@ -113,10 +115,29 @@ describe("DecideRouteClient", () => {
     });
   });
 
-  it("redirects to /auth on 401 or 403", async () => {
-    (global.fetch as unknown as Mock).mockResolvedValue(
-      makeResponse(401, { error: "Unauthorized" })
-    );
+  it("redirects to /auth when unauthenticated", async () => {
+    mockAuthStatus = "unauthenticated";
+    useProfileMock.mockReturnValue({
+      profile: null,
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    render(<DecideRouteClient />);
+
+    await waitFor(() => {
+      expect(replaceMock).toHaveBeenCalledWith("/auth");
+    });
+  });
+
+  it("redirects to /auth on 401 or 403 error", async () => {
+    useProfileMock.mockReturnValue({
+      profile: null,
+      loading: false,
+      error: { status: 401 },
+      refetch: vi.fn(),
+    });
 
     render(<DecideRouteClient />);
 
@@ -126,30 +147,17 @@ describe("DecideRouteClient", () => {
   });
 
   it("shows error state on 500 or network error", async () => {
-    (global.fetch as unknown as Mock).mockResolvedValue(
-      makeResponse(500, { error: "Server error" })
-    );
+    useProfileMock.mockReturnValue({
+      profile: null,
+      loading: false,
+      error: { status: 500, message: "Server error" },
+      refetch: vi.fn(),
+    });
 
     render(<DecideRouteClient />);
 
-    await waitFor(() => {
-      expect(screen.getByText("Something went wrong")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
-    });
-
-    expect(replaceMock).not.toHaveBeenCalled();
-  });
-
-  it("shows error state on network failure", async () => {
-    (global.fetch as unknown as Mock).mockRejectedValue(new Error("Network"));
-
-    render(<DecideRouteClient />);
-
-    await waitFor(() => {
-      expect(screen.getByText("Something went wrong")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
-    });
-
+    expect(screen.getByText("Something went wrong")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
     expect(replaceMock).not.toHaveBeenCalled();
   });
 });

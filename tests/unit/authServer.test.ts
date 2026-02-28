@@ -82,4 +82,33 @@ describe("authServer", () => {
       expect(isUnauthorizedError("unauthorized")).toBe(false);
     });
   });
+
+  describe("withAuth guard", () => {
+    it("returns 401 with normalized error envelope when unauthenticated", async () => {
+      runWithAmplifyMock.mockRejectedValue(new Error("Not authenticated"));
+
+      const { withAuth } = await import("@/utils/authServer");
+      const res = await withAuth(undefined, async () =>
+        new Response(JSON.stringify({ ok: true }), { status: 200 })
+      );
+
+      expect(res.status).toBe(401);
+      const json = (await res.json()) as { ok: boolean; error: { code: string; message: string } };
+      expect(json.ok).toBe(false);
+      expect(json.error.code).toBe("UNAUTHORIZED");
+      expect(json.error.message).toBe("Authentication required");
+    });
+
+    it("invokes handler with user when authenticated", async () => {
+      runWithAmplifyMock.mockResolvedValue({
+        user: { userId: "usr-99", username: "test" },
+      });
+
+      const { withAuth } = await import("@/utils/authServer");
+      const handler = vi.fn(async () => new Response("ok", { status: 200 }));
+      await withAuth(undefined, handler);
+
+      expect(handler).toHaveBeenCalledWith({ userId: "usr-99", username: "test" });
+    });
+  });
 });

@@ -61,3 +61,20 @@ export function isUnauthorizedError(error: unknown): error is UnauthorizedError 
   return error instanceof UnauthorizedError;
 }
 
+/**
+ * Guard wrapper for protected API handlers.
+ * Resolves user or returns standardized 401 response.
+ * Use for all routes that require authentication.
+ */
+export async function withAuth(
+  req: Request | undefined,
+  handler: (user: AuthUser) => Promise<Response>
+): Promise<Response> {
+  try {
+    const user = await getUserId(req);
+    return await handler(user);
+  } catch (error) {
+    return unauthorizedResponse();
+  }
+}
+

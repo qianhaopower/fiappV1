@@ -19,7 +19,7 @@
 - **SK:** `PROFILE`
 - **Purpose:** user-level state, caps, focus pointers, counters, milestones pointers.
 - **Fields (canonical):**
-  - `subscriptionStatus`: `"free" | "paid"` (dev override allowed elsewhere; schema supports both)
+  - `subscriptionStatus`: `"FREE" | "PAID"` (dev override allowed elsewhere; schema supports both)
   - `activePracticeIds`: `string[]` (IDs)
   - `activePracticeSkById`: `{ [practiceId: string]: string }`  
     - Used by **Option 2 pause logic** (lets you locate the user-practice record SK even if “paused”)

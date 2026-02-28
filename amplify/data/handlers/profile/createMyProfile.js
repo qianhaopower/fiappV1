@@ -15,6 +15,14 @@ export function request(ctx) {
     subscriptionStatus: "FREE",
     createdAt: now,
     updatedAt: now,
+    activePracticeIds: [],
+    activePracticeSkById: {},
+    todayFocusPracticeId: null,
+    latestAssessmentId: null,
+    focusPillar: null,
+    returnCounters: {},
+    practiceCounters: {},
+    milestonesAchieved: [],
   };
 
   const req = ddb.put({ key, item });

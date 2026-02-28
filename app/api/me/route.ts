@@ -1,61 +1,52 @@
 import { NextResponse } from "next/server";
 
 import { getDataClient } from "@/utils/dataServerClient";
-import {
-  getUserId,
-  isUnauthorizedError,
-  unauthorizedResponse,
-} from "@/utils/authServer";
+import { withAuth } from "@/utils/authServer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
-  try {
-    // 1) Server-verified identity (canonical helper)
-    const user = await getUserId(req);
-
+  return withAuth(req, async () => {
     const client = getDataClient();
 
-    // 2) Read profile
+    // 1) Read PROFILE (PK=USER#id, SK=PROFILE)
     const read1 = await client.queries.getMyProfile();
     if (read1.errors?.length) {
-      const res = NextResponse.json({ error: read1.errors }, { status: 500 });
+      const res = NextResponse.json(
+        { ok: false, error: { code: "INTERNAL_ERROR", message: "Failed to read profile" } },
+        { status: 500 }
+      );
       res.headers.set("Cache-Control", "no-store");
       return res;
     }
 
     if (read1.data) {
-      const res = NextResponse.json({ user, profile: read1.data }, { status: 200 });
+      const res = NextResponse.json({ ok: true, data: read1.data }, { status: 200 });
       res.headers.set("Cache-Control", "no-store");
       return res;
     }
 
-    // 3) Create profile if missing
+    // 2) If missing, create default PROFILE (idempotent; does not overwrite)
     const created = await client.mutations.createMyProfile();
     if (created.errors?.length) {
-      // handle race/conditional by re-reading once
+      // Race: another request created it; re-read
       const read2 = await client.queries.getMyProfile();
-      if (read2.errors?.length) {
-        const res = NextResponse.json({ error: read2.errors }, { status: 500 });
+      if (read2.errors?.length || !read2.data) {
+        const res = NextResponse.json(
+          { ok: false, error: { code: "INTERNAL_ERROR", message: "Failed to create or read profile" } },
+          { status: 500 }
+        );
         res.headers.set("Cache-Control", "no-store");
         return res;
       }
-
-      const res = NextResponse.json({ user, profile: read2.data }, { status: 200 });
+      const res = NextResponse.json({ ok: true, data: read2.data }, { status: 200 });
       res.headers.set("Cache-Control", "no-store");
       return res;
     }
 
-    const res = NextResponse.json({ user, profile: created.data }, { status: 200 });
+    const res = NextResponse.json({ ok: true, data: created.data }, { status: 200 });
     res.headers.set("Cache-Control", "no-store");
     return res;
-  } catch (error) {
-    if (isUnauthorizedError(error)) {
-      return unauthorizedResponse();
-    }
-
-    // Preserve existing behavior for now: treat unexpected errors as unauthorized.
-    return unauthorizedResponse();
-  }
+  });
 }

@@ -15,6 +15,15 @@ const schema = a.schema({
     subscriptionStatus: a.string().required(), // FREE | PAID
     createdAt: a.string().required(),
     updatedAt: a.string().required(),
+    // Canon defaults (db-schema); optional for backwards compat with existing profiles
+    activePracticeIds: a.string().array(),
+    activePracticeSkById: a.json(),
+    todayFocusPracticeId: a.string(),
+    latestAssessmentId: a.string(),
+    focusPillar: a.string(),
+    returnCounters: a.json(),
+    practiceCounters: a.json(),
+    milestonesAchieved: a.string().array(),
   }),
 
   /**
