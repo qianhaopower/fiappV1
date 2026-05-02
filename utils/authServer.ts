@@ -70,11 +70,12 @@ export async function withAuth(
   req: Request | undefined,
   handler: (user: AuthUser) => Promise<Response>
 ): Promise<Response> {
+  let user: AuthUser;
   try {
-    const user = await getUserId(req);
-    return await handler(user);
-  } catch (error) {
+    user = await getUserId(req);
+  } catch {
     return unauthorizedResponse();
   }
+  return handler(user);
 }
 
