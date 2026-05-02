@@ -76,6 +76,14 @@ export async function withAuth(
   } catch {
     return unauthorizedResponse();
   }
-  return handler(user);
+  try {
+    return await handler(user);
+  } catch (error) {
+    console.error('[withAuth] handler error:', error);
+    return NextResponse.json(
+      { ok: false, error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } },
+      { status: 500 }
+    );
+  }
 }
 

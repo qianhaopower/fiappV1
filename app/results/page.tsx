@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { StandardPage } from '@/components/layout';
 import { Card, Button, Loading, ErrorState } from '@/components/ui';
@@ -30,10 +31,42 @@ type SuggestionsData = {
 }
 
 export default function ResultsPage() {
+  const router = useRouter()
   const [assessment, setAssessment] = useState<AssessmentData | null>(null)
   const [suggestions, setSuggestions] = useState<Practice[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const [trialLoading, setTrialLoading] = useState<Record<string, boolean>>({})
+  const [trialError, setTrialError] = useState<Record<string, string>>({})
+
+  const handleTryThis = useCallback(async (practiceId: string) => {
+    setTrialLoading((prev) => ({ ...prev, [practiceId]: true }))
+    setTrialError((prev) => ({ ...prev, [practiceId]: '' }))
+    try {
+      const res = await fetch('/api/practice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'startTrial', practiceId }),
+      })
+      if (res.ok || res.status === 409) {
+        const data = await res.json()
+        if (res.ok || data.error === 'ALREADY_TRIALING' || data.error === 'ALREADY_ACTIVE') {
+          router.push('/practices')
+          return
+        }
+        const msg = data.error === 'TRIAL_LIMIT_REACHED'
+          ? 'You already have an active trial. Promote or discard it first.'
+          : 'Could not start trial. Please try again.'
+        setTrialError((prev) => ({ ...prev, [practiceId]: msg }))
+      } else {
+        setTrialError((prev) => ({ ...prev, [practiceId]: 'Could not start trial. Please try again.' }))
+      }
+    } catch {
+      setTrialError((prev) => ({ ...prev, [practiceId]: 'Could not start trial. Please try again.' }))
+    } finally {
+      setTrialLoading((prev) => ({ ...prev, [practiceId]: false }))
+    }
+  }, [router])
 
   useEffect(() => {
     async function load() {
@@ -166,10 +199,21 @@ export default function ResultsPage() {
                         Why: {practice.rationale}
                       </p>
                     </div>
-                    {/* TODO E5: wire to trial activation API */}
-                    <Button size="sm" variant="outline" className="shrink-0" asChild>
-                      <Link href="/practices">Try this</Link>
-                    </Button>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={!!trialLoading[practice.id]}
+                        onClick={() => handleTryThis(practice.id)}
+                      >
+                        {trialLoading[practice.id] ? '…' : 'Try this'}
+                      </Button>
+                      {trialError[practice.id] && (
+                        <p className="text-[11px] text-destructive text-right max-w-[140px]">
+                          {trialError[practice.id]}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </Card>
               ))}
