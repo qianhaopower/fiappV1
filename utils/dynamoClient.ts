@@ -1,4 +1,4 @@
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { DynamoDBClient, ConditionalCheckFailedException } from "@aws-sdk/client-dynamodb";
 import {
   DynamoDBDocumentClient,
   GetCommand,
@@ -52,6 +52,21 @@ export class DynamoClient {
       Item: item,
     };
     await this.client.send(new PutCommand(input));
+  }
+
+  async putItemIfNotExists(item: Record<string, unknown>): Promise<boolean> {
+    try {
+      const input: PutCommandInput = {
+        TableName: this.tableName,
+        Item: item,
+        ConditionExpression: 'attribute_not_exists(PK)',
+      }
+      await this.client.send(new PutCommand(input))
+      return true
+    } catch (error) {
+      if (error instanceof ConditionalCheckFailedException) return false
+      throw error
+    }
   }
 
   async updateItem(input: Omit<UpdateCommandInput, "TableName">) {

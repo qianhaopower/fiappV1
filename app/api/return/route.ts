@@ -11,6 +11,12 @@ import {
   applyDelta,
   type ReturnItem,
 } from '@/lib/returns/returns'
+import {
+  checkNewMilestones,
+  getMilestoneDef,
+  makeMilestoneSK,
+  type NewMilestone,
+} from '@/lib/milestones/milestones'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -73,7 +79,7 @@ export async function POST(req: Request) {
 
     // No-op if value unchanged
     if (existing && delta === 0) {
-      return NextResponse.json({ ok: true, noop: true, didIt, date: returnDate }, { status: 200 })
+      return NextResponse.json({ ok: true, noop: true, didIt, date: returnDate, newMilestones: [] }, { status: 200 })
     }
 
     const now = new Date().toISOString()
@@ -87,7 +93,9 @@ export async function POST(req: Request) {
       updatedAt: now,
     })
 
-    // Update returnCounters in PROFILE if delta != 0
+    let newMilestones: NewMilestone[] = []
+
+    // Update returnCounters and check milestones if delta != 0
     if (delta !== 0) {
       const raw = profile?.returnCounters
       const counters: Record<string, number> =
@@ -100,8 +108,36 @@ export async function POST(req: Request) {
         UpdateExpression: 'SET returnCounters = :counters',
         ExpressionAttributeValues: { ':counters': updated },
       })
+
+      // Check and persist milestones triggered by this check-in
+      if (delta > 0) {
+        const crossed = checkNewMilestones(updated, practiceId, delta)
+        const results = await Promise.all(
+          crossed.map(async (hit) => {
+            const def = getMilestoneDef(hit.type, hit.threshold)
+            if (!def) return null
+            const sk = makeMilestoneSK(hit.type, hit.threshold, hit.practiceId)
+            const item = {
+              PK: pk,
+              SK: sk,
+              type: hit.type,
+              ...(hit.practiceId ? { practiceId: hit.practiceId } : {}),
+              threshold: hit.threshold,
+              title: def.title,
+              description: def.description,
+              achievedAt: now,
+            }
+            const isNew = await mainClient.putItemIfNotExists(item)
+            if (!isNew) return null
+            const m: NewMilestone = { type: def.type, threshold: def.threshold, title: def.title, description: def.description }
+            if (hit.practiceId) m.practiceId = hit.practiceId
+            return m
+          })
+        )
+        newMilestones = results.filter((m): m is NewMilestone => m !== null)
+      }
     }
 
-    return NextResponse.json({ ok: true, didIt, date: returnDate, delta }, { status: 200 })
+    return NextResponse.json({ ok: true, didIt, date: returnDate, delta, newMilestones }, { status: 200 })
   })
 }
