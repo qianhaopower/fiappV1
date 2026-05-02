@@ -1,23 +1,41 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { NarrowFormPage } from '@/components/layout';
 import { Card, Button, Loading, ErrorState } from '@/components/ui';
 import { pillarColors } from '@/lib/design/pillarColors';
-import { MOCK_RETURN_DOTS, MOCK_PILLAR_LABELS } from '@/lib/mockState';
+import { MOCK_PILLAR_LABELS } from '@/lib/mockState';
 import { practicesById } from '@/lib/practices/library';
+import { todayUTC } from '@/lib/returns/returns';
 import type { Practice } from '@/lib/practices/library';
+import type { DotEntry } from '@/lib/returns/returns';
 
 type ActiveData = {
   todayFocusPracticeId: string | null
 }
 
+type ReturnsData = {
+  returns: DotEntry[]
+}
+
 export default function TodayPage() {
   const [focusPractice, setFocusPractice] = useState<Practice | null>(null)
+  const [dots, setDots] = useState<DotEntry[]>([])
+  const [todayDidIt, setTodayDidIt] = useState<boolean | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
-  const [todayStatus, setTodayStatus] = useState<'did-it' | 'not-today' | null>(null)
+  const [logging, setLogging] = useState(false)
+  const [logError, setLogError] = useState('')
+
+  const loadReturns = useCallback(async (practiceId: string) => {
+    const res = await fetch(`/api/returns?practiceId=${practiceId}&days=14`)
+    if (!res.ok) return
+    const data: ReturnsData = await res.json()
+    setDots(data.returns)
+    const today = data.returns.find((d) => d.date === todayUTC())
+    setTodayDidIt(today?.didIt ?? null)
+  }, [])
 
   useEffect(() => {
     fetch('/api/practices/active')
@@ -25,22 +43,46 @@ export default function TodayPage() {
         if (!res.ok) throw new Error('Failed')
         return res.json() as Promise<ActiveData>
       })
-      .then((data) => {
+      .then(async (data) => {
         const practice = data.todayFocusPracticeId
           ? practicesById.get(data.todayFocusPracticeId) ?? null
           : null
         setFocusPractice(practice)
+        if (practice) await loadReturns(practice.id)
       })
       .catch(() => setError(true))
       .finally(() => setLoading(false))
-  }, [])
+  }, [loadReturns])
+
+  async function handleLog(value: boolean) {
+    if (!focusPractice) return
+
+    // Toggle: clicking the active button again un-logs it
+    const newValue = todayDidIt === value ? !value : value
+
+    setLogging(true)
+    setLogError('')
+    try {
+      const res = await fetch('/api/return', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ practiceId: focusPractice.id, didIt: newValue }),
+      })
+      if (!res.ok) throw new Error('Failed to log return')
+      setTodayDidIt(newValue)
+      await loadReturns(focusPractice.id)
+    } catch {
+      setLogError('Could not save. Please try again.')
+    } finally {
+      setLogging(false)
+    }
+  }
 
   return (
     <NarrowFormPage title="Today" description="Your daily check-in." metaLabel="OVERVIEW">
       <div className="space-y-6">
 
         {loading && <Loading text="Loading today's practice…" />}
-
         {!loading && error && (
           <ErrorState message="Couldn't load today's practice." onRetry={() => window.location.reload()} />
         )}
@@ -58,7 +100,6 @@ export default function TodayPage() {
 
         {!loading && !error && focusPractice && (
           <>
-            {/* Focus practice card */}
             <Card>
               <div className="space-y-4">
                 <div>
@@ -74,40 +115,49 @@ export default function TodayPage() {
 
                 <div className="grid grid-cols-2 gap-3 pt-2">
                   <Button
-                    variant={todayStatus === 'did-it' ? 'default' : 'outline'}
-                    onClick={() => setTodayStatus('did-it')}
+                    variant={todayDidIt === true ? 'default' : 'outline'}
+                    disabled={logging}
+                    onClick={() => handleLog(true)}
                   >
-                    ✓ Did it
+                    {logging && todayDidIt !== true ? '…' : '✓ Did it'}
                   </Button>
                   <Button
-                    variant={todayStatus === 'not-today' ? 'secondary' : 'outline'}
-                    onClick={() => setTodayStatus('not-today')}
+                    variant={todayDidIt === false ? 'secondary' : 'outline'}
+                    disabled={logging}
+                    onClick={() => handleLog(false)}
                   >
-                    Not today
+                    {logging && todayDidIt !== false ? '…' : 'Not today'}
                   </Button>
                 </div>
 
-                {todayStatus && (
+                {todayDidIt === true && !logging && (
                   <p className="text-sm text-center text-muted-foreground">
-                    {todayStatus === 'did-it'
-                      ? 'Nice work. Keep it up tomorrow.'
-                      : 'No worries. Tomorrow is a fresh start.'}
+                    Nice work. Keep it up tomorrow.
                   </p>
+                )}
+                {todayDidIt === false && !logging && (
+                  <p className="text-sm text-center text-muted-foreground">
+                    No worries. Tomorrow is a fresh start.
+                  </p>
+                )}
+                {logError && (
+                  <p className="text-xs text-destructive text-center">{logError}</p>
                 )}
               </div>
             </Card>
 
-            {/* Recent days dots */}
+            {/* 14-day dots */}
             <Card variant="subtle">
               <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-4">Last 14 days</p>
               <div className="flex flex-wrap gap-2">
-                {MOCK_RETURN_DOTS.map((dot, i) => (
+                {dots.map((dot) => (
                   <span
-                    key={i}
-                    className={`h-6 w-6 rounded-full border ${
-                      dot === true
+                    key={dot.date}
+                    title={dot.date}
+                    className={`h-6 w-6 rounded-full border transition-colors ${
+                      dot.didIt === true
                         ? 'bg-primary border-primary'
-                        : dot === false
+                        : dot.didIt === false
                         ? 'bg-muted border-border'
                         : 'bg-transparent border-border/40'
                     }`}

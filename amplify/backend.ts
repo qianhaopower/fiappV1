@@ -21,3 +21,12 @@ const fiappMainTable = new aws_dynamodb.Table(externalDataSourcesStack, "FIAPP_M
 
 // IMPORTANT: This string is the DataSource name your schema must reference
 backend.data.addDynamoDbDataSource("FIAppMainDataSource", fiappMainTable);
+
+// Returns table — high-write habit loop data (separate table for prod scale)
+new aws_dynamodb.Table(externalDataSourcesStack, "FIAPP_RETURNS", {
+  tableName: "FIAPP_RETURNS",
+  partitionKey: { name: "PK", type: aws_dynamodb.AttributeType.STRING },
+  sortKey: { name: "SK", type: aws_dynamodb.AttributeType.STRING },
+  billingMode: aws_dynamodb.BillingMode.PAY_PER_REQUEST,
+  removalPolicy: RemovalPolicy.DESTROY,
+});

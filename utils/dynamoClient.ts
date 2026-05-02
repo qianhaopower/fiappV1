@@ -77,3 +77,8 @@ export class DynamoClient {
 export function createDynamoClient(options: DynamoClientOptions = {}) {
   return new DynamoClient(options);
 }
+
+export function createReturnsClient(options: Omit<DynamoClientOptions, 'tableName'> = {}) {
+  const tableName = process.env.FIAPP_RETURNS_TABLE ?? process.env.FIAPP_MAIN_TABLE;
+  return new DynamoClient({ ...options, tableName });
+}
