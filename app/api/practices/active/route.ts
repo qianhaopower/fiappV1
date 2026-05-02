@@ -17,6 +17,8 @@ type UPracticeItem = {
   practiceId: string
   pillar: string
   addedAt: string
+  status?: 'active' | 'paused' | 'replaced'
+  pausedAt?: string
 }
 
 export async function GET() {
@@ -36,17 +38,24 @@ export async function GET() {
       }),
     ])
 
-    // Enrich active practices with library data
+    function enrich(up: UPracticeItem) {
+      const lib = practicesById.get(up.practiceId)
+      if (!lib) return null
+      return { ...lib, addedAt: up.addedAt, status: up.status ?? 'active' }
+    }
+
+    // Treat no-status (legacy promoted before E6) as active
     const activePractices = upractices
-      .map((up) => {
-        const lib = practicesById.get(up.practiceId)
-        if (!lib) return null
-        return { ...lib, addedAt: up.addedAt }
-      })
+      .filter((up) => !up.status || up.status === 'active')
+      .map(enrich)
       .filter(Boolean)
 
-    // Enrich active trials with library data and computed fields
-    const activeTrial = trials
+    const pausedPractices = upractices
+      .filter((up) => up.status === 'paused')
+      .map(enrich)
+      .filter(Boolean)
+
+    const activeTrials = trials
       .filter((t) => t.status === 'trial')
       .map((t) => {
         const lib = practicesById.get(t.practiceId)
@@ -67,8 +76,10 @@ export async function GET() {
     return NextResponse.json(
       {
         activePractices,
-        trials: activeTrial,
+        pausedPractices,
+        trials: activeTrials,
         subscriptionStatus: profile?.subscriptionStatus ?? 'FREE',
+        todayFocusPracticeId: profile?.todayFocusPracticeId ?? null,
       },
       { status: 200 }
     )

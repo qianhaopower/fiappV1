@@ -25,6 +25,7 @@ export type ProfileData = {
   subscriptionStatus?: string
   activePracticeIds?: string[]
   activePracticeSkById?: Record<string, string>
+  todayFocusPracticeId?: string | null
 }
 
 export type CapCheckResult =
