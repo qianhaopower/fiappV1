@@ -117,8 +117,7 @@ describe("POST /api/assessment", () => {
     expect(res.status).toBe(401);
   });
 
-  it("returns 401 on dynamo failures (TODO: return 500 later)", async () => {
-    // TODO: refine handler to return 500 for internal errors.
+  it("returns 500 on dynamo failures", async () => {
     getCurrentUserMock.mockResolvedValue({ userId: "u1", username: "user" });
     putItemMock.mockRejectedValue(new Error("Dynamo failure"));
 
@@ -128,6 +127,6 @@ describe("POST /api/assessment", () => {
     });
 
     const res = await POST(req);
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(500);
   });
 });
