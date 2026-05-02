@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { getCurrentUser } from "aws-amplify/auth";
 import { ensureAmplifyConfigured } from "@/lib/amplifyClient";
 import { getE2EAuthMock } from "@/lib/testAuthMock";
+import { Loading } from "@/components/ui";
 
 interface AuthGateProps {
   children: ReactNode;
@@ -55,8 +56,8 @@ export default function AuthGate({ children }: AuthGateProps) {
 
   if (checking) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-muted/40 text-muted-foreground">
-        Loading...
+      <div className="min-h-screen flex items-center justify-center bg-muted/40">
+        <Loading />
       </div>
     );
   }
