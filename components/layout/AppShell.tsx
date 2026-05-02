@@ -1,4 +1,8 @@
-import React from 'react'
+'use client'
+
+import { useState } from 'react'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { Button } from '@/components/ui'
 import { PlanBadge } from '@/components/PlanBadge'
 import { UpgradeButton } from '@/components/UpgradeButton'
@@ -9,11 +13,21 @@ interface AppShellProps {
   onSignOut?: () => void
 }
 
-/**
- * Application shell with top bar, navigation, and content container
- * Provides consistent padding and product layout across pages
- */
+const NAV_ITEMS = [
+  { href: '/today', label: 'Today' },
+  { href: '/practices', label: 'Practices' },
+  { href: '/progress', label: 'Progress' },
+  { href: '/assessment', label: 'Assessment' },
+]
+
+function isActive(href: string, pathname: string | null) {
+  return pathname === href || (pathname?.startsWith(href + '/') ?? false)
+}
+
 export function AppShell({ children, onSignOut }: AppShellProps) {
+  const pathname = usePathname()
+  const [mobileOpen, setMobileOpen] = useState(false)
+
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-50 border-b border-border/60 bg-card/95 backdrop-blur relative overflow-hidden">
@@ -22,12 +36,23 @@ export function AppShell({ children, onSignOut }: AppShellProps) {
         </div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
           <div className="flex items-center gap-6">
-            <div className="font-semibold tracking-tight text-foreground">FIApp</div>
-            <nav className="hidden md:flex items-center gap-4 text-sm text-muted-foreground">
-              <a className="hover:text-foreground transition-colors" href="/today">Today</a>
-              <a className="hover:text-foreground transition-colors" href="/practices">Practices</a>
-              <a className="hover:text-foreground transition-colors" href="/progress">Progress</a>
-              <a className="hover:text-foreground transition-colors" href="/assessment">Assessment</a>
+            <Link href="/today" className="font-semibold tracking-tight text-foreground hover:text-primary transition-colors">
+              FIApp
+            </Link>
+            <nav className="hidden md:flex items-center gap-4 text-sm">
+              {NAV_ITEMS.map(({ href, label }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className={
+                    isActive(href, pathname)
+                      ? 'text-foreground font-medium'
+                      : 'text-muted-foreground hover:text-foreground transition-colors'
+                  }
+                >
+                  {label}
+                </Link>
+              ))}
             </nav>
           </div>
           <div className="flex items-center gap-2">
@@ -38,12 +63,61 @@ export function AppShell({ children, onSignOut }: AppShellProps) {
               Account
             </Button>
             {onSignOut && (
-              <Button variant="ghost" size="sm" onClick={onSignOut}>
+              <Button variant="ghost" size="sm" onClick={onSignOut} className="hidden sm:inline-flex">
                 Sign out
               </Button>
             )}
+            {/* Mobile hamburger */}
+            <button
+              className="md:hidden flex items-center justify-center w-9 h-9 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+              onClick={() => setMobileOpen((v) => !v)}
+            >
+              {mobileOpen ? (
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <line x1="2" y1="2" x2="16" y2="16" />
+                  <line x1="16" y1="2" x2="2" y2="16" />
+                </svg>
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <line x1="2" y1="5" x2="16" y2="5" />
+                  <line x1="2" y1="9" x2="16" y2="9" />
+                  <line x1="2" y1="13" x2="16" y2="13" />
+                </svg>
+              )}
+            </button>
           </div>
         </div>
+
+        {/* Mobile nav dropdown */}
+        {mobileOpen && (
+          <nav className="md:hidden border-t border-border/60 bg-card/95 px-4 py-3 flex flex-col gap-1">
+            {NAV_ITEMS.map(({ href, label }) => (
+              <Link
+                key={href}
+                href={href}
+                onClick={() => setMobileOpen(false)}
+                className={
+                  isActive(href, pathname)
+                    ? 'block px-3 py-2 rounded-md text-sm font-medium text-foreground bg-muted'
+                    : 'block px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors'
+                }
+              >
+                {label}
+              </Link>
+            ))}
+            <div className="mt-2 pt-2 border-t border-border/60 flex flex-col gap-1">
+              {onSignOut && (
+                <button
+                  onClick={() => { setMobileOpen(false); onSignOut(); }}
+                  className="block w-full text-left px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                >
+                  Sign out
+                </button>
+              )}
+            </div>
+          </nav>
+        )}
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
