@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { StandardPage } from '@/components/layout';
 import { Card, Button, Loading, ErrorState } from '@/components/ui';
+import { PillarRadarChart } from '@/components/ui/PillarRadarChart';
 import { pillarColors } from '@/lib/design/pillarColors';
 import { pillarOrder } from '@/lib/assessment/pillars';
 import type { Pillar } from '@/lib/assessment/pillars';
@@ -87,6 +88,14 @@ export default function ResultsPage() {
           <p className="mt-2 text-sm text-muted-foreground">
             This is your lowest-scoring area. Starting here gives you the most room to grow.
           </p>
+        </Card>
+
+        {/* Radar chart */}
+        <Card>
+          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-4">
+            Pillar Strengths
+          </p>
+          <PillarRadarChart scores={scores} focusPillar={focusPillar} />
         </Card>
 
         {/* All pillar scores */}
