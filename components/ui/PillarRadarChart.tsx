@@ -19,7 +19,7 @@ type Props = {
   focusPillar: Pillar
 }
 
-export function PillarRadarChart({ scores, focusPillar }: Props) {
+export function PillarRadarChart({ scores }: Props) {
   const data = pillarOrder.map((pillar) => ({
     pillar: MOCK_PILLAR_LABELS[pillar],
     score: scores[pillar] ?? 0,

@@ -26,6 +26,7 @@ export type ProfileData = {
   activePracticeIds?: string[]
   activePracticeSkById?: Record<string, string>
   todayFocusPracticeId?: string | null
+  returnCounters?: Record<string, number> | string
 }
 
 export type CapCheckResult =

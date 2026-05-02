@@ -68,7 +68,7 @@ export function isUnauthorizedError(error: unknown): error is UnauthorizedError 
  */
 export async function withAuth(
   req: Request | undefined,
-  handler: (user: AuthUser) => Promise<Response>
+  handler: (_user: AuthUser) => Promise<Response>
 ): Promise<Response> {
   let user: AuthUser;
   try {

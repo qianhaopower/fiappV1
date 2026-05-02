@@ -10,10 +10,10 @@ import { Button } from "@/components/ui";
  * Renders only when NEXT_PUBLIC_FIAPP_DEV_SUBSCRIPTION=true (e.g. in .env.local).
  */
 export function DevSubscriptionToggle() {
-  if (process.env.NEXT_PUBLIC_FIAPP_DEV_SUBSCRIPTION !== "true") return null;
-
   const { refetch } = useProfile();
   const [loading, setLoading] = useState(false);
+
+  if (process.env.NEXT_PUBLIC_FIAPP_DEV_SUBSCRIPTION !== "true") return null;
 
   async function setStatus(status: "FREE" | "PAID") {
     setLoading(true);
