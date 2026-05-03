@@ -1,6 +1,7 @@
 export type ProfileForRouting = {
   latestAssessmentId: string | null;
   activePracticeIds?: string[] | null;
+  activeTrialCount?: number | null;
   todayFocusPracticeId?: string | null;
 };
 
@@ -11,7 +12,10 @@ export function decideRoute(
     return "/assessment";
   }
 
-  if (!profile.activePracticeIds || profile.activePracticeIds.length === 0) {
+  const hasActivePractices = (profile.activePracticeIds?.length ?? 0) > 0;
+  const hasActiveTrials = (profile.activeTrialCount ?? 0) > 0;
+
+  if (!hasActivePractices && !hasActiveTrials) {
     return "/results";
   }
 

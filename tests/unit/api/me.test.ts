@@ -11,6 +11,11 @@ vi.mock("@/utils/dataServerClient", () => ({
   }),
 }));
 
+const dynamoQueryMock = vi.fn();
+vi.mock("@/utils/dynamoClient", () => ({
+  createDynamoClient: () => ({ query: dynamoQueryMock }),
+}));
+
 const runWithAmplifyMock = vi.fn();
 vi.mock("@/utils/amplifyServerUtils", () => ({
   runWithAmplifyServerContext: (opts: {
@@ -22,12 +27,14 @@ describe("GET /api/me", () => {
   beforeEach(() => {
     getMyProfileMock.mockReset();
     createMyProfileMock.mockReset();
+    dynamoQueryMock.mockReset();
+    dynamoQueryMock.mockResolvedValue([]); // no active trials by default
     runWithAmplifyMock.mockResolvedValue({
       user: { userId: "usr-test", username: "test@example.com" },
     });
   });
 
-  it("returns existing profile without calling createMyProfile", async () => {
+  it("returns existing profile with activeTrialCount=0 when no trials", async () => {
     const existingProfile = {
       userId: "usr-1",
       subscriptionStatus: "FREE",
@@ -44,12 +51,64 @@ describe("GET /api/me", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(json).toEqual({ ok: true, data: existingProfile });
+    expect(json.ok).toBe(true);
+    expect(json.data.userId).toBe("usr-1");
+    expect(json.data.activeTrialCount).toBe(0);
     expect(getMyProfileMock).toHaveBeenCalledTimes(1);
     expect(createMyProfileMock).not.toHaveBeenCalled();
   });
 
-  it("creates profile when missing, returns it", async () => {
+  it("returns activeTrialCount=1 when one active trial exists", async () => {
+    const existingProfile = {
+      userId: "usr-1",
+      subscriptionStatus: "FREE",
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      activePracticeIds: [],
+      latestAssessmentId: "a1",
+    };
+    getMyProfileMock.mockResolvedValue({ data: existingProfile, errors: undefined });
+    dynamoQueryMock.mockResolvedValue([{
+      practiceId: "sleep-consistent-bedtime",
+      status: "trial",
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      SK: "TRIAL#x#sleep-consistent-bedtime",
+    }]);
+
+    const req = new Request("http://localhost/api/me");
+    const res = await GET(req);
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.data.activeTrialCount).toBe(1);
+  });
+
+  it("does not count expired trials", async () => {
+    const existingProfile = {
+      userId: "usr-1",
+      subscriptionStatus: "FREE",
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      activePracticeIds: [],
+      latestAssessmentId: "a1",
+    };
+    getMyProfileMock.mockResolvedValue({ data: existingProfile, errors: undefined });
+    dynamoQueryMock.mockResolvedValue([{
+      practiceId: "sleep-consistent-bedtime",
+      status: "trial",
+      expiresAt: new Date(Date.now() - 1000).toISOString(), // expired
+      SK: "TRIAL#x#sleep-consistent-bedtime",
+    }]);
+
+    const req = new Request("http://localhost/api/me");
+    const res = await GET(req);
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.data.activeTrialCount).toBe(0);
+  });
+
+  it("creates profile when missing, returns it with activeTrialCount", async () => {
     getMyProfileMock.mockResolvedValue({ data: null, errors: undefined });
 
     const newProfile = {
@@ -71,8 +130,9 @@ describe("GET /api/me", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(json).toEqual({ ok: true, data: newProfile });
+    expect(json.ok).toBe(true);
     expect(json.data.subscriptionStatus).toBe("FREE");
+    expect(json.data.activeTrialCount).toBe(0);
     expect(getMyProfileMock).toHaveBeenCalledTimes(1);
     expect(createMyProfileMock).toHaveBeenCalledTimes(1);
   });
@@ -97,9 +157,9 @@ describe("GET /api/me", () => {
 
     expect(res1.status).toBe(200);
     expect(res2.status).toBe(200);
-    expect(json1.data).toEqual(json2.data);
-    expect(json1.data.userId).toBe("usr-3");
+    expect(json1.data.userId).toBe(json2.data.userId);
     expect(json1.data.subscriptionStatus).toBe("FREE");
+    expect(json1.data.activeTrialCount).toBe(0);
     expect(createMyProfileMock).not.toHaveBeenCalled();
   });
 

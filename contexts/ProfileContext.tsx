@@ -16,6 +16,7 @@ export type Profile = {
   subscriptionStatus?: "FREE" | "PAID";
   latestAssessmentId?: string | null;
   activePracticeIds?: string[] | null;
+  activeTrialCount?: number | null;
   todayFocusPracticeId?: string | null;
   [key: string]: unknown;
 };

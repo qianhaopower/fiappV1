@@ -1,52 +1,65 @@
 import { NextResponse } from "next/server";
 
 import { getDataClient } from "@/utils/dataServerClient";
+import { createDynamoClient } from "@/utils/dynamoClient";
 import { withAuth } from "@/utils/authServer";
+import { isTrialActive, type TrialItem } from "@/lib/practices/trial";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+function jsonWithNoStore(body: unknown, status: number) {
+  const res = NextResponse.json(body, { status });
+  res.headers.set("Cache-Control", "no-store");
+  return res;
+}
+
+async function getActiveTrialCount(userId: string): Promise<number> {
+  const client = createDynamoClient();
+  const trials = await client.query<TrialItem>({
+    KeyConditionExpression: "PK = :pk AND begins_with(SK, :prefix)",
+    ExpressionAttributeValues: { ":pk": `USER#${userId}`, ":prefix": "TRIAL#" },
+  });
+  return trials.filter(isTrialActive).length;
+}
+
 export async function GET(req: Request) {
-  return withAuth(req, async () => {
+  return withAuth(req, async (user) => {
     const client = getDataClient();
 
-    // 1) Read PROFILE (PK=USER#id, SK=PROFILE)
-    const read1 = await client.queries.getMyProfile();
-    if (read1.errors?.length) {
-      const res = NextResponse.json(
+    const [profileResult, activeTrialCount] = await Promise.all([
+      client.queries.getMyProfile(),
+      getActiveTrialCount(user.userId),
+    ]);
+
+    if (profileResult.errors?.length) {
+      return jsonWithNoStore(
         { ok: false, error: { code: "INTERNAL_ERROR", message: "Failed to read profile" } },
-        { status: 500 }
+        500
       );
-      res.headers.set("Cache-Control", "no-store");
-      return res;
     }
 
-    if (read1.data) {
-      const res = NextResponse.json({ ok: true, data: read1.data }, { status: 200 });
-      res.headers.set("Cache-Control", "no-store");
-      return res;
+    if (profileResult.data) {
+      return jsonWithNoStore(
+        { ok: true, data: { ...profileResult.data, activeTrialCount } },
+        200
+      );
     }
 
-    // 2) If missing, create default PROFILE (idempotent; does not overwrite)
+    // Profile missing — create default (idempotent)
     const created = await client.mutations.createMyProfile();
     if (created.errors?.length) {
-      // Race: another request created it; re-read
+      // Race: re-read
       const read2 = await client.queries.getMyProfile();
       if (read2.errors?.length || !read2.data) {
-        const res = NextResponse.json(
+        return jsonWithNoStore(
           { ok: false, error: { code: "INTERNAL_ERROR", message: "Failed to create or read profile" } },
-          { status: 500 }
+          500
         );
-        res.headers.set("Cache-Control", "no-store");
-        return res;
       }
-      const res = NextResponse.json({ ok: true, data: read2.data }, { status: 200 });
-      res.headers.set("Cache-Control", "no-store");
-      return res;
+      return jsonWithNoStore({ ok: true, data: { ...read2.data, activeTrialCount } }, 200);
     }
 
-    const res = NextResponse.json({ ok: true, data: created.data }, { status: 200 });
-    res.headers.set("Cache-Control", "no-store");
-    return res;
+    return jsonWithNoStore({ ok: true, data: { ...created.data, activeTrialCount } }, 200);
   });
 }
