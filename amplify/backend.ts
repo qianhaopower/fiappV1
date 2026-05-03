@@ -11,22 +11,22 @@ export const backend = defineBackend({
 
 const externalDataSourcesStack = backend.createStack("FIAppExternalDataSources");
 
-const fiappMainTable = new aws_dynamodb.Table(externalDataSourcesStack, "FIAPP_MAIN", {
-  tableName: "FIAPP_MAIN",
-  partitionKey: { name: "PK", type: aws_dynamodb.AttributeType.STRING },
-  sortKey: { name: "SK", type: aws_dynamodb.AttributeType.STRING },
-  billingMode: aws_dynamodb.BillingMode.PAY_PER_REQUEST,
-  removalPolicy: RemovalPolicy.DESTROY, // sandbox only; switch to RETAIN for prod
-});
+// FIAPP_MAIN was created by the sandbox stack — import it so the production stack
+// references the existing table instead of trying to create a duplicate.
+const fiappMainTable = aws_dynamodb.Table.fromTableName(
+  externalDataSourcesStack,
+  "FIAPP_MAIN",
+  "FIAPP_MAIN"
+);
 
 // IMPORTANT: This string is the DataSource name your schema must reference
 backend.data.addDynamoDbDataSource("FIAppMainDataSource", fiappMainTable);
 
-// Returns table — high-write habit loop data (separate table for prod scale)
+// Returns table — created and owned by the production pipeline.
 new aws_dynamodb.Table(externalDataSourcesStack, "FIAPP_RETURNS", {
   tableName: "FIAPP_RETURNS",
   partitionKey: { name: "PK", type: aws_dynamodb.AttributeType.STRING },
   sortKey: { name: "SK", type: aws_dynamodb.AttributeType.STRING },
   billingMode: aws_dynamodb.BillingMode.PAY_PER_REQUEST,
-  removalPolicy: RemovalPolicy.DESTROY,
+  removalPolicy: RemovalPolicy.RETAIN,
 });
