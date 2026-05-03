@@ -1,6 +1,6 @@
-# FIApp v1 — FRIENDS Intelligence App
+# FIApp v1 — Friends Intelligence App
 
-Science-based wellbeing assessment + coaching product using the F.R.I.E.N.D.S Intelligence framework.
+Science-based wellbeing assessment + coaching product using the Friends Intelligence framework.
 
 **Frontend + Backend:** Next.js (App Router)  
 **Hosting:** AWS Amplify  

@@ -264,14 +264,26 @@ export default function PracticesPage() {
         {loading && <Loading text="Loading your practices…" />}
         {!loading && error && <ErrorState message="Couldn't load practices." onRetry={load} />}
 
-        {!loading && !error && data && (
+        {!loading && !error && data && (() => {
+          const activeTrials = data.trials.filter((t) => t.active)
+          const expiredTrials = data.trials.filter((t) => !t.active)
+          const visibleCount = data.activePractices.length + activeTrials.length + data.pausedPractices.length
+          return (
           <>
-            {(data.activePractices.length + data.trials.length + data.pausedPractices.length) === 0 ? (
-              <EmptyState
-                title="No practices yet"
-                text="Pick practices from your results to start building your routine."
-                action={<Button variant="outline" asChild><Link href="/results">Browse suggestions</Link></Button>}
-              />
+            {visibleCount === 0 ? (
+              expiredTrials.length > 0 ? (
+                <EmptyState
+                  title={expiredTrials.length === 1 ? `Your trial of "${expiredTrials[0].title}" ended` : 'Your trials ended'}
+                  text="Ready to commit to something? Browse your results and pick a practice."
+                  action={<Button variant="outline" asChild><Link href="/results">Browse suggestions</Link></Button>}
+                />
+              ) : (
+                <EmptyState
+                  title="No practices yet"
+                  text="Pick practices from your results to start building your routine."
+                  action={<Button variant="outline" asChild><Link href="/results">Browse suggestions</Link></Button>}
+                />
+              )
             ) : (
               <div className="space-y-3">
                 {data.activePractices.map((p) => {
@@ -354,7 +366,7 @@ export default function PracticesPage() {
                   )
                 })}
 
-                {data.trials.map((t) => (
+                {activeTrials.map((t) => (
                   <Card key={t.id} variant="interactive" className="flex items-start justify-between gap-4">
                     <div className="space-y-2 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -404,7 +416,8 @@ export default function PracticesPage() {
               </div>
             )}
           </>
-        )}
+          )
+        })()}
 
         <div className="pt-2">
           <Button asChild>

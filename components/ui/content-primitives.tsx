@@ -107,9 +107,11 @@ interface EmptyStateProps {
 export function EmptyState({ icon, title, text, action }: EmptyStateProps) {
   return (
     <Card variant="subtle" className="text-center">
-      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted/60 text-muted-foreground">
-        {icon || <span className="text-lg">○</span>}
-      </div>
+      {icon && (
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted/60 text-muted-foreground">
+          {icon}
+        </div>
+      )}
       <h3 className="text-lg font-semibold text-foreground">{title}</h3>
       {text && <p className="mt-2 text-sm text-muted-foreground">{text}</p>}
       {action && <div className="mt-4 flex justify-center">{action}</div>}

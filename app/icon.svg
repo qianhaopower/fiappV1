@@ -1,0 +1,16 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <!-- Red — top (12 o'clock) -->
+  <path d="M 38.6 13.8 A 38 38 0 0 1 61.4 13.8" stroke="#E53935" stroke-width="9" fill="none" stroke-linecap="round"/>
+  <!-- Orange — upper right -->
+  <path d="M 71.2 18.4 A 38 38 0 0 1 85.5 36.3" stroke="#F47920" stroke-width="9" fill="none" stroke-linecap="round"/>
+  <!-- Yellow — right -->
+  <path d="M 87.9 46.9 A 38 38 0 0 1 82.8 69.2" stroke="#FFC20E" stroke-width="9" fill="none" stroke-linecap="round"/>
+  <!-- Green — lower right -->
+  <path d="M 75.9 77.8 A 38 38 0 0 1 55.5 87.6" stroke="#39B54A" stroke-width="9" fill="none" stroke-linecap="round"/>
+  <!-- Teal — lower left -->
+  <path d="M 44.6 87.6 A 38 38 0 0 1 24.1 77.8" stroke="#00A99D" stroke-width="9" fill="none" stroke-linecap="round"/>
+  <!-- Blue — left -->
+  <path d="M 17.3 69.3 A 38 38 0 0 1 12.1 47.0" stroke="#1C75BC" stroke-width="9" fill="none" stroke-linecap="round"/>
+  <!-- Purple — upper left -->
+  <path d="M 14.5 36.4 A 38 38 0 0 1 28.7 18.5" stroke="#7B2D8B" stroke-width="9" fill="none" stroke-linecap="round"/>
+</svg>
