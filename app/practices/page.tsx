@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { StandardPage } from '@/components/layout';
 import { Card, Button, EmptyState, Loading, ErrorState } from '@/components/ui';
 import { pillarColors } from '@/lib/design/pillarColors';
-import { MOCK_PILLAR_LABELS } from '@/lib/mockState';
+import { pillarLabels } from '@/lib/assessment/pillars';
 import { practices } from '@/lib/practices/library';
 import type { Pillar } from '@/lib/assessment/pillars';
 
@@ -45,7 +45,7 @@ function PillarBadge({ pillar }: { pillar: Pillar }) {
       className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-white"
       style={{ backgroundColor: pillarColors[pillar] }}
     >
-      {MOCK_PILLAR_LABELS[pillar]}
+      {pillarLabels[pillar]}
     </span>
   );
 }
@@ -303,7 +303,7 @@ export default function PracticesPage() {
                                       disabled={!!actionLoading[p.id]}
                                     >
                                       <span className="font-medium">{c.title}</span>
-                                      <span className="text-muted-foreground"> · {MOCK_PILLAR_LABELS[c.pillar]}</span>
+                                      <span className="text-muted-foreground"> · {pillarLabels[c.pillar]}</span>
                                     </button>
                                   ))}
                                 </div>

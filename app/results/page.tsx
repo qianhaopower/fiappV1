@@ -7,14 +7,9 @@ import { StandardPage } from '@/components/layout';
 import { Card, Button, Loading, ErrorState } from '@/components/ui';
 import { PillarRadarChart } from '@/components/ui/PillarRadarChart';
 import { pillarColors } from '@/lib/design/pillarColors';
-import { pillarOrder } from '@/lib/assessment/pillars';
+import { pillarOrder, pillarLabels } from '@/lib/assessment/pillars';
 import type { Pillar } from '@/lib/assessment/pillars';
 import type { Practice } from '@/lib/practices/library';
-import {
-  MOCK_PILLAR_SCORES,
-  MOCK_FOCUS_PILLAR,
-  MOCK_PILLAR_LABELS,
-} from '@/lib/mockState';
 
 const MAX_SCORE = 5;
 
@@ -82,7 +77,7 @@ export default function ResultsPage() {
           const data = await assessRes.json() as AssessmentData
           setAssessment(data)
         }
-        // 404 = no assessment yet — fall through to mock scores
+        // 404 = no assessment yet — assessment stays null
 
         if (!sugRes.ok) throw new Error('Failed to load suggestions')
         const sugData = await sugRes.json() as SuggestionsData
@@ -96,8 +91,8 @@ export default function ResultsPage() {
     load()
   }, [])
 
-  const scores = assessment?.scoresByPillar ?? MOCK_PILLAR_SCORES
-  const focusPillar = assessment?.focusPillar ?? MOCK_FOCUS_PILLAR
+  const scores = assessment?.scoresByPillar
+  const focusPillar = assessment?.focusPillar
 
   return (
     <StandardPage
@@ -106,65 +101,70 @@ export default function ResultsPage() {
       metaLabel="RESULTS"
     >
       <div className="space-y-10">
-        {/* Focus pillar highlight */}
-        <Card className="border-primary/30 bg-primary/5">
-          <p className="text-xs uppercase tracking-[0.2em] text-primary mb-2">Focus Pillar</p>
-          <div className="flex items-center gap-3">
-            <span
-              className="h-4 w-4 rounded-full shrink-0"
-              style={{ backgroundColor: pillarColors[focusPillar] }}
-            />
-            <h2 className="text-2xl font-bold text-foreground">
-              {MOCK_PILLAR_LABELS[focusPillar]} Intelligence
-            </h2>
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground">
-            This is your lowest-scoring area. Starting here gives you the most room to grow.
-          </p>
-        </Card>
 
-        {/* Radar chart */}
-        <Card>
-          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-4">
-            Pillar Strengths
-          </p>
-          <PillarRadarChart scores={scores} focusPillar={focusPillar} />
-        </Card>
+        {assessment && (
+          <>
+            {/* Focus pillar highlight */}
+            <Card className="border-primary/30 bg-primary/5">
+              <p className="text-xs uppercase tracking-[0.2em] text-primary mb-2">Focus Pillar</p>
+              <div className="flex items-center gap-3">
+                <span
+                  className="h-4 w-4 rounded-full shrink-0"
+                  style={{ backgroundColor: pillarColors[focusPillar!] }}
+                />
+                <h2 className="text-2xl font-bold text-foreground">
+                  {pillarLabels[focusPillar!]} Intelligence
+                </h2>
+              </div>
+              <p className="mt-2 text-sm text-muted-foreground">
+                This is your lowest-scoring area. Starting here gives you the most room to grow.
+              </p>
+            </Card>
 
-        {/* All pillar scores */}
-        <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-4">All Pillars</p>
-          <div className="space-y-3">
-            {pillarOrder.map((pillar) => {
-              const score = scores[pillar] ?? 0;
-              const pct = Math.round((score / MAX_SCORE) * 100);
-              const isFocus = pillar === focusPillar;
-              const color = pillarColors[pillar];
-              return (
-                <div
-                  key={pillar}
-                  className={`flex items-center gap-4 rounded-xl p-4 border ${
-                    isFocus ? 'border-primary/30 bg-primary/5' : 'border-border/60 bg-card'
-                  }`}
-                >
-                  <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                  <span className="w-28 text-sm font-medium text-foreground shrink-0">
-                    {MOCK_PILLAR_LABELS[pillar]}
-                  </span>
-                  <div className="flex-1 h-2 rounded-full bg-muted/60">
-                    <div className="h-2 rounded-full" style={{ width: `${pct}%`, backgroundColor: color }} />
-                  </div>
-                  <span className="w-10 text-right text-sm text-muted-foreground shrink-0">
-                    {score}/{MAX_SCORE}
-                  </span>
-                  {isFocus && (
-                    <span className="text-xs font-semibold text-primary shrink-0">focus</span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
+            {/* Radar chart */}
+            <Card>
+              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-4">
+                Pillar Strengths
+              </p>
+              <PillarRadarChart scores={scores!} focusPillar={focusPillar!} />
+            </Card>
+
+            {/* All pillar scores */}
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-4">All Pillars</p>
+              <div className="space-y-3">
+                {pillarOrder.map((pillar) => {
+                  const score = scores![pillar] ?? 0;
+                  const pct = Math.round((score / MAX_SCORE) * 100);
+                  const isFocus = pillar === focusPillar;
+                  const color = pillarColors[pillar];
+                  return (
+                    <div
+                      key={pillar}
+                      className={`flex items-center gap-4 rounded-xl p-4 border ${
+                        isFocus ? 'border-primary/30 bg-primary/5' : 'border-border/60 bg-card'
+                      }`}
+                    >
+                      <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                      <span className="w-28 text-sm font-medium text-foreground shrink-0">
+                        {pillarLabels[pillar]}
+                      </span>
+                      <div className="flex-1 h-2 rounded-full bg-muted/60">
+                        <div className="h-2 rounded-full" style={{ width: `${pct}%`, backgroundColor: color }} />
+                      </div>
+                      <span className="w-10 text-right text-sm text-muted-foreground shrink-0">
+                        {score}/{MAX_SCORE}
+                      </span>
+                      {isFocus && (
+                        <span className="text-xs font-semibold text-primary shrink-0">focus</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        )}
 
         {/* Suggested practices */}
         <div>
@@ -191,7 +191,7 @@ export default function ResultsPage() {
                         className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-white"
                         style={{ backgroundColor: pillarColors[practice.pillar] }}
                       >
-                        {MOCK_PILLAR_LABELS[practice.pillar]}
+                        {pillarLabels[practice.pillar]}
                       </span>
                       <p className="font-semibold text-foreground">{practice.title}</p>
                       <p className="text-sm text-muted-foreground">{practice.description}</p>
