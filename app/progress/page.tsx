@@ -18,6 +18,8 @@ type Milestone = {
 type ProgressData = {
   totalReturns: number
   practicesActivated: number
+  currentStreak: number
+  longestStreak: number
   milestones: Milestone[]
 }
 
@@ -53,6 +55,16 @@ export default function ProgressPage() {
               label="Total check-ins"
               value={data?.totalReturns ?? 0}
               helper="across all practices"
+            />
+            <StatCard
+              label="Current streak"
+              value={`${data?.currentStreak ?? 0}d`}
+              helper="days in a row"
+            />
+            <StatCard
+              label="Longest streak"
+              value={`${data?.longestStreak ?? 0}d`}
+              helper="personal best"
             />
             <StatCard
               label="Practices started"
