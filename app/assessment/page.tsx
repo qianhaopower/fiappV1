@@ -106,7 +106,7 @@ export default function AssessmentPage() {
       title=""
     >
       <div className="space-y-3">
-        <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+        <p className="text-xs tracking-[0.12em] text-muted-foreground">
           Friends Intelligence · Assessment
         </p>
         <Card>

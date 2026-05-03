@@ -142,7 +142,7 @@ export default function TodayPage() {
   }
 
   return (
-    <NarrowFormPage title="Today" description="Your daily check-in." metaLabel="OVERVIEW">
+    <NarrowFormPage title="Today" description="Your daily check-in.">
       <div className="space-y-6">
 
         {newMilestones.length > 0 && (

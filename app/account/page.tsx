@@ -14,7 +14,7 @@ export default function AccountPage() {
   const plan = profile?.subscriptionStatus === 'PAID' ? 'Premium' : 'Free'
 
   return (
-    <NarrowFormPage title="Account" description="Your profile and settings." metaLabel="ACCOUNT">
+    <NarrowFormPage title="Account" description="Your profile and settings.">
       <div className="space-y-4">
 
         {/* Identity */}
