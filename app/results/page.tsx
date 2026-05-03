@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { StandardPage } from '@/components/layout';
-import { Card, Button, Loading, ErrorState } from '@/components/ui';
+import { Card, Button, Loading, ErrorState, EmptyState } from '@/components/ui';
 import { PillarRadarChart } from '@/components/ui/PillarRadarChart';
 import { pillarColors } from '@/lib/design/pillarColors';
 import { pillarOrder, pillarLabels } from '@/lib/assessment/pillars';
@@ -96,11 +96,27 @@ export default function ResultsPage() {
 
   return (
     <StandardPage
-      title="Your Results"
-      description="Here's where you stand across the 7 F.R.I.E.N.D.S pillars."
-      metaLabel="RESULTS"
+      title="Your Insights"
+      description="Where you stand across the 7 Friends pillars — and what to work on next."
+      metaLabel="INSIGHTS"
+      actions={assessment ? (
+        <Button variant="ghost" size="sm" asChild>
+          <Link href="/assessment">Retake assessment</Link>
+        </Button>
+      ) : undefined}
     >
       <div className="space-y-10">
+
+        {loading && <Loading text="Loading your insights…" />}
+        {!loading && error && <ErrorState message="Couldn't load your insights." onRetry={() => window.location.reload()} />}
+
+        {!loading && !error && !assessment && (
+          <EmptyState
+            title="No insights yet"
+            text="Take the assessment to see your pillar scores and get personalized practice suggestions."
+            action={<Button asChild><Link href="/assessment">Start assessment →</Link></Button>}
+          />
+        )}
 
         {assessment && (
           <>
@@ -163,70 +179,60 @@ export default function ResultsPage() {
                 })}
               </div>
             </div>
+            {/* Suggested practices */}
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-4">
+                Suggested Practices
+              </p>
+              {!suggestions && <Loading text="Finding the right practices for you…" />}
+              {suggestions && (
+                <div className="space-y-4">
+                  {suggestions.map((practice) => (
+                    <Card key={practice.id} variant="interactive">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="space-y-2 min-w-0">
+                          <span
+                            className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-white"
+                            style={{ backgroundColor: pillarColors[practice.pillar] }}
+                          >
+                            {pillarLabels[practice.pillar]}
+                          </span>
+                          <p className="font-semibold text-foreground">{practice.title}</p>
+                          <p className="text-sm text-muted-foreground">{practice.description}</p>
+                          <p className="text-xs text-muted-foreground italic">
+                            Why: {practice.rationale}
+                          </p>
+                        </div>
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={!!trialLoading[practice.id]}
+                            onClick={() => handleTryThis(practice.id)}
+                          >
+                            {trialLoading[practice.id] ? '…' : 'Try this'}
+                          </Button>
+                          {trialError[practice.id] && (
+                            <p className="text-[11px] text-destructive text-right max-w-[140px]">
+                              {trialError[practice.id]}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* CTA */}
+            <div className="pt-2">
+              <Button asChild size="lg">
+                <Link href="/practices">Go to My Practices →</Link>
+              </Button>
+            </div>
           </>
         )}
-
-        {/* Suggested practices */}
-        <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-4">
-            Suggested Practices
-          </p>
-
-          {loading && <Loading text="Finding the right practices for you…" />}
-
-          {!loading && error && (
-            <ErrorState
-              message="Couldn't load suggestions."
-              onRetry={() => window.location.reload()}
-            />
-          )}
-
-          {!loading && !error && suggestions && (
-            <div className="space-y-4">
-              {suggestions.map((practice) => (
-                <Card key={practice.id} variant="interactive">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="space-y-2 min-w-0">
-                      <span
-                        className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-white"
-                        style={{ backgroundColor: pillarColors[practice.pillar] }}
-                      >
-                        {pillarLabels[practice.pillar]}
-                      </span>
-                      <p className="font-semibold text-foreground">{practice.title}</p>
-                      <p className="text-sm text-muted-foreground">{practice.description}</p>
-                      <p className="text-xs text-muted-foreground italic">
-                        Why: {practice.rationale}
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-end gap-1 shrink-0">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={!!trialLoading[practice.id]}
-                        onClick={() => handleTryThis(practice.id)}
-                      >
-                        {trialLoading[practice.id] ? '…' : 'Try this'}
-                      </Button>
-                      {trialError[practice.id] && (
-                        <p className="text-[11px] text-destructive text-right max-w-[140px]">
-                          {trialError[practice.id]}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* CTA */}
-        <div className="pt-2">
-          <Button asChild size="lg">
-            <Link href="/practices">Go to Active Practices →</Link>
-          </Button>
-        </div>
       </div>
     </StandardPage>
   );

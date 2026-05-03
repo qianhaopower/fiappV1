@@ -47,7 +47,7 @@ export default function AuthenticatorWrapper() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo-mark.svg" alt="Friends Intelligence" className="h-16 w-16 mx-auto mb-4" />
           <h1 className="text-3xl font-semibold text-foreground">
-            FRIENDS Intelligence
+            Friends Intelligence
           </h1>
           <p className="text-sm text-muted-foreground mt-2">
             Sign in to continue your journey

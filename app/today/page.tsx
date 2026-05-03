@@ -17,6 +17,7 @@ type Trial = {
   id: string
   pillar: Pillar
   title: string
+  description: string
   daysRemaining: number
   active: boolean
 }
@@ -185,12 +186,17 @@ export default function TodayPage() {
             <Card>
               <div className="space-y-4">
                 <div>
-                  <span
-                    className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-white"
-                    style={{ backgroundColor: pillarColors[focusPractice.pillar] }}
-                  >
-                    {pillarLabels[focusPractice.pillar]}
-                  </span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span
+                      className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-white"
+                      style={{ backgroundColor: pillarColors[focusPractice.pillar] }}
+                    >
+                      {pillarLabels[focusPractice.pillar]}
+                    </span>
+                    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-primary/10 text-primary border border-primary/30">
+                      Today&apos;s focus
+                    </span>
+                  </div>
                   <p className="mt-3 text-xl font-semibold text-foreground">{focusPractice.title}</p>
                   <p className="mt-1 text-sm text-muted-foreground">{focusPractice.description}</p>
                 </div>
@@ -228,8 +234,8 @@ export default function TodayPage() {
               </div>
             </Card>
 
-            {/* 14-day dots */}
-            <Card variant="subtle">
+            {/* 14-day dots — only shown after first check-in */}
+            {dots.some((d) => d.didIt !== null) && <Card variant="subtle">
               <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-4">Last 14 days</p>
               <div className="flex flex-wrap gap-2">
                 {dots.map((dot) => (
@@ -246,35 +252,35 @@ export default function TodayPage() {
                   />
                 ))}
               </div>
-            </Card>
+            </Card>}
           </>
         )}
 
-        {/* Trial check-ins */}
         {!loading && !error && activeTrials.length > 0 && (
           <div className="space-y-3">
-            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Trials</p>
             {activeTrials.map((trial) => {
               const didIt = trialDidIt[trial.id] ?? null
               const busy = !!trialLogging[trial.id]
               return (
                 <Card key={trial.id} variant="subtle">
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span
-                        className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-white"
-                        style={{ backgroundColor: pillarColors[trial.pillar] }}
-                      >
-                        {pillarLabels[trial.pillar]}
-                      </span>
-                      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-amber-100 text-amber-800 border border-amber-300">
-                        Trial · {trial.daysRemaining}d left
-                      </span>
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span
+                          className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-white"
+                          style={{ backgroundColor: pillarColors[trial.pillar] }}
+                        >
+                          {pillarLabels[trial.pillar]}
+                        </span>
+                        <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-amber-100 text-amber-800 border border-amber-300">
+                          Trying · {trial.daysRemaining}d left to decide
+                        </span>
+                      </div>
+                      <p className="mt-3 font-semibold text-foreground">{trial.title}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">{trial.description}</p>
                     </div>
-                    <p className="font-medium text-foreground">{trial.title}</p>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-3">
                       <Button
-                        size="sm"
                         variant={didIt === true ? 'default' : 'outline'}
                         disabled={busy}
                         onClick={() => handleTrialLog(trial.id, true)}
@@ -282,7 +288,6 @@ export default function TodayPage() {
                         {busy ? '…' : '✓ Did it'}
                       </Button>
                       <Button
-                        size="sm"
                         variant={didIt === false ? 'secondary' : 'outline'}
                         disabled={busy}
                         onClick={() => handleTrialLog(trial.id, false)}

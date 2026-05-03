@@ -107,7 +107,7 @@ export default function AssessmentPage() {
     >
       <div className="space-y-3">
         <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
-          FRIENDS INTELLIGENCE · ASSESSMENT
+          Friends Intelligence · Assessment
         </p>
         <Card>
           <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
