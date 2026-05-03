@@ -53,7 +53,15 @@ function PillarBadge({ pillar }: { pillar: Pillar }) {
 function TrialBadge() {
   return (
     <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-amber-100 text-amber-800 border border-amber-300">
-      Trial
+      Trying
+    </span>
+  );
+}
+
+function PausedBadge() {
+  return (
+    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-muted text-muted-foreground border border-border">
+      Paused
     </span>
   );
 }
@@ -243,8 +251,8 @@ export default function PracticesPage() {
 
   return (
     <StandardPage
-      title="Active Practices"
-      description="Manage your practices and trials."
+      title="My Practices"
+      description="Your committed practices and what you're testing."
       metaLabel="PRACTICES"
       actions={
         <Button variant="outline" size="sm" asChild>
@@ -258,168 +266,143 @@ export default function PracticesPage() {
 
         {!loading && !error && data && (
           <>
-            {/* Active practices */}
-            <section>
-              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-4">Active</p>
-              {data.activePractices.length === 0 ? (
-                <EmptyState
-                  title="No active practices"
-                  text="Promote a trial or pick one from your results."
-                  action={<Button variant="outline" asChild><Link href="/results">Browse suggestions</Link></Button>}
-                />
-              ) : (
-                <div className="space-y-3">
-                  {data.activePractices.map((p) => {
-                    const isFocus = data.todayFocusPracticeId === p.id
-                    const isReplacing = replacingId === p.id
-                    const confirmed = isReplacing && !!replaceToken
-                    return (
-                      <Card key={p.id} variant="interactive">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="space-y-2 min-w-0 flex-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <PillarBadge pillar={p.pillar} />
-                              {isFocus && <FocusBadge />}
-                            </div>
-                            <p className="font-semibold text-foreground">{p.title}</p>
-                            <p className="text-sm text-muted-foreground">{p.description}</p>
-                            {inlineError[p.id] && (
-                              <p className="text-xs text-destructive">{inlineError[p.id]}</p>
-                            )}
-                            {inlineWarning[p.id] && (
-                              <p className="text-xs text-amber-700">{inlineWarning[p.id]}</p>
-                            )}
+            {(data.activePractices.length + data.trials.length + data.pausedPractices.length) === 0 ? (
+              <EmptyState
+                title="No practices yet"
+                text="Pick practices from your results to start building your routine."
+                action={<Button variant="outline" asChild><Link href="/results">Browse suggestions</Link></Button>}
+              />
+            ) : (
+              <div className="space-y-3">
+                {data.activePractices.map((p) => {
+                  const isFocus = data.todayFocusPracticeId === p.id
+                  const isReplacing = replacingId === p.id
+                  const confirmed = isReplacing && !!replaceToken
+                  return (
+                    <Card key={p.id} variant="interactive">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="space-y-2 min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <PillarBadge pillar={p.pillar} />
+                            {isFocus && <FocusBadge />}
+                          </div>
+                          <p className="font-semibold text-foreground">{p.title}</p>
+                          <p className="text-sm text-muted-foreground">{p.description}</p>
+                          {inlineError[p.id] && (
+                            <p className="text-xs text-destructive">{inlineError[p.id]}</p>
+                          )}
+                          {inlineWarning[p.id] && (
+                            <p className="text-xs text-amber-700">{inlineWarning[p.id]}</p>
+                          )}
 
-                            {/* Replace picker */}
-                            {isReplacing && !confirmed && (
-                              <div className="mt-3 space-y-2">
-                                <p className="text-xs font-medium text-muted-foreground">Pick a replacement:</p>
-                                <div className="flex flex-col gap-1 max-h-48 overflow-y-auto pr-1">
-                                  {replaceCandidates.map((c) => (
-                                    <button
-                                      key={c.id}
-                                      className="text-left text-sm px-3 py-2 rounded-lg border border-border hover:bg-muted transition-colors"
-                                      onClick={() => handleReplaceSelect(p.id, c.id)}
-                                      disabled={!!actionLoading[p.id]}
-                                    >
-                                      <span className="font-medium">{c.title}</span>
-                                      <span className="text-muted-foreground"> · {pillarLabels[c.pillar]}</span>
-                                    </button>
-                                  ))}
-                                </div>
+                          {isReplacing && !confirmed && (
+                            <div className="mt-3 space-y-2">
+                              <p className="text-xs font-medium text-muted-foreground">Pick a replacement:</p>
+                              <div className="flex flex-col gap-1 max-h-48 overflow-y-auto pr-1">
+                                {replaceCandidates.map((c) => (
+                                  <button
+                                    key={c.id}
+                                    className="text-left text-sm px-3 py-2 rounded-lg border border-border hover:bg-muted transition-colors"
+                                    onClick={() => handleReplaceSelect(p.id, c.id)}
+                                    disabled={!!actionLoading[p.id]}
+                                  >
+                                    <span className="font-medium">{c.title}</span>
+                                    <span className="text-muted-foreground"> · {pillarLabels[c.pillar]}</span>
+                                  </button>
+                                ))}
+                              </div>
+                              <Button size="sm" variant="ghost" onClick={() => { setReplacingId(null); setReplaceToken(null); setReplaceTarget(null) }}>
+                                Cancel
+                              </Button>
+                            </div>
+                          )}
+
+                          {isReplacing && confirmed && replaceTarget && (
+                            <div className="mt-3 p-3 rounded-lg bg-amber-50 border border-amber-200 space-y-2">
+                              <p className="text-sm font-medium text-amber-900">
+                                Replace with &ldquo;{practicesById(replaceTarget)}&rdquo;?
+                              </p>
+                              <div className="flex gap-2">
+                                <Button size="sm" variant="default" disabled={!!actionLoading[p.id]} onClick={() => handleReplaceConfirm(p.id)}>
+                                  {actionLoading[p.id] ? '…' : 'Confirm'}
+                                </Button>
                                 <Button size="sm" variant="ghost" onClick={() => { setReplacingId(null); setReplaceToken(null); setReplaceTarget(null) }}>
                                   Cancel
                                 </Button>
                               </div>
-                            )}
-
-                            {/* Replace confirm step */}
-                            {isReplacing && confirmed && replaceTarget && (
-                              <div className="mt-3 p-3 rounded-lg bg-amber-50 border border-amber-200 space-y-2">
-                                <p className="text-sm font-medium text-amber-900">
-                                  Replace with &ldquo;{practicesById(replaceTarget)}&rdquo;?
-                                </p>
-                                <div className="flex gap-2">
-                                  <Button size="sm" variant="default" disabled={!!actionLoading[p.id]} onClick={() => handleReplaceConfirm(p.id)}>
-                                    {actionLoading[p.id] ? '…' : 'Confirm'}
-                                  </Button>
-                                  <Button size="sm" variant="ghost" onClick={() => { setReplacingId(null); setReplaceToken(null); setReplaceTarget(null) }}>
-                                    Cancel
-                                  </Button>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          {!isReplacing && (
-                            <div className="flex flex-col gap-2 shrink-0">
-                              {!isFocus && (
-                                <Button size="sm" variant="outline" disabled={!!actionLoading[p.id]} onClick={() => handleSetFocus(p.id)}>
-                                  {actionLoading[p.id] ? '…' : 'Set focus'}
-                                </Button>
-                              )}
-                              <Button size="sm" variant="ghost" disabled={!!actionLoading[p.id]} onClick={() => handlePause(p.id)}>
-                                Pause
-                              </Button>
-                              <Button size="sm" variant="ghost" disabled={!!actionLoading[p.id]} onClick={() => { setReplacingId(p.id); setReplaceToken(null); setReplaceTarget(null) }}>
-                                Replace
-                              </Button>
                             </div>
                           )}
                         </div>
-                      </Card>
-                    )
-                  })}
-                </div>
-              )}
-            </section>
 
-            {/* Paused practices */}
-            {data.pausedPractices.length > 0 && (
-              <section>
-                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-4">Paused</p>
-                <div className="space-y-3">
-                  {data.pausedPractices.map((p) => (
-                    <Card key={p.id} variant="interactive" className="flex items-start justify-between gap-4 opacity-70">
-                      <div className="space-y-2 min-w-0">
-                        <PillarBadge pillar={p.pillar} />
-                        <p className="font-semibold text-foreground">{p.title}</p>
-                        <p className="text-sm text-muted-foreground">{p.description}</p>
-                        {inlineError[p.id] && <p className="text-xs text-destructive">{inlineError[p.id]}</p>}
-                        {inlineWarning[p.id] && <p className="text-xs text-amber-700">{inlineWarning[p.id]}</p>}
-                      </div>
-                      <Button size="sm" variant="outline" disabled={!!actionLoading[p.id]} onClick={() => handleResume(p.id)}>
-                        {actionLoading[p.id] ? '…' : 'Resume'}
-                      </Button>
-                    </Card>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* Trials */}
-            <section>
-              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-4">Trials</p>
-              {data.trials.length === 0 ? (
-                <EmptyState
-                  title="No active trials"
-                  text="Try a practice for 7 days before committing."
-                  action={<Button variant="outline" asChild><Link href="/results">Find a practice</Link></Button>}
-                />
-              ) : (
-                <div className="space-y-3">
-                  {data.trials.map((t) => (
-                    <Card key={t.id} variant="interactive" className="flex items-start justify-between gap-4">
-                      <div className="space-y-2 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <PillarBadge pillar={t.pillar} />
-                          <TrialBadge />
-                        </div>
-                        <p className="font-semibold text-foreground">{t.title}</p>
-                        <p className="text-sm text-muted-foreground">{t.description}</p>
-                        {t.active && (
-                          <p className="text-xs text-amber-700 font-medium">
-                            {t.daysRemaining === 0 ? 'Expires today' : `${t.daysRemaining} day${t.daysRemaining === 1 ? '' : 's'} remaining`}
-                          </p>
+                        {!isReplacing && (
+                          <div className="flex flex-col gap-2 shrink-0">
+                            {!isFocus && (
+                              <Button size="sm" variant="outline" disabled={!!actionLoading[p.id]} onClick={() => handleSetFocus(p.id)}>
+                                {actionLoading[p.id] ? '…' : 'Set focus'}
+                              </Button>
+                            )}
+                            <Button size="sm" variant="ghost" disabled={!!actionLoading[p.id]} onClick={() => handlePause(p.id)}>
+                              Pause
+                            </Button>
+                            <Button size="sm" variant="ghost" disabled={!!actionLoading[p.id]} onClick={() => { setReplacingId(p.id); setReplaceToken(null); setReplaceTarget(null) }}>
+                              Replace
+                            </Button>
+                          </div>
                         )}
-                        {!t.active && <p className="text-xs text-muted-foreground">Trial expired</p>}
-                        {inlineError[t.id] && <p className="text-xs text-destructive">{inlineError[t.id]}</p>}
                       </div>
-                      {t.active && (
-                        <div className="flex flex-col gap-2 shrink-0">
-                          <Button size="sm" variant="default" disabled={!!actionLoading[t.id]} onClick={() => handleTrialAction('promoteTrial', t.id)}>
-                            {actionLoading[t.id] ? '…' : 'Promote'}
-                          </Button>
-                          <Button size="sm" variant="ghost" disabled={!!actionLoading[t.id]} onClick={() => handleTrialAction('discardTrial', t.id)}>
-                            Discard
-                          </Button>
-                        </div>
-                      )}
                     </Card>
-                  ))}
-                </div>
-              )}
-            </section>
+                  )
+                })}
+
+                {data.trials.map((t) => (
+                  <Card key={t.id} variant="interactive" className="flex items-start justify-between gap-4">
+                    <div className="space-y-2 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <PillarBadge pillar={t.pillar} />
+                        <TrialBadge />
+                      </div>
+                      <p className="font-semibold text-foreground">{t.title}</p>
+                      <p className="text-sm text-muted-foreground">{t.description}</p>
+                      {t.active && (
+                        <p className="text-xs text-amber-700 font-medium">
+                          {t.daysRemaining === 0 ? 'Expires today' : `${t.daysRemaining} day${t.daysRemaining === 1 ? '' : 's'} left to decide`}
+                        </p>
+                      )}
+                      {!t.active && <p className="text-xs text-muted-foreground">Trial expired</p>}
+                      {inlineError[t.id] && <p className="text-xs text-destructive">{inlineError[t.id]}</p>}
+                    </div>
+                    {t.active && (
+                      <div className="flex flex-col gap-2 shrink-0">
+                        <Button size="sm" variant="default" disabled={!!actionLoading[t.id]} onClick={() => handleTrialAction('promoteTrial', t.id)}>
+                          {actionLoading[t.id] ? '…' : 'Keep it'}
+                        </Button>
+                        <Button size="sm" variant="ghost" disabled={!!actionLoading[t.id]} onClick={() => handleTrialAction('discardTrial', t.id)}>
+                          Not for me
+                        </Button>
+                      </div>
+                    )}
+                  </Card>
+                ))}
+
+                {data.pausedPractices.map((p) => (
+                  <Card key={p.id} variant="interactive" className="flex items-start justify-between gap-4 opacity-70">
+                    <div className="space-y-2 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <PillarBadge pillar={p.pillar} />
+                        <PausedBadge />
+                      </div>
+                      <p className="font-semibold text-foreground">{p.title}</p>
+                      <p className="text-sm text-muted-foreground">{p.description}</p>
+                      {inlineError[p.id] && <p className="text-xs text-destructive">{inlineError[p.id]}</p>}
+                      {inlineWarning[p.id] && <p className="text-xs text-amber-700">{inlineWarning[p.id]}</p>}
+                    </div>
+                    <Button size="sm" variant="outline" disabled={!!actionLoading[p.id]} onClick={() => handleResume(p.id)}>
+                      {actionLoading[p.id] ? '…' : 'Resume'}
+                    </Button>
+                  </Card>
+                ))}
+              </div>
+            )}
           </>
         )}
 

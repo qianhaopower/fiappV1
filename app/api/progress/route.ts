@@ -11,6 +11,11 @@ import {
   computeStreaks,
   type ReturnItem,
 } from '@/lib/returns/returns'
+import {
+  TOTAL_MILESTONES,
+  PRACTICE_MILESTONES,
+  makeMilestoneSK,
+} from '@/lib/milestones/milestones'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -74,12 +79,49 @@ export async function GET(req: Request) {
 
     const { currentStreak, longestStreak } = computeStreaks(activeDates, today, STREAK_LOOKBACK_DAYS)
 
+    // Compute next-up milestones
+    const achievedSKs = new Set(milestones.map((m) => m.SK))
+
+    type NextMilestone = {
+      type: string; threshold: number; practiceId?: string
+      title: string; description: string; progress: number; remaining: number
+    }
+    const nextMilestones: NextMilestone[] = []
+
+    // Next total milestone
+    for (const def of TOTAL_MILESTONES) {
+      if (!achievedSKs.has(makeMilestoneSK('total', def.threshold))) {
+        nextMilestones.push({
+          type: 'total', threshold: def.threshold,
+          title: def.title, description: def.description,
+          progress: totalReturns, remaining: def.threshold - totalReturns,
+        })
+        break
+      }
+    }
+
+    // Next practice milestone per active practice
+    for (const practiceId of activePracticeIds) {
+      const practiceCount = counters[practiceId] ?? 0
+      for (const def of PRACTICE_MILESTONES) {
+        if (!achievedSKs.has(makeMilestoneSK('practice', def.threshold, practiceId))) {
+          nextMilestones.push({
+            type: 'practice', threshold: def.threshold, practiceId,
+            title: def.title, description: def.description,
+            progress: practiceCount, remaining: def.threshold - practiceCount,
+          })
+          break
+        }
+      }
+    }
+
     return NextResponse.json({
       ok: true,
       totalReturns,
       practicesActivated,
       currentStreak,
       longestStreak,
+      nextMilestones,
       milestones: milestones.map((m) => ({
         sk: m.SK,
         type: m.type,

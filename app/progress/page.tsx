@@ -15,11 +15,22 @@ type Milestone = {
   achievedAt: string
 }
 
+type NextMilestone = {
+  type: string
+  threshold: number
+  practiceId?: string
+  title: string
+  description: string
+  progress: number
+  remaining: number
+}
+
 type ProgressData = {
   totalReturns: number
   practicesActivated: number
   currentStreak: number
   longestStreak: number
+  nextMilestones: NextMilestone[]
   milestones: Milestone[]
 }
 
@@ -76,6 +87,34 @@ export default function ProgressPage() {
       }
       main={
         <div className="space-y-6">
+          {/* Next-up milestones */}
+          {!loading && !error && data && data.nextMilestones.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Coming up</p>
+              {data.nextMilestones.map((m) => {
+                const pct = Math.min(100, Math.round((m.progress / m.threshold) * 100))
+                return (
+                  <Card key={`${m.type}-${m.threshold}-${m.practiceId ?? ''}`} variant="subtle">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="font-semibold text-foreground text-sm">{m.title}</p>
+                        <p className="text-xs text-muted-foreground">{m.progress}/{m.threshold}</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground">{m.description}</p>
+                      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-1.5 rounded-full bg-primary transition-all"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">{m.remaining} more to go</p>
+                    </div>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
+
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Milestones</p>
           {loading ? (
             <Loading text="Loading milestones…" />

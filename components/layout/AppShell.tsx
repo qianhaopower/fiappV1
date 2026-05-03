@@ -1,12 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useAuthenticator } from '@aws-amplify/ui-react'
 import { Button } from '@/components/ui'
 import { PlanBadge } from '@/components/PlanBadge'
 import { UpgradeButton } from '@/components/UpgradeButton'
 import { DevSubscriptionToggle } from '@/components/DevSubscriptionToggle'
+import { useProfile } from '@/contexts/ProfileContext'
 
 interface AppShellProps {
   children: React.ReactNode
@@ -18,6 +20,7 @@ const NAV_ITEMS = [
   { href: '/practices', label: 'Practices' },
   { href: '/results', label: 'Results' },
   { href: '/progress', label: 'Progress' },
+  { href: '/assessment', label: 'Assessment' },
 ]
 
 function isActive(href: string, pathname: string | null) {
@@ -27,10 +30,27 @@ function isActive(href: string, pathname: string | null) {
 export function AppShell({ children, onSignOut }: AppShellProps) {
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [accountOpen, setAccountOpen] = useState(false)
+  const accountRef = useRef<HTMLDivElement>(null)
+  const { user } = useAuthenticator((ctx) => [ctx.user])
+  const { profile } = useProfile()
+
+  const email = user?.signInDetails?.loginId ?? user?.username ?? ''
+  const plan = profile?.subscriptionStatus === 'PAID' ? 'Premium' : 'Free'
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (accountRef.current && !accountRef.current.contains(e.target as Node)) {
+        setAccountOpen(false)
+      }
+    }
+    if (accountOpen) document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [accountOpen])
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 border-b border-border/60 bg-card/95 backdrop-blur relative overflow-hidden">
+      <header className="sticky top-0 z-50 border-b border-border/60 bg-card/95 backdrop-blur relative">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute -top-20 right-[-10%] h-40 w-72 rounded-full bg-primary/10 blur-3xl" />
         </div>
@@ -59,14 +79,38 @@ export function AppShell({ children, onSignOut }: AppShellProps) {
             <PlanBadge />
             <DevSubscriptionToggle />
             <UpgradeButton />
-            <Button variant="ghost" size="sm" className="hidden sm:inline-flex">
-              Account
-            </Button>
-            {onSignOut && (
-              <Button variant="ghost" size="sm" onClick={onSignOut} className="hidden sm:inline-flex">
-                Sign out
+            <div ref={accountRef} className="relative hidden sm:block">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setAccountOpen((v) => !v)}
+              >
+                Account
               </Button>
-            )}
+              {accountOpen && (
+                <div className="absolute right-0 top-full mt-1 w-56 rounded-xl border border-border bg-card shadow-md z-50 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-border/60">
+                    <p className="text-xs text-muted-foreground truncate">{email}</p>
+                    <p className="text-xs font-medium text-foreground mt-0.5">{plan} plan</p>
+                  </div>
+                  <Link
+                    href="/account"
+                    onClick={() => setAccountOpen(false)}
+                    className="block px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  >
+                    View account
+                  </Link>
+                  {onSignOut && (
+                    <button
+                      onClick={() => { setAccountOpen(false); onSignOut() }}
+                      className="w-full text-left px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors border-t border-border/60"
+                    >
+                      Sign out
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
             {/* Mobile hamburger */}
             <button
               className="md:hidden flex items-center justify-center w-9 h-9 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
