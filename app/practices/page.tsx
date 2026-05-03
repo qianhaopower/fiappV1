@@ -253,7 +253,6 @@ export default function PracticesPage() {
     <StandardPage
       title="My Practices"
       description="Your committed practices and what you're testing."
-      metaLabel="PRACTICES"
       actions={
         <Button variant="outline" size="sm" asChild>
           <Link href="/results">+ Add practice</Link>

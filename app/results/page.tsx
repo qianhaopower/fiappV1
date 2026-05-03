@@ -98,7 +98,6 @@ export default function ResultsPage() {
     <StandardPage
       title="Your Insights"
       description="Where you stand across the 7 Friends pillars — and what to work on next."
-      metaLabel="INSIGHTS"
       actions={assessment ? (
         <Button variant="ghost" size="sm" asChild>
           <Link href="/assessment">Retake assessment</Link>

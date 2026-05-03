@@ -54,7 +54,6 @@ export default function ProgressPage() {
     <DashboardPage
       title="Progress"
       description="Your growth at a glance."
-      metaLabel="INSIGHTS"
       summary={
         loading ? (
           <Loading text="Loading stats…" />

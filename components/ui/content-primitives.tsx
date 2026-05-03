@@ -21,15 +21,17 @@ interface PageHeaderProps {
   actions?: React.ReactNode
 }
 
-export function PageHeader({ eyebrow = 'PAGE', title, description, actions }: PageHeaderProps) {
+export function PageHeader({ eyebrow, title, description, actions }: PageHeaderProps) {
   return (
     <div className="border-b border-border/60 pb-8 mb-10">
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <span className="inline-flex items-center rounded-full bg-muted/60 px-3 py-1 text-xs uppercase tracking-[0.22em] text-muted-foreground">
-            {eyebrow}
-          </span>
-          <h1 className="mt-3 text-4xl sm:text-5xl font-bold text-foreground">{title}</h1>
+          {eyebrow && (
+            <span className="inline-flex items-center rounded-full bg-muted/60 px-3 py-1 text-xs uppercase tracking-[0.22em] text-muted-foreground">
+              {eyebrow}
+            </span>
+          )}
+          <h1 className={`text-4xl sm:text-5xl font-bold text-foreground${eyebrow ? ' mt-3' : ''}`}>{title}</h1>
           {description && (
             <p className="mt-3 text-lg text-muted-foreground max-w-2xl">{description}</p>
           )}

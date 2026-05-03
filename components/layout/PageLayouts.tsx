@@ -15,7 +15,7 @@ interface BasePageProps {
 export function StandardPage({
   title,
   description,
-  metaLabel = 'PAGE',
+  metaLabel,
   actions,
   children,
 }: BasePageProps) {
@@ -38,7 +38,7 @@ export function StandardPage({
 export function NarrowFormPage({
   title,
   description,
-  metaLabel = 'FORM',
+  metaLabel,
   actions,
   children,
 }: BasePageProps) {
@@ -74,7 +74,7 @@ interface DashboardPageProps {
 export function DashboardPage({
   title,
   description,
-  metaLabel = 'DASHBOARD',
+  metaLabel,
   summary,
   main,
   actions,
@@ -110,7 +110,7 @@ interface ListDetailPageProps {
 export function ListDetailPage({
   title,
   description,
-  metaLabel = 'LIBRARY',
+  metaLabel,
   list,
   detail,
   actions,
