@@ -10,6 +10,7 @@ import { practicesById } from '@/lib/practices/library';
 import { todayUTC } from '@/lib/returns/returns';
 import type { Practice } from '@/lib/practices/library';
 import type { DotEntry } from '@/lib/returns/returns';
+import type { NewMilestone } from '@/lib/milestones/milestones';
 
 type ActiveData = {
   todayFocusPracticeId: string | null
@@ -17,6 +18,15 @@ type ActiveData = {
 
 type ReturnsData = {
   returns: DotEntry[]
+}
+
+type ReturnResponse = {
+  ok: boolean
+  noop?: boolean
+  didIt: boolean
+  date: string
+  delta?: number
+  newMilestones?: NewMilestone[]
 }
 
 export default function TodayPage() {
@@ -27,6 +37,7 @@ export default function TodayPage() {
   const [error, setError] = useState(false)
   const [logging, setLogging] = useState(false)
   const [logError, setLogError] = useState('')
+  const [newMilestones, setNewMilestones] = useState<NewMilestone[]>([])
 
   const loadReturns = useCallback(async (practiceId: string) => {
     const res = await fetch(`/api/returns?practiceId=${practiceId}&days=14`)
@@ -69,7 +80,11 @@ export default function TodayPage() {
         body: JSON.stringify({ practiceId: focusPractice.id, didIt: newValue }),
       })
       if (!res.ok) throw new Error('Failed to log return')
+      const data: ReturnResponse = await res.json()
       setTodayDidIt(newValue)
+      if (data.newMilestones && data.newMilestones.length > 0) {
+        setNewMilestones(data.newMilestones)
+      }
       await loadReturns(focusPractice.id)
     } catch {
       setLogError('Could not save. Please try again.')
@@ -81,6 +96,26 @@ export default function TodayPage() {
   return (
     <NarrowFormPage title="Today" description="Your daily check-in." metaLabel="OVERVIEW">
       <div className="space-y-6">
+
+        {newMilestones.length > 0 && (
+          <Card className="border-primary/40 bg-primary/5">
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-primary">Milestone unlocked!</p>
+              {newMilestones.map((m) => (
+                <div key={`${m.type}-${m.threshold}`}>
+                  <p className="text-sm font-medium text-foreground">{m.title}</p>
+                  <p className="text-xs text-muted-foreground">{m.description}</p>
+                </div>
+              ))}
+              <button
+                onClick={() => setNewMilestones([])}
+                className="text-xs text-muted-foreground underline underline-offset-2 mt-1"
+              >
+                Dismiss
+              </button>
+            </div>
+          </Card>
+        )}
 
         {loading && <Loading text="Loading today's practice…" />}
         {!loading && error && (

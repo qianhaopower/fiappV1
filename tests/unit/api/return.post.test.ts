@@ -4,6 +4,7 @@ import { POST } from '@/app/api/return/route'
 const mainGetItemMock = vi.fn()
 const mainQueryMock = vi.fn()
 const mainUpdateItemMock = vi.fn()
+const mainPutItemIfNotExistsMock = vi.fn()
 const returnsGetItemMock = vi.fn()
 const returnsPutItemMock = vi.fn()
 
@@ -12,6 +13,7 @@ vi.mock('@/utils/dynamoClient', () => ({
     getItem: mainGetItemMock,
     query: mainQueryMock,
     updateItem: mainUpdateItemMock,
+    putItemIfNotExists: mainPutItemIfNotExistsMock,
   }),
   createReturnsClient: () => ({
     getItem: returnsGetItemMock,
@@ -44,9 +46,11 @@ beforeEach(() => {
   mainGetItemMock.mockReset()
   mainQueryMock.mockReset()
   mainUpdateItemMock.mockReset()
+  mainPutItemIfNotExistsMock.mockReset()
   returnsGetItemMock.mockReset()
   returnsPutItemMock.mockReset()
   mainUpdateItemMock.mockResolvedValue(undefined)
+  mainPutItemIfNotExistsMock.mockResolvedValue(false)
   returnsPutItemMock.mockResolvedValue(undefined)
   mainQueryMock.mockResolvedValue([])
 })
@@ -143,5 +147,48 @@ describe('POST /api/return', () => {
   it('returns 400 for missing fields', async () => {
     const res = await POST(makeReq({ practiceId: 'sleep-consistent-bedtime' }))
     expect(res.status).toBe(400)
+  })
+
+  it('returns newMilestones=[] when no milestone crossed', async () => {
+    mainGetItemMock.mockResolvedValue({ activePracticeIds: ['sleep-consistent-bedtime'], returnCounters: { 'sleep-consistent-bedtime': 5 } })
+    returnsGetItemMock.mockResolvedValue(undefined)
+
+    const res = await POST(makeReq({ practiceId: 'sleep-consistent-bedtime', didIt: true }))
+    const json = await res.json()
+    expect(json.newMilestones).toEqual([])
+  })
+
+  it('returns newMilestones with first-checkin milestone when counter crosses 1', async () => {
+    mainGetItemMock.mockResolvedValue({ activePracticeIds: ['sleep-consistent-bedtime'], returnCounters: {} })
+    returnsGetItemMock.mockResolvedValue(undefined)
+    mainPutItemIfNotExistsMock.mockResolvedValue(true)
+
+    const res = await POST(makeReq({ practiceId: 'sleep-consistent-bedtime', didIt: true }))
+    const json = await res.json()
+    // counter goes 0→1: crosses total#1 only (practice milestones are at 7 and 30)
+    expect(json.newMilestones).toHaveLength(1)
+    expect(json.newMilestones[0].type).toBe('total')
+    expect(json.newMilestones[0].threshold).toBe(1)
+    expect(json.newMilestones[0].title).toBe('First check-in')
+  })
+
+  it('does not return milestone when putItemIfNotExists returns false (already earned)', async () => {
+    mainGetItemMock.mockResolvedValue({ activePracticeIds: ['sleep-consistent-bedtime'], returnCounters: {} })
+    returnsGetItemMock.mockResolvedValue(undefined)
+    mainPutItemIfNotExistsMock.mockResolvedValue(false) // already exists
+
+    const res = await POST(makeReq({ practiceId: 'sleep-consistent-bedtime', didIt: true }))
+    const json = await res.json()
+    expect(json.newMilestones).toEqual([])
+  })
+
+  it('returns newMilestones=[] on noop', async () => {
+    mainGetItemMock.mockResolvedValue({ activePracticeIds: ['sleep-consistent-bedtime'], returnCounters: {} })
+    returnsGetItemMock.mockResolvedValue({ didIt: true, createdAt: 'x', updatedAt: 'x' })
+
+    const res = await POST(makeReq({ practiceId: 'sleep-consistent-bedtime', didIt: true }))
+    const json = await res.json()
+    expect(json.noop).toBe(true)
+    expect(json.newMilestones).toEqual([])
   })
 })
