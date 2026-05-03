@@ -9,11 +9,21 @@ import { pillarLabels } from '@/lib/assessment/pillars';
 import { practicesById } from '@/lib/practices/library';
 import { todayUTC } from '@/lib/returns/returns';
 import type { Practice } from '@/lib/practices/library';
+import type { Pillar } from '@/lib/assessment/pillars';
 import type { DotEntry } from '@/lib/returns/returns';
 import type { NewMilestone } from '@/lib/milestones/milestones';
 
+type Trial = {
+  id: string
+  pillar: Pillar
+  title: string
+  daysRemaining: number
+  active: boolean
+}
+
 type ActiveData = {
   todayFocusPracticeId: string | null
+  trials: Trial[]
 }
 
 type ReturnsData = {
@@ -31,12 +41,16 @@ type ReturnResponse = {
 
 export default function TodayPage() {
   const [focusPractice, setFocusPractice] = useState<Practice | null>(null)
+  const [activeTrials, setActiveTrials] = useState<Trial[]>([])
   const [dots, setDots] = useState<DotEntry[]>([])
   const [todayDidIt, setTodayDidIt] = useState<boolean | null>(null)
+  const [trialDidIt, setTrialDidIt] = useState<Record<string, boolean | null>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [logging, setLogging] = useState(false)
+  const [trialLogging, setTrialLogging] = useState<Record<string, boolean>>({})
   const [logError, setLogError] = useState('')
+  const [trialLogError, setTrialLogError] = useState<Record<string, string>>({})
   const [newMilestones, setNewMilestones] = useState<NewMilestone[]>([])
 
   const loadReturns = useCallback(async (practiceId: string) => {
@@ -46,6 +60,14 @@ export default function TodayPage() {
     setDots(data.returns)
     const today = data.returns.find((d) => d.date === todayUTC())
     setTodayDidIt(today?.didIt ?? null)
+  }, [])
+
+  const loadTrialReturn = useCallback(async (practiceId: string) => {
+    const res = await fetch(`/api/returns?practiceId=${practiceId}&days=1`)
+    if (!res.ok) return
+    const data: ReturnsData = await res.json()
+    const today = data.returns.find((d) => d.date === todayUTC())
+    setTrialDidIt((prev) => ({ ...prev, [practiceId]: today?.didIt ?? null }))
   }, [])
 
   useEffect(() => {
@@ -60,17 +82,18 @@ export default function TodayPage() {
           : null
         setFocusPractice(practice)
         if (practice) await loadReturns(practice.id)
+
+        const trials = (data.trials ?? []).filter((t) => t.active)
+        setActiveTrials(trials)
+        await Promise.all(trials.map((t) => loadTrialReturn(t.id)))
       })
       .catch(() => setError(true))
       .finally(() => setLoading(false))
-  }, [loadReturns])
+  }, [loadReturns, loadTrialReturn])
 
   async function handleLog(value: boolean) {
     if (!focusPractice) return
-
-    // Toggle: clicking the active button again un-logs it
     const newValue = todayDidIt === value ? !value : value
-
     setLogging(true)
     setLogError('')
     try {
@@ -90,6 +113,30 @@ export default function TodayPage() {
       setLogError('Could not save. Please try again.')
     } finally {
       setLogging(false)
+    }
+  }
+
+  async function handleTrialLog(practiceId: string, value: boolean) {
+    const current = trialDidIt[practiceId] ?? null
+    const newValue = current === value ? !value : value
+    setTrialLogging((prev) => ({ ...prev, [practiceId]: true }))
+    setTrialLogError((prev) => ({ ...prev, [practiceId]: '' }))
+    try {
+      const res = await fetch('/api/return', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ practiceId, didIt: newValue }),
+      })
+      if (!res.ok) throw new Error('Failed')
+      const data: ReturnResponse = await res.json()
+      setTrialDidIt((prev) => ({ ...prev, [practiceId]: newValue }))
+      if (data.newMilestones && data.newMilestones.length > 0) {
+        setNewMilestones(data.newMilestones)
+      }
+    } catch {
+      setTrialLogError((prev) => ({ ...prev, [practiceId]: 'Could not save. Try again.' }))
+    } finally {
+      setTrialLogging((prev) => ({ ...prev, [practiceId]: false }))
     }
   }
 
@@ -201,6 +248,56 @@ export default function TodayPage() {
               </div>
             </Card>
           </>
+        )}
+
+        {/* Trial check-ins */}
+        {!loading && !error && activeTrials.length > 0 && (
+          <div className="space-y-3">
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Trials</p>
+            {activeTrials.map((trial) => {
+              const didIt = trialDidIt[trial.id] ?? null
+              const busy = !!trialLogging[trial.id]
+              return (
+                <Card key={trial.id} variant="subtle">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span
+                        className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-white"
+                        style={{ backgroundColor: pillarColors[trial.pillar] }}
+                      >
+                        {pillarLabels[trial.pillar]}
+                      </span>
+                      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-amber-100 text-amber-800 border border-amber-300">
+                        Trial · {trial.daysRemaining}d left
+                      </span>
+                    </div>
+                    <p className="font-medium text-foreground">{trial.title}</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        size="sm"
+                        variant={didIt === true ? 'default' : 'outline'}
+                        disabled={busy}
+                        onClick={() => handleTrialLog(trial.id, true)}
+                      >
+                        {busy ? '…' : '✓ Did it'}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={didIt === false ? 'secondary' : 'outline'}
+                        disabled={busy}
+                        onClick={() => handleTrialLog(trial.id, false)}
+                      >
+                        {busy ? '…' : 'Not today'}
+                      </Button>
+                    </div>
+                    {trialLogError[trial.id] && (
+                      <p className="text-xs text-destructive">{trialLogError[trial.id]}</p>
+                    )}
+                  </div>
+                </Card>
+              )
+            })}
+          </div>
         )}
 
         <div className="flex justify-between items-center pt-2 text-sm">
