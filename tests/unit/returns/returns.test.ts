@@ -6,6 +6,7 @@ import {
   makeReturnPK,
   makeReturnSK,
   todayUTC,
+  computeStreaks,
 } from '@/lib/returns/returns'
 
 describe('todayUTC', () => {
@@ -66,6 +67,54 @@ describe('applyDelta', () => {
   it('no-op when delta is 0', () => {
     const counters = { 'p1': 5 }
     expect(applyDelta(counters, 'p1', 0)).toBe(counters)
+  })
+})
+
+describe('computeStreaks', () => {
+  const today = '2026-05-03'
+
+  it('returns 0/0 for empty active dates', () => {
+    expect(computeStreaks(new Set(), today)).toEqual({ currentStreak: 0, longestStreak: 0 })
+  })
+
+  it('currentStreak=1 when only today is active', () => {
+    expect(computeStreaks(new Set([today]), today)).toMatchObject({ currentStreak: 1 })
+  })
+
+  it('currentStreak counts consecutive days ending today', () => {
+    const dates = new Set(['2026-05-01', '2026-05-02', '2026-05-03'])
+    expect(computeStreaks(dates, today)).toMatchObject({ currentStreak: 3 })
+  })
+
+  it('currentStreak breaks on a gap', () => {
+    const dates = new Set(['2026-04-30', '2026-05-02', '2026-05-03'])
+    expect(computeStreaks(dates, today)).toMatchObject({ currentStreak: 2 })
+  })
+
+  it('uses yesterday as anchor when today not logged', () => {
+    // today = 2026-05-03, not logged; yesterday = 2026-05-02 logged
+    const dates = new Set(['2026-05-01', '2026-05-02'])
+    expect(computeStreaks(dates, today)).toMatchObject({ currentStreak: 2 })
+  })
+
+  it('currentStreak=0 when yesterday not logged either', () => {
+    const dates = new Set(['2026-04-30'])
+    expect(computeStreaks(dates, today)).toMatchObject({ currentStreak: 0 })
+  })
+
+  it('longestStreak finds the longest run', () => {
+    // run of 3, gap, run of 5
+    const dates = new Set([
+      '2026-04-01', '2026-04-02', '2026-04-03',
+      '2026-04-10', '2026-04-11', '2026-04-12', '2026-04-13', '2026-04-14',
+    ])
+    expect(computeStreaks(dates, today)).toMatchObject({ longestStreak: 5 })
+  })
+
+  it('longestStreak >= currentStreak', () => {
+    const dates = new Set(['2026-04-01', '2026-04-02', '2026-04-03', '2026-05-03'])
+    const { currentStreak, longestStreak } = computeStreaks(dates, today)
+    expect(longestStreak).toBeGreaterThanOrEqual(currentStreak)
   })
 })
 

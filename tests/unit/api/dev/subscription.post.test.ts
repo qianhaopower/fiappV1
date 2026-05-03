@@ -24,7 +24,7 @@ describe("POST /api/dev/subscription", () => {
   const originalNodeEnv = process.env.NODE_ENV;
 
   beforeEach(() => {
-    process.env.NODE_ENV = "development";
+    (process.env as Record<string, string>).NODE_ENV = "development";
     getMyProfileMock.mockResolvedValue({
       data: { subscriptionStatus: "FREE" },
       errors: undefined,
@@ -36,11 +36,11 @@ describe("POST /api/dev/subscription", () => {
   });
 
   afterEach(() => {
-    process.env.NODE_ENV = originalNodeEnv;
+    (process.env as Record<string, string>).NODE_ENV = originalNodeEnv;
   });
 
   it("returns 404 in production", async () => {
-    process.env.NODE_ENV = "production";
+    (process.env as Record<string, string>).NODE_ENV = "production";
 
     const req = new Request("http://localhost/api/dev/subscription", {
       method: "POST",
