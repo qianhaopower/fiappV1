@@ -10,7 +10,7 @@ import {
 } from 'recharts'
 import type { Pillar } from '@/lib/assessment/pillars'
 import { pillarOrder } from '@/lib/assessment/pillars'
-import { MOCK_PILLAR_LABELS } from '@/lib/mockState'
+import { pillarLabels } from '@/lib/assessment/pillars'
 
 const MAX_SCORE = 5
 
@@ -21,7 +21,7 @@ type Props = {
 
 export function PillarRadarChart({ scores }: Props) {
   const data = pillarOrder.map((pillar) => ({
-    pillar: MOCK_PILLAR_LABELS[pillar],
+    pillar: pillarLabels[pillar],
     score: scores[pillar] ?? 0,
     fullMark: MAX_SCORE,
   }))

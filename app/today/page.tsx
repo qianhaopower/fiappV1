@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { NarrowFormPage } from '@/components/layout';
 import { Card, Button, Loading, ErrorState } from '@/components/ui';
 import { pillarColors } from '@/lib/design/pillarColors';
-import { MOCK_PILLAR_LABELS } from '@/lib/mockState';
+import { pillarLabels } from '@/lib/assessment/pillars';
 import { practicesById } from '@/lib/practices/library';
 import { todayUTC } from '@/lib/returns/returns';
 import type { Practice } from '@/lib/practices/library';
@@ -142,7 +142,7 @@ export default function TodayPage() {
                     className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-white"
                     style={{ backgroundColor: pillarColors[focusPractice.pillar] }}
                   >
-                    {MOCK_PILLAR_LABELS[focusPractice.pillar]}
+                    {pillarLabels[focusPractice.pillar]}
                   </span>
                   <p className="mt-3 text-xl font-semibold text-foreground">{focusPractice.title}</p>
                   <p className="mt-1 text-sm text-muted-foreground">{focusPractice.description}</p>
