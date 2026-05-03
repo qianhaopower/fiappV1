@@ -50,7 +50,7 @@ export function AppShell({ children, onSignOut }: AppShellProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 border-b border-border/60 bg-card/95 backdrop-blur relative overflow-hidden">
+      <header className="sticky top-0 z-50 border-b border-border/60 bg-card/95 backdrop-blur relative">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute -top-20 right-[-10%] h-40 w-72 rounded-full bg-primary/10 blur-3xl" />
         </div>
