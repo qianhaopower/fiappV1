@@ -16,8 +16,8 @@ interface AppShellProps {
 const NAV_ITEMS = [
   { href: '/today', label: 'Today' },
   { href: '/practices', label: 'Practices' },
+  { href: '/results', label: 'Results' },
   { href: '/progress', label: 'Progress' },
-  { href: '/assessment', label: 'Assessment' },
 ]
 
 function isActive(href: string, pathname: string | null) {
