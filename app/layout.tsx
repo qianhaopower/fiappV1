@@ -11,7 +11,7 @@ import AppChrome from "@/components/AppChrome";
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
-  title: "FIApp - Wellbeing & Growth",
+  title: "Friends Intelligence",
   description: "Your personal wellbeing and growth platform",
 };
 

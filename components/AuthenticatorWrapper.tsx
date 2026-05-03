@@ -44,6 +44,8 @@ export default function AuthenticatorWrapper() {
     <div className="min-h-screen bg-muted/40 flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-2xl rounded-2xl border border-border bg-card shadow-xl p-12">
         <div className="text-center mb-8">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-mark.svg" alt="Friends Intelligence" className="h-16 w-16 mx-auto mb-4" />
           <h1 className="text-3xl font-semibold text-foreground">
             FRIENDS Intelligence
           </h1>

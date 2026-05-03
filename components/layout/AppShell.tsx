@@ -18,9 +18,8 @@ interface AppShellProps {
 const NAV_ITEMS = [
   { href: '/today', label: 'Today' },
   { href: '/practices', label: 'Practices' },
-  { href: '/results', label: 'Results' },
+  { href: '/results', label: 'Insights' },
   { href: '/progress', label: 'Progress' },
-  { href: '/assessment', label: 'Assessment' },
 ]
 
 function isActive(href: string, pathname: string | null) {
@@ -56,8 +55,12 @@ export function AppShell({ children, onSignOut }: AppShellProps) {
         </div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
           <div className="flex items-center gap-6">
-            <Link href="/today" className="font-semibold tracking-tight text-foreground hover:text-primary transition-colors">
-              FIApp
+            <Link href="/today" className="flex items-center gap-2 group">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo-mark.svg" alt="Friends Intelligence" className="h-7 w-7 shrink-0" />
+              <span className="hidden sm:inline font-semibold tracking-tight text-foreground group-hover:text-primary transition-colors text-sm">
+                Friends Intelligence
+              </span>
             </Link>
             <nav className="hidden md:flex items-center gap-4 text-sm">
               {NAV_ITEMS.map(({ href, label }) => (
