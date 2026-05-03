@@ -278,7 +278,8 @@
   width: 100% !important;
 }
 
-.fiapp-auth .amplify-alert__body {
+.fiapp-auth span.amplify-alert__body {
+  display: block !important;
   flex: 1 !important;
   min-width: 0 !important;
 }
