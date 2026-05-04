@@ -4,11 +4,12 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuthenticator } from '@aws-amplify/ui-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui'
 import { PlanBadge } from '@/components/PlanBadge'
-import { UpgradeButton } from '@/components/UpgradeButton'
 import { DevSubscriptionToggle } from '@/components/DevSubscriptionToggle'
 import { useProfile } from '@/contexts/ProfileContext'
+import { getPlanLabel, isPlusPlan } from '@/lib/plans'
 
 interface AppShellProps {
   children: React.ReactNode
@@ -35,7 +36,7 @@ export function AppShell({ children, onSignOut }: AppShellProps) {
   const { profile } = useProfile()
 
   const email = user?.signInDetails?.loginId ?? user?.username ?? ''
-  const plan = profile?.subscriptionStatus === 'PAID' ? 'Premium' : 'Free'
+  const planLabel = getPlanLabel(profile?.subscriptionStatus)
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -81,7 +82,6 @@ export function AppShell({ children, onSignOut }: AppShellProps) {
           <div className="flex items-center gap-2">
             <PlanBadge />
             <DevSubscriptionToggle />
-            <UpgradeButton />
             <div ref={accountRef} className="relative hidden sm:block">
               <Button
                 variant="ghost"
@@ -94,7 +94,15 @@ export function AppShell({ children, onSignOut }: AppShellProps) {
                 <div className="absolute right-0 top-full mt-1 w-56 rounded-xl border border-border bg-card shadow-md z-50 overflow-hidden">
                   <div className="px-4 py-3 border-b border-border/60">
                     <p className="text-xs text-muted-foreground truncate">{email}</p>
-                    <p className="text-xs font-medium text-foreground mt-0.5">{plan} plan</p>
+                    <p className="text-xs font-medium text-foreground mt-0.5">{planLabel}</p>
+                    {!isPlusPlan(profile?.subscriptionStatus) && (
+                      <button
+                        onClick={() => { setAccountOpen(false); toast.info('Plus plan is coming soon', { description: 'Plus lets you keep up to 10 active practices.' }) }}
+                        className="mt-2 w-full rounded-md bg-primary/10 border border-primary/25 px-2 py-1 text-xs font-semibold text-primary hover:bg-primary/20 transition-colors text-center"
+                      >
+                        Upgrade to Plus
+                      </button>
+                    )}
                   </div>
                   <Link
                     href="/account"

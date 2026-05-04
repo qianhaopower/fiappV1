@@ -42,7 +42,7 @@ type ActiveData = {
 function PillarBadge({ pillar }: { pillar: Pillar }) {
   return (
     <span
-      className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-white"
+      className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-white"
       style={{ backgroundColor: pillarColors[pillar] }}
     >
       {pillarLabels[pillar]}
@@ -52,7 +52,7 @@ function PillarBadge({ pillar }: { pillar: Pillar }) {
 
 function TrialBadge() {
   return (
-    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-amber-100 text-amber-800 border border-amber-300">
+    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-300">
       Trying
     </span>
   );
@@ -60,7 +60,7 @@ function TrialBadge() {
 
 function PausedBadge() {
   return (
-    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-muted text-muted-foreground border border-border">
+    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-muted text-muted-foreground border border-border">
       Paused
     </span>
   );
@@ -68,7 +68,7 @@ function PausedBadge() {
 
 function FocusBadge() {
   return (
-    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-primary/10 text-primary border border-primary/30">
+    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-primary/10 text-primary border border-primary/30">
       Today&apos;s focus
     </span>
   );
@@ -318,7 +318,10 @@ export default function PracticesPage() {
                                     disabled={!!actionLoading[p.id]}
                                   >
                                     <span className="font-medium">{c.title}</span>
-                                    <span className="text-muted-foreground"> · {pillarLabels[c.pillar]}</span>
+                                    <span className="inline-flex items-center gap-1 ml-1.5">
+                                      <span className="h-2 w-2 rounded-full shrink-0 inline-block" style={{ backgroundColor: pillarColors[c.pillar] }} />
+                                      <span className="text-muted-foreground text-xs">{pillarLabels[c.pillar]}</span>
+                                    </span>
                                   </button>
                                 ))}
                               </div>

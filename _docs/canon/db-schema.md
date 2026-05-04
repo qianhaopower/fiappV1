@@ -122,7 +122,7 @@ Stores daily completion signal per practice per day.
 
 ### 3.1 Caps
 - Free: **1 active practice**
-- Paid: **10 active practices hard cap**
+- Plus plan (internal `PAID`): **10 active practices hard cap**
 - Warning thresholds: **5 (soft), 7 (strong), 10 (hard stop)**
 
 ### 3.2 Trials policy

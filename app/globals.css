@@ -59,7 +59,7 @@
   --card-foreground: oklch(0.16 0.02 265);
   --popover: oklch(0.99 0.001 0);
   --popover-foreground: oklch(0.16 0.02 265);
-  /* Primary: clearer, more saturated teal - intentional & premium */
+  /* Primary: clearer, more saturated teal - intentional and polished */
   --primary: oklch(0.55 0.22 260);
   --primary-foreground: oklch(0.985 0 0);
   /* Secondary: soft teal/emerald for highlights & positive feedback */
@@ -134,7 +134,28 @@
   }
   body {
     @apply bg-background text-foreground;
+    overflow-x: clip;
   }
+}
+
+@keyframes dot-pop {
+  0%   { transform: scale(1); }
+  45%  { transform: scale(1.55); }
+  100% { transform: scale(1); }
+}
+
+@keyframes button-confirm {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+.animate-dot-pop {
+  animation: dot-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.animate-button-confirm {
+  animation: button-confirm 0.3s ease-out;
 }
 
 /* Amplify Authenticator: full custom skin inside FIApp card */

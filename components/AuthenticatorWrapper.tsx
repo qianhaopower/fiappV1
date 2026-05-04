@@ -1,9 +1,27 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Authenticator, useAuthenticator } from "@aws-amplify/ui-react";
 import { ensureAmplifyConfigured } from "@/lib/amplifyClient";
+
+const passwordSettings = {
+  minLength: 8,
+  requireLowercase: true,
+  requireUppercase: true,
+  requireNumbers: true,
+  requireSpecialCharacters: true,
+};
+
+function PasswordRequirements() {
+  return (
+    <p className="mt-2 text-xs leading-5 text-muted-foreground">
+      Passwords need 8+ characters with uppercase, lowercase, a number, and a
+      symbol.
+    </p>
+  );
+}
 
 function SignInFooter() {
   const { toForgotPassword } = useAuthenticator();
@@ -20,6 +38,15 @@ function SignInFooter() {
         We&apos;ll never share your data.
       </p>
     </div>
+  );
+}
+
+function SignUpFormFields() {
+  return (
+    <>
+      <Authenticator.SignUp.FormFields />
+      <PasswordRequirements />
+    </>
   );
 }
 
@@ -57,6 +84,7 @@ export default function AuthenticatorWrapper() {
         <div className="fiapp-auth-shell">
           <Authenticator
             className="fiapp-auth"
+            passwordSettings={passwordSettings}
             formFields={{
               signIn: {
                 username: {
@@ -85,6 +113,9 @@ export default function AuthenticatorWrapper() {
               SignIn: {
                 Footer: SignInFooter,
               },
+              SignUp: {
+                FormFields: SignUpFormFields,
+              },
             }}
           >
             {({ user }) => (user ? <AuthRedirect /> : <></>)}
@@ -92,9 +123,9 @@ export default function AuthenticatorWrapper() {
         </div>
 
         <div className="mt-6 text-center text-xs text-muted-foreground">
-          <a href="/" className="text-muted-foreground hover:text-foreground">
+          <Link href="/" className="text-muted-foreground hover:text-foreground">
             ← Back to home
-          </a>
+          </Link>
         </div>
       </div>
     </div>

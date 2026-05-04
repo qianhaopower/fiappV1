@@ -13,7 +13,7 @@
 - Hard stop: cannot add more
 - Replacement is allowed (count remains 1)
 
-### Paid users
+### Plus plan users (internal `PAID`)
 - Maximum **10** active practices
 - Hard stop at 10 (cannot exceed under any circumstance)
 
@@ -21,7 +21,7 @@ Caps are enforced **server-side only**.
 
 ---
 
-## 2. Progressive Warnings (Paid Users)
+## 2. Progressive Warnings (Plus Plan Users)
 
 Warnings are **non-blocking** but intentional:
 

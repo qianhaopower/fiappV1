@@ -45,7 +45,7 @@ describe("UpgradeButton", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("renders Upgrade button when subscriptionStatus is FREE", () => {
+  it("renders Upgrade to Plus button when subscriptionStatus is FREE", () => {
     useProfileMock.mockReturnValue({
       profile: { subscriptionStatus: "FREE" },
       loading: false,
@@ -54,7 +54,7 @@ describe("UpgradeButton", () => {
     });
 
     render(<UpgradeButton />);
-    expect(screen.getByRole("button", { name: "Upgrade" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Upgrade to Plus" })).toBeInTheDocument();
   });
 
   it("calls toast.info on click when FREE", () => {
@@ -66,10 +66,10 @@ describe("UpgradeButton", () => {
     });
 
     render(<UpgradeButton />);
-    fireEvent.click(screen.getByRole("button", { name: "Upgrade" }));
+    fireEvent.click(screen.getByRole("button", { name: "Upgrade to Plus" }));
 
-    expect(toastMock).toHaveBeenCalledWith("Upgrade coming soon", {
-      description: "Premium features are in development.",
+    expect(toastMock).toHaveBeenCalledWith("Plus plan is coming soon", {
+      description: "Plus lets you keep up to 10 active practices.",
     });
   });
 });

@@ -49,7 +49,7 @@ describe("PlanBadge", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("renders Free when subscriptionStatus is FREE", () => {
+  it("renders Free plan when subscriptionStatus is FREE", () => {
     useProfileMock.mockReturnValue({
       profile: { subscriptionStatus: "FREE" },
       loading: false,
@@ -58,11 +58,11 @@ describe("PlanBadge", () => {
     });
 
     render(<PlanBadge />);
-    expect(screen.getByText("Free")).toBeInTheDocument();
-    expect(screen.getByLabelText("Plan: Free")).toBeInTheDocument();
+    expect(screen.getByText("Free plan")).toBeInTheDocument();
+    expect(screen.getByLabelText("Plan: Free plan")).toBeInTheDocument();
   });
 
-  it("renders Premium when subscriptionStatus is PAID", () => {
+  it("renders Plus plan when subscriptionStatus is PAID", () => {
     useProfileMock.mockReturnValue({
       profile: { subscriptionStatus: "PAID" },
       loading: false,
@@ -71,7 +71,7 @@ describe("PlanBadge", () => {
     });
 
     render(<PlanBadge />);
-    expect(screen.getByText("Premium")).toBeInTheDocument();
-    expect(screen.getByLabelText("Plan: Premium")).toBeInTheDocument();
+    expect(screen.getByText("Plus plan")).toBeInTheDocument();
+    expect(screen.getByLabelText("Plan: Plus plan")).toBeInTheDocument();
   });
 });

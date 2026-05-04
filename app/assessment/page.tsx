@@ -139,8 +139,8 @@ export default function AssessmentPage() {
             <span
               className={
                 pillarColor
-                  ? "inline-flex items-center gap-2 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
-                  : "inline-flex items-center gap-2 rounded-full border border-border bg-muted/40 px-2.5 py-0.5 text-[11px] font-semibold text-foreground"
+                  ? "inline-flex items-center gap-2 rounded-full border px-2.5 py-0.5 text-xs font-semibold"
+                  : "inline-flex items-center gap-2 rounded-full border border-border bg-muted/40 px-2.5 py-0.5 text-xs font-semibold text-foreground"
               }
               style={
                 pillarColor && pillarTextColor
