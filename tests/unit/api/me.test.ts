@@ -83,6 +83,34 @@ describe("GET /api/me", () => {
     expect(json.data.activeTrialCount).toBe(1);
   });
 
+  it("returns profile with activeTrialCount=0 when trial count lookup fails", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const existingProfile = {
+      userId: "usr-1",
+      subscriptionStatus: "FREE",
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      activePracticeIds: [],
+      latestAssessmentId: "a1",
+    };
+    getMyProfileMock.mockResolvedValue({ data: existingProfile, errors: undefined });
+    dynamoQueryMock.mockRejectedValue(new Error("Access denied"));
+
+    const req = new Request("http://localhost/api/me");
+    const res = await GET(req);
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.ok).toBe(true);
+    expect(json.data.activeTrialCount).toBe(0);
+    expect(consoleError).toHaveBeenCalledWith(
+      "[GET /api/me] failed to read active trials:",
+      expect.any(Error)
+    );
+
+    consoleError.mockRestore();
+  });
+
   it("does not count expired trials", async () => {
     const existingProfile = {
       userId: "usr-1",
@@ -135,6 +163,27 @@ describe("GET /api/me", () => {
     expect(json.data.activeTrialCount).toBe(0);
     expect(getMyProfileMock).toHaveBeenCalledTimes(1);
     expect(createMyProfileMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("logs and returns 500 when profile read returns AppSync errors", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    getMyProfileMock.mockResolvedValue({
+      data: null,
+      errors: [{ message: "Resolver failed" }],
+    });
+
+    const req = new Request("http://localhost/api/me");
+    const res = await GET(req);
+    const json = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(json.error?.message).toBe("Failed to read profile");
+    expect(consoleError).toHaveBeenCalledWith(
+      "[GET /api/me] getMyProfile errors:",
+      [{ message: "Resolver failed" }]
+    );
+
+    consoleError.mockRestore();
   });
 
   it("returns same profile on second call (idempotent, no overwrite)", async () => {

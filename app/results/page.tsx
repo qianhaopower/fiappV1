@@ -188,31 +188,32 @@ export default function ResultsPage() {
                 <div className="space-y-4">
                   {suggestions.map((practice) => (
                     <Card key={practice.id} variant="interactive">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="space-y-2 min-w-0">
+                      <div className="space-y-4">
+                        <div className="space-y-2">
                           <span
-                            className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-white"
+                            className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-white"
                             style={{ backgroundColor: pillarColors[practice.pillar] }}
                           >
                             {pillarLabels[practice.pillar]}
                           </span>
                           <p className="font-semibold text-foreground">{practice.title}</p>
                           <p className="text-sm text-muted-foreground">{practice.description}</p>
-                          <p className="text-xs text-muted-foreground italic">
-                            Why: {practice.rationale}
-                          </p>
+                          {practice.rationale && (
+                            <p className="text-xs text-muted-foreground border-l-2 border-border pl-3">
+                              {practice.rationale}
+                            </p>
+                          )}
                         </div>
-                        <div className="flex flex-col items-end gap-1 shrink-0">
+                        <div>
                           <Button
-                            size="sm"
                             variant="outline"
                             disabled={!!trialLoading[practice.id]}
                             onClick={() => handleTryThis(practice.id)}
                           >
-                            {trialLoading[practice.id] ? '…' : 'Try this'}
+                            {trialLoading[practice.id] ? '…' : 'Try this practice'}
                           </Button>
                           {trialError[practice.id] && (
-                            <p className="text-[11px] text-destructive text-right max-w-[140px]">
+                            <p className="text-xs text-destructive mt-1">
                               {trialError[practice.id]}
                             </p>
                           )}

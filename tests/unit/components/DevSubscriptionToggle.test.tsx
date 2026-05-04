@@ -48,14 +48,14 @@ describe("DevSubscriptionToggle", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("renders Free and Paid buttons when flag is true", () => {
+  it("renders Free and Plus buttons when flag is true", () => {
     render(<DevSubscriptionToggle />);
 
     expect(screen.getByRole("button", { name: "Free" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Paid" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Plus" })).toBeInTheDocument();
   });
 
-  it("calls fetch and refetch when Paid is clicked", async () => {
+  it("calls fetch and refetch when Plus is clicked", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({}),
@@ -63,7 +63,7 @@ describe("DevSubscriptionToggle", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<DevSubscriptionToggle />);
-    fireEvent.click(screen.getByRole("button", { name: "Paid" }));
+    fireEvent.click(screen.getByRole("button", { name: "Plus" }));
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith("/api/dev/subscription", {
@@ -78,7 +78,7 @@ describe("DevSubscriptionToggle", () => {
       expect(refetchMock).toHaveBeenCalled();
     });
 
-    expect(toastSuccessMock).toHaveBeenCalledWith("Set to Premium");
+    expect(toastSuccessMock).toHaveBeenCalledWith("Set to Plus plan");
   });
 
   it("calls fetch and refetch when Free is clicked", async () => {
@@ -104,7 +104,7 @@ describe("DevSubscriptionToggle", () => {
       expect(refetchMock).toHaveBeenCalled();
     });
 
-    expect(toastSuccessMock).toHaveBeenCalledWith("Set to Free");
+    expect(toastSuccessMock).toHaveBeenCalledWith("Set to Free plan");
   });
 
   it("shows error toast when fetch fails", async () => {
@@ -116,7 +116,7 @@ describe("DevSubscriptionToggle", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<DevSubscriptionToggle />);
-    fireEvent.click(screen.getByRole("button", { name: "Paid" }));
+    fireEvent.click(screen.getByRole("button", { name: "Plus" }));
 
     await waitFor(() => {
       expect(toastErrorMock).toHaveBeenCalledWith("Failed to update", {

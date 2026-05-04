@@ -110,8 +110,8 @@ This endpoint is the **only** way to modify active/trial/paused/focus state.
 **Server rules**
 - Enforce caps based on `subscriptionStatus`:
   - FREE cap=1
-  - PAID cap=10
-- Warning thresholds on paid:
+  - PAID cap=10 (displayed as Plus plan)
+- Warning thresholds on Plus plan / internal `PAID`:
   - at 5 → include warning
   - at 7 → strong warning
 - At 10 → hard stop (error)
@@ -150,7 +150,7 @@ or
 **Server rules (Option 2)**
 - Pausing removes from `activePracticeIds` but preserves a pointer to the UPRACTICE record:
   - keep mapping in `activePracticeSkById` (or equivalent) to locate SK for resume/history
-- Resume re-adds to `activePracticeIds` subject to caps (free/paid)
+- Resume re-adds to `activePracticeIds` subject to caps (Free plan / Plus plan)
 - Resume should behave like `add` with cap checks + warnings
 
 **Returns**
@@ -255,7 +255,7 @@ or
 
 ## 7) Cap warnings & confirm flow (canonical intent)
 
-- Paid users:
+- Plus plan users (internal `PAID`):
   - warn at 5
   - strong warn at 7
   - hard stop at 10

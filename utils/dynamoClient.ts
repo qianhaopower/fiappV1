@@ -11,6 +11,16 @@ import {
   type QueryCommandInput,
 } from "@aws-sdk/lib-dynamodb";
 
+const DEFAULT_MAIN_TABLE = "FIAPP_MAIN";
+const DEFAULT_RETURNS_TABLE = "FIAPP_RETURNS";
+
+function firstConfiguredValue(
+  fallback: string,
+  ...values: Array<string | undefined>
+) {
+  return values.find((value) => value?.trim()) ?? fallback;
+}
+
 export interface DynamoClientOptions {
   tableName?: string;
   region?: string;
@@ -22,10 +32,11 @@ export class DynamoClient {
   private client: DynamoDBDocumentClient;
 
   constructor(options: DynamoClientOptions = {}) {
-    const tableName = options.tableName ?? process.env.FIAPP_MAIN_TABLE;
-    if (!tableName) {
-      throw new Error("FIAPP_MAIN_TABLE is not set");
-    }
+    const tableName = firstConfiguredValue(
+      DEFAULT_MAIN_TABLE,
+      options.tableName,
+      process.env.FIAPP_MAIN_TABLE
+    );
 
     this.tableName = tableName;
     this.client =
@@ -94,6 +105,10 @@ export function createDynamoClient(options: DynamoClientOptions = {}) {
 }
 
 export function createReturnsClient(options: Omit<DynamoClientOptions, 'tableName'> = {}) {
-  const tableName = process.env.FIAPP_RETURNS_TABLE ?? process.env.FIAPP_MAIN_TABLE;
+  const tableName = firstConfiguredValue(
+    DEFAULT_RETURNS_TABLE,
+    process.env.FIAPP_RETURNS_TABLE,
+    process.env.FIAPP_MAIN_TABLE
+  );
   return new DynamoClient({ ...options, tableName });
 }

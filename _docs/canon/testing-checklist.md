@@ -73,9 +73,9 @@
   - returns hard error or requiresReplace response (whatever your contract defines)
 - [ ] Free user can `replace` at cap successfully (count stays 1)
 
-### 3.2 Paid cap = 10 (hard stop)
-- [ ] Paid user can add up to 10 active practices
-- [ ] Paid user adding 11th is rejected (hard stop)
+### 3.2 Plus plan cap = 10 (hard stop; internal `PAID`)
+- [ ] Plus plan user can add up to 10 active practices
+- [ ] Plus plan user adding 11th is rejected (hard stop)
   - ensure no data mutation occurred
 
 ### 3.3 Warnings at 5 and 7
@@ -98,14 +98,14 @@
 ### 4.2 Resume is cap-checked and warning-aware
 - [ ] Resume adds it back if under cap
 - [ ] Resume triggers warning at 5 / 7 when applicable
-- [ ] Resume is rejected if at hard cap (paid 10, free 1)
+- [ ] Resume is rejected if at hard cap (Plus plan 10, Free plan 1)
 
 ---
 
 ## 5) Trial lifecycle (LOCKED distinctions)
 
 ### 5.1 Trials don’t consume cap
-- [ ] With paid user at cap=10 active, `startTrial` still succeeds
+- [ ] With Plus plan user at cap=10 active, `startTrial` still succeeds
 - [ ] Active count remains unchanged after `startTrial`
 
 ### 5.2 Promote trial consumes cap
@@ -163,7 +163,7 @@ Use Playwright/Cypress (or similar). Keep these short and stable.
 - [ ] If assessment exists but no practices, Today redirects to Results (or Active Practices per your guard) and cannot log returns
 
 ### 8.3 Cap cannot be bypassed
-- [ ] Paid user at 10 active cannot add 11th via any UI path
+- [ ] Plus plan user at 10 active cannot add 11th via any UI path
 - [ ] Free user cannot exceed 1 active
 
 ---

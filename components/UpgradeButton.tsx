@@ -14,8 +14,8 @@ export function UpgradeButton() {
   if (loading || profile?.subscriptionStatus !== "FREE") return null;
 
   function handleClick() {
-    toast.info("Upgrade coming soon", {
-      description: "Premium features are in development.",
+    toast.info("Plus plan is coming soon", {
+      description: "Plus lets you keep up to 10 active practices.",
     });
   }
 
@@ -26,7 +26,7 @@ export function UpgradeButton() {
       onClick={handleClick}
       className="border-primary/30 text-primary hover:bg-primary/10 hover:border-primary/50"
     >
-      Upgrade
+      Upgrade to Plus
     </Button>
   );
 }

@@ -53,6 +53,7 @@ export default function TodayPage() {
   const [logError, setLogError] = useState('')
   const [trialLogError, setTrialLogError] = useState<Record<string, string>>({})
   const [newMilestones, setNewMilestones] = useState<NewMilestone[]>([])
+  const [justLogged, setJustLogged] = useState(false)
 
   const loadReturns = useCallback(async (practiceId: string) => {
     const res = await fetch(`/api/returns?practiceId=${practiceId}&days=14`)
@@ -110,6 +111,10 @@ export default function TodayPage() {
         setNewMilestones(data.newMilestones)
       }
       await loadReturns(focusPractice.id)
+      if (newValue === true) {
+        setJustLogged(true)
+        setTimeout(() => setJustLogged(false), 700)
+      }
     } catch {
       setLogError('Could not save. Please try again.')
     } finally {
@@ -143,7 +148,7 @@ export default function TodayPage() {
 
   return (
     <NarrowFormPage title="Today" description="Your daily check-in.">
-      <div className="space-y-6">
+      <div className="space-y-8">
 
         {newMilestones.length > 0 && (
           <Card className="border-primary/40 bg-primary/5">
@@ -184,16 +189,17 @@ export default function TodayPage() {
         {!loading && !error && focusPractice && (
           <>
             <Card>
-              <div className="space-y-4">
+              <div className="space-y-5">
+                {/* Context */}
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <span
-                      className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-white"
+                      className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-white"
                       style={{ backgroundColor: pillarColors[focusPractice.pillar] }}
                     >
                       {pillarLabels[focusPractice.pillar]}
                     </span>
-                    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-primary/10 text-primary border border-primary/30">
+                    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-primary/10 text-primary border border-primary/30">
                       Today&apos;s focus
                     </span>
                   </div>
@@ -201,18 +207,23 @@ export default function TodayPage() {
                   <p className="mt-1 text-sm text-muted-foreground">{focusPractice.description}</p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 pt-2">
+                {/* Primary action */}
+                <div className="space-y-2 pt-1">
                   <Button
+                    size="lg"
                     variant={todayDidIt === true ? 'default' : 'outline'}
                     disabled={logging}
                     onClick={() => handleLog(true)}
+                    className={`w-full font-semibold ${todayDidIt !== true ? 'border-primary/40 text-primary hover:bg-primary/5' : ''} ${justLogged ? 'animate-button-confirm' : ''}`}
                   >
                     {logging && todayDidIt !== true ? '…' : '✓ Did it'}
                   </Button>
                   <Button
-                    variant={todayDidIt === false ? 'secondary' : 'outline'}
+                    size="sm"
+                    variant="ghost"
                     disabled={logging}
                     onClick={() => handleLog(false)}
+                    className="w-full text-muted-foreground hover:text-foreground"
                   >
                     {logging && todayDidIt !== false ? '…' : 'Not today'}
                   </Button>
@@ -220,7 +231,10 @@ export default function TodayPage() {
 
                 {todayDidIt === true && !logging && (
                   <p className="text-sm text-center text-muted-foreground">
-                    Nice work. Keep it up tomorrow.
+                    {(() => {
+                      const doneCount = dots.filter(d => d.didIt === true).length
+                      return `You've done this ${doneCount} ${doneCount === 1 ? 'time' : 'times'}.`
+                    })()}
                   </p>
                 )}
                 {todayDidIt === false && !logging && (
@@ -238,70 +252,81 @@ export default function TodayPage() {
             {dots.some((d) => d.didIt !== null) && <Card variant="subtle">
               <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-4">Last 14 days</p>
               <div className="flex flex-wrap gap-2">
-                {dots.map((dot) => (
-                  <span
-                    key={dot.date}
-                    title={dot.date}
-                    className={`h-6 w-6 rounded-full border transition-colors ${
-                      dot.didIt === true
-                        ? 'bg-primary border-primary'
-                        : dot.didIt === false
-                        ? 'bg-muted border-border'
-                        : 'bg-transparent border-border/40'
-                    }`}
-                  />
-                ))}
+                {dots.map((dot) => {
+                  const d = new Date(dot.date + 'T00:00:00Z')
+                  const label = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })
+                  const tooltip = dot.didIt === true ? `${label} · Did it` : dot.didIt === false ? `${label} · Skipped` : label
+                  return (
+                    <span
+                      key={dot.date}
+                      title={tooltip}
+                      className={`h-6 w-6 rounded-full border transition-colors ${
+                        dot.didIt === true
+                          ? 'bg-primary border-primary'
+                          : dot.didIt === false
+                          ? 'bg-foreground/20 border-foreground/35'
+                          : 'bg-muted/70 border-border/50'
+                      } ${justLogged && dot.date === todayUTC() ? 'animate-dot-pop' : ''}`}
+                    />
+                  )
+                })}
               </div>
             </Card>}
           </>
         )}
 
         {!loading && !error && activeTrials.length > 0 && (
-          <div className="space-y-3">
-            {activeTrials.map((trial) => {
-              const didIt = trialDidIt[trial.id] ?? null
-              const busy = !!trialLogging[trial.id]
-              return (
-                <Card key={trial.id} variant="subtle">
-                  <div className="space-y-4">
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span
-                          className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-white"
-                          style={{ backgroundColor: pillarColors[trial.pillar] }}
-                        >
-                          {pillarLabels[trial.pillar]}
-                        </span>
-                        <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-amber-100 text-amber-800 border border-amber-300">
-                          Trying · {trial.daysRemaining}d left to decide
-                        </span>
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-3">Trying out</p>
+            <div className="space-y-3">
+              {activeTrials.map((trial) => {
+                const didIt = trialDidIt[trial.id] ?? null
+                const busy = !!trialLogging[trial.id]
+                return (
+                  <Card key={trial.id} variant="subtle">
+                    <div className="space-y-4">
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span
+                            className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-white"
+                            style={{ backgroundColor: pillarColors[trial.pillar] }}
+                          >
+                            {pillarLabels[trial.pillar]}
+                          </span>
+                          <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-300">
+                            {trial.daysRemaining}d left to decide
+                          </span>
+                        </div>
+                        <p className="mt-3 font-semibold text-foreground">{trial.title}</p>
+                        <p className="mt-1 text-sm text-muted-foreground">{trial.description}</p>
                       </div>
-                      <p className="mt-3 font-semibold text-foreground">{trial.title}</p>
-                      <p className="mt-1 text-sm text-muted-foreground">{trial.description}</p>
+                      <div className="space-y-1.5">
+                        <Button
+                          variant={didIt === true ? 'default' : 'outline'}
+                          disabled={busy}
+                          onClick={() => handleTrialLog(trial.id, true)}
+                          className={`w-full ${didIt !== true ? 'border-border/60' : ''}`}
+                        >
+                          {busy ? '…' : '✓ Did it'}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={busy}
+                          onClick={() => handleTrialLog(trial.id, false)}
+                          className="w-full text-muted-foreground hover:text-foreground"
+                        >
+                          {busy ? '…' : 'Not today'}
+                        </Button>
+                      </div>
+                      {trialLogError[trial.id] && (
+                        <p className="text-xs text-destructive">{trialLogError[trial.id]}</p>
+                      )}
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <Button
-                        variant={didIt === true ? 'default' : 'outline'}
-                        disabled={busy}
-                        onClick={() => handleTrialLog(trial.id, true)}
-                      >
-                        {busy ? '…' : '✓ Did it'}
-                      </Button>
-                      <Button
-                        variant={didIt === false ? 'secondary' : 'outline'}
-                        disabled={busy}
-                        onClick={() => handleTrialLog(trial.id, false)}
-                      >
-                        {busy ? '…' : 'Not today'}
-                      </Button>
-                    </div>
-                    {trialLogError[trial.id] && (
-                      <p className="text-xs text-destructive">{trialLogError[trial.id]}</p>
-                    )}
-                  </div>
-                </Card>
-              )
-            })}
+                  </Card>
+                )
+              })}
+            </div>
           </div>
         )}
 

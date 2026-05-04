@@ -12,7 +12,7 @@ Science-based wellbeing assessment + coaching product using the Friends Intellig
 - Run a 7-pillar assessment (35 yes/no questions)
 - Compute pillar scores + choose focus pillar
 - Suggest small “practices” based on results
-- Let users activate practices (free vs paid caps)
+- Let users activate practices (Free plan vs Plus plan caps)
 - Track daily returns (did it / not today)
 - Show progress via counters + milestones
 

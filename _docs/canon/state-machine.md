@@ -84,7 +84,7 @@ This single screen replaces the “selector” + “manage” split.
 - Pause / resume (Option 2 pause logic)
 - Set focus practice
 - View trials (start/promote/discard)
-- Show cap warnings at 5/7 and hard stop at 10 (paid)
+- Show cap warnings at 5/7 and hard stop at 10 (Plus plan / internal `PAID`)
 - Navigate to Today + Progress
 
 > **Invariant:** Any action that changes practice state calls `POST /api/practice`.
@@ -93,7 +93,7 @@ This single screen replaces the “selector” + “manage” split.
 
 ## 6) Cap & Confirm UX (canonical behavior)
 
-### Paid users
+### Plus plan users (internal `PAID`)
 - At 5 active: show warning (non-blocking)
 - At 7 active: show strong warning (non-blocking but prominent)
 - At 10 active: hard stop (cannot add more)

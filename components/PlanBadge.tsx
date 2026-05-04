@@ -1,6 +1,7 @@
 "use client";
 
 import { useProfile } from "@/contexts/ProfileContext";
+import { getPlanLabel, isPlusPlan } from "@/lib/plans";
 
 export function PlanBadge() {
   const { profile, loading } = useProfile();
@@ -8,8 +9,8 @@ export function PlanBadge() {
   if (loading || !profile?.subscriptionStatus) return null;
 
   const plan = profile.subscriptionStatus;
-  const label = plan === "PAID" ? "Premium" : "Free";
-  const variant = plan === "PAID" ? "primary" : "muted";
+  const label = getPlanLabel(plan);
+  const variant = isPlusPlan(plan) ? "primary" : "muted";
 
   return (
     <span

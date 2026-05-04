@@ -5,13 +5,14 @@ import { useAuthenticator } from '@aws-amplify/ui-react';
 import { NarrowFormPage } from '@/components/layout';
 import { Card, Button } from '@/components/ui';
 import { useProfile } from '@/contexts/ProfileContext';
+import { getPlanLabel } from '@/lib/plans';
 
 export default function AccountPage() {
   const { user, signOut } = useAuthenticator((ctx) => [ctx.user, ctx.signOut])
   const { profile } = useProfile()
 
   const email = user?.signInDetails?.loginId ?? user?.username ?? '—'
-  const plan = profile?.subscriptionStatus === 'PAID' ? 'Premium' : 'Free'
+  const plan = getPlanLabel(profile?.subscriptionStatus)
 
   return (
     <NarrowFormPage title="Account" description="Your profile and settings.">

@@ -2,7 +2,7 @@
 
 **Status:** Implemented
 
-**Purpose:** Allow testing paid flows without payment integration.
+**Purpose:** Allow testing Plus plan flows without payment integration.
 
 **Success criteria:**
 - Dev can toggle subscriptionStatus ✓
@@ -17,7 +17,7 @@ Add to `.env.local`:
 ```
 NEXT_PUBLIC_FIAPP_DEV_SUBSCRIPTION=true
 ```
-Restart dev server. The "Free | Paid" toggle appears in the header. Click to switch; UI updates immediately.
+Restart dev server. The "Free | Plus" toggle appears in the header. Click to switch; UI updates immediately.
 
 ---
 
@@ -60,7 +60,7 @@ Add `NEXT_PUBLIC_FIAPP_DEV_SUBSCRIPTION=true` so the client can gate the dev con
 
 - Client component
 - Renders only when `process.env.NEXT_PUBLIC_FIAPP_DEV_SUBSCRIPTION === "true"`
-- Shows Free | Premium toggle (or two buttons: "Set Free" / "Set Paid")
+- Shows Free | Plus toggle (or two buttons: "Set Free" / "Set Plus")
 - On click:
   1. `POST /api/dev/subscription` with `{ subscriptionStatus: "FREE" | "PAID" }`
   2. On success: call `refetch()` from `useProfile()`
@@ -87,12 +87,12 @@ Add `NEXT_PUBLIC_FIAPP_DEV_SUBSCRIPTION=true` so the client can gate the dev con
 - DevSubscriptionToggle will call `refetch()` after a successful POST
 
 **Flow:**
-1. User clicks "Set Paid" in DevSubscriptionToggle
+1. User clicks "Set Plus" in DevSubscriptionToggle
 2. POST /api/dev/subscription with `{ subscriptionStatus: "PAID" }`
 3. API updates PROFILE.subscriptionStatus via setMySubscriptionStatus
 4. On success, DevSubscriptionToggle calls `refetch()`
 5. ProfileContext fetches `/api/me` and updates state
-6. PlanBadge and UpgradeButton re-render with new status (Premium, no Upgrade button)
+6. PlanBadge and UpgradeButton re-render with new status (Plus plan, no Upgrade button)
 
 ---
 
@@ -101,8 +101,8 @@ Add `NEXT_PUBLIC_FIAPP_DEV_SUBSCRIPTION=true` so the client can gate the dev con
 1. Set `NEXT_PUBLIC_FIAPP_DEV_SUBSCRIPTION=true` in `.env.local`
 2. Restart dev server (env vars need rebuild)
 3. Sign in → dev toggle appears in header
-4. Click "Set Paid" → PlanBadge shows Premium, Upgrade button hides
-5. Click "Set Free" → PlanBadge shows Free, Upgrade button appears
+4. Click "Set Plus" → PlanBadge shows Plus plan, Upgrade button hides
+5. Click "Set Free" → PlanBadge shows Free plan, Upgrade button appears
 6. No full page refresh required
 
 ---

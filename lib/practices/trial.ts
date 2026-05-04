@@ -50,9 +50,9 @@ export function checkActiveCap(
   subscriptionStatus: string | undefined,
   activeCount: number
 ): CapCheckResult {
-  const isPaid = subscriptionStatus?.toUpperCase() === 'PAID'
+  const hasPlusPlan = subscriptionStatus?.toUpperCase() === 'PAID'
 
-  if (!isPaid) {
+  if (!hasPlusPlan) {
     if (activeCount >= FREE_CAP) return { allowed: false, reason: 'CAP_REACHED', cap: FREE_CAP }
     return { allowed: true }
   }
