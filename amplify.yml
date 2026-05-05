@@ -20,7 +20,7 @@ frontend:
     build:
       commands:
         - env | grep -e FIAPP_ >> .env.production
-        - npm run build
+        - NEXT_TELEMETRY_DISABLED=1 npm run build
   artifacts:
     baseDirectory: .next
     files:
