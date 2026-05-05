@@ -39,11 +39,21 @@ export class DynamoClient {
     );
 
     this.tableName = tableName;
+    const accessKeyId = process.env.FIAPP_AWS_ACCESS_KEY_ID
+    const secretAccessKey = process.env.FIAPP_AWS_SECRET_ACCESS_KEY
+    const region = options.region
+      ?? process.env.FIAPP_AWS_REGION
+      ?? process.env.AWS_REGION
+      ?? "ap-southeast-2"
+
     this.client =
       options.client ??
       DynamoDBDocumentClient.from(
         new DynamoDBClient({
-          region: options.region ?? process.env.AWS_REGION ?? "ap-southeast-2",
+          region,
+          ...(accessKeyId && secretAccessKey
+            ? { credentials: { accessKeyId, secretAccessKey } }
+            : {}),
         })
       );
   }
