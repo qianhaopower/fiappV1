@@ -46,13 +46,6 @@ export class DynamoClient {
       ?? process.env.AWS_REGION
       ?? "ap-southeast-2"
 
-    console.log('[DynamoClient] init', {
-      region,
-      hasAccessKeyId: !!accessKeyId,
-      hasSecretAccessKey: !!secretAccessKey,
-      accessKeyIdPrefix: accessKeyId?.slice(0, 4) ?? 'none',
-    })
-
     this.client =
       options.client ??
       DynamoDBDocumentClient.from(
