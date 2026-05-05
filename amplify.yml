@@ -4,7 +4,14 @@ backend:
     build:
       commands:
         - npm ci --cache .npm --prefer-offline
-        - npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AWS_APP_ID
+        - |
+          CHANGED=$(git diff --name-only HEAD^1 HEAD 2>/dev/null || git show --name-only --format="" HEAD)
+          if echo "$CHANGED" | grep -q '^amplify/'; then
+            echo "amplify/ changed — deploying backend"
+            npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AWS_APP_ID
+          else
+            echo "No amplify/ changes — skipping backend deploy"
+          fi
 frontend:
   phases:
     preBuild:
