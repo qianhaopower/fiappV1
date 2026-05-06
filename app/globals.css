@@ -6,6 +6,18 @@
 @theme {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Landing page design tokens */
+  --color-bg:           oklch(0.975 0.008 95);
+  --color-bg-2:         oklch(0.965 0.010 95);
+  --color-ink:          oklch(0.220 0.020 260);
+  --color-ink-2:        oklch(0.420 0.020 260);
+  --color-ink-3:        oklch(0.580 0.015 260);
+  --color-line:         oklch(0.900 0.010 260);
+  --color-line-2:       oklch(0.940 0.008 260);
+  --color-primary-ink:  oklch(0.320 0.180 260);
+  --color-primary-soft: oklch(0.960 0.025 260);
+  --radius-card:        0.75rem;
 }
 
 @theme inline {
