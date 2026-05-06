@@ -1,32 +1,42 @@
 "use client";
 
+import { useState } from "react";
 import { toast } from "sonner";
 import { useProfile } from "@/contexts/ProfileContext";
 import { Button } from "@/components/ui";
 
-/**
- * Upgrade CTA shown only for Free plan users.
- * Stubbed: no payments yet; shows toast on click.
- */
 export function UpgradeButton() {
   const { profile, loading } = useProfile();
+  const [busy, setBusy] = useState(false);
 
   if (loading || profile?.subscriptionStatus !== "FREE") return null;
 
-  function handleClick() {
-    toast.info("Plus plan is coming soon", {
-      description: "Plus lets you keep up to 10 active practices.",
-    });
+  async function handleClick() {
+    setBusy(true);
+    try {
+      const res = await fetch("/api/payment/checkout", { method: "POST" });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        toast.error("Could not start checkout. Please try again.");
+      }
+    } catch {
+      toast.error("Could not start checkout. Please try again.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
     <Button
       variant="outline"
       size="sm"
+      disabled={busy}
       onClick={handleClick}
       className="border-primary/30 text-primary hover:bg-primary/10 hover:border-primary/50"
     >
-      Upgrade to Plus
+      {busy ? "Loading…" : "Upgrade to Plus"}
     </Button>
   );
 }
