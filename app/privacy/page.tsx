@@ -35,7 +35,7 @@ export default function PrivacyPage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-base font-medium text-ink">What we don't do</h2>
+            <h2 className="mb-3 text-base font-medium text-ink">What we don&apos;t do</h2>
             <p>We do not sell your data. We do not share it with advertisers. We do not use it to train AI models. Your wellbeing data stays yours.</p>
           </section>
 
