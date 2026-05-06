@@ -1,6 +1,29 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import LandingAuthRedirect from "@/components/LandingAuthRedirect";
+
+export const metadata: Metadata = {
+  title: "Friends Intelligence — A life operating system for better decisions and energy",
+  description:
+    "Find your focus pillar in 8 minutes. A science-based wellbeing assessment across 7 areas of life — Finance, Relationship, Information, Emotion, Nutrition, Dynamics, Sleep. Free to start.",
+  openGraph: {
+    title: "Friends Intelligence",
+    description:
+      "Find your focus pillar in 8 minutes. Free wellbeing assessment across the 7 Friends pillars.",
+    url: "https://friendsintelligence.net",
+    siteName: "Friends Intelligence",
+    locale: "en_AU",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "Friends Intelligence",
+    description:
+      "Find your focus pillar in 8 minutes. Free wellbeing assessment across the 7 Friends pillars.",
+  },
+  metadataBase: new URL("https://friendsintelligence.net"),
+};
 
 function Arrow({ className = "" }: { className?: string }) {
   return (
