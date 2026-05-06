@@ -10,6 +10,9 @@ function shouldUseAppShell(pathname: string | null) {
   if (!pathname) return true;
   if (pathname === "/") return false;
   if (pathname.startsWith("/auth")) return false;
+  if (pathname === "/privacy") return false;
+  if (pathname === "/terms") return false;
+  if (pathname === "/contact") return false;
   return true;
 }
 
