@@ -342,9 +342,6 @@ export default function LandingPage() {
                 }}
               >
                 <div className="grid gap-2">
-                  <span className="inline-flex w-fit items-center gap-1.5 whitespace-nowrap rounded-full bg-primary-soft px-2 py-1 font-mono text-[0.7rem] uppercase tracking-[0.1em] text-primary-ink">
-                    Coming soon
-                  </span>
                   <span className="text-base font-medium tracking-[-0.005em]">Plus plan</span>
                   <div className="flex items-baseline gap-2 text-[2rem] font-medium tracking-[-0.02em]">
                     A$19 <small className="text-[0.85rem] font-normal text-ink-3">/ lifetime</small>
@@ -363,9 +360,9 @@ export default function LandingPage() {
                 <div className="mt-2">
                   <Link
                     href="/auth"
-                    className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-[0.5rem] border border-line bg-transparent px-5 text-[0.95rem] font-medium text-ink no-underline transition-colors hover:border-[oklch(0.85_0.012_260)] hover:bg-bg-2"
+                    className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-[0.5rem] bg-primary px-5 text-[0.95rem] font-medium text-white no-underline transition-colors hover:bg-[oklch(0.5_0.22_260)]"
                   >
-                    Notify me when available
+                    Get Plus plan
                   </Link>
                 </div>
               </article>
