@@ -6,6 +6,7 @@ import { NarrowFormPage } from '@/components/layout';
 import { Card, Button } from '@/components/ui';
 import { useProfile } from '@/contexts/ProfileContext';
 import { getPlanLabel } from '@/lib/plans';
+import { UpgradeButton } from '@/components/UpgradeButton';
 
 export default function AccountPage() {
   const { user, signOut } = useAuthenticator((ctx) => [ctx.user, ctx.signOut])
@@ -29,7 +30,8 @@ export default function AccountPage() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground mb-0.5">Plan</p>
-                <p className="text-sm font-medium text-foreground">{plan}</p>
+                <p className="text-sm font-medium text-foreground mb-2">{plan}</p>
+                <UpgradeButton />
               </div>
             </div>
           </div>
