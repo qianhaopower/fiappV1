@@ -31,6 +31,22 @@ export function AppShell({ children, onSignOut }: AppShellProps) {
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
+  const [checkoutBusy, setCheckoutBusy] = useState(false)
+
+  async function handleUpgrade() {
+    setCheckoutBusy(true)
+    setAccountOpen(false)
+    try {
+      const res = await fetch('/api/payment/checkout', { method: 'POST' })
+      const data = await res.json()
+      if (data.url) window.location.href = data.url
+      else toast.error('Could not start checkout. Please try again.')
+    } catch {
+      toast.error('Could not start checkout. Please try again.')
+    } finally {
+      setCheckoutBusy(false)
+    }
+  }
   const accountRef = useRef<HTMLDivElement>(null)
   const { user } = useAuthenticator((ctx) => [ctx.user])
   const { profile } = useProfile()
@@ -97,10 +113,11 @@ export function AppShell({ children, onSignOut }: AppShellProps) {
                     <p className="text-xs font-medium text-foreground mt-0.5">{planLabel}</p>
                     {!isPlusPlan(profile?.subscriptionStatus) && (
                       <button
-                        onClick={() => { setAccountOpen(false); toast.info('Plus plan is coming soon', { description: 'Plus lets you keep up to 10 active practices.' }) }}
-                        className="mt-2 w-full rounded-md bg-primary/10 border border-primary/25 px-2 py-1 text-xs font-semibold text-primary hover:bg-primary/20 transition-colors text-center"
+                        onClick={handleUpgrade}
+                        disabled={checkoutBusy}
+                        className="mt-2 w-full rounded-md bg-primary/10 border border-primary/25 px-2 py-1 text-xs font-semibold text-primary hover:bg-primary/20 transition-colors text-center disabled:opacity-50"
                       >
-                        Upgrade to Plus
+                        {checkoutBusy ? 'Loading…' : 'Upgrade to Plus'}
                       </button>
                     )}
                   </div>
@@ -162,6 +179,22 @@ export function AppShell({ children, onSignOut }: AppShellProps) {
               </Link>
             ))}
             <div className="mt-2 pt-2 border-t border-border/60 flex flex-col gap-1">
+              <Link
+                href="/account"
+                onClick={() => setMobileOpen(false)}
+                className="block px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
+                Account
+              </Link>
+              {!isPlusPlan(profile?.subscriptionStatus) && (
+                <button
+                  onClick={() => { setMobileOpen(false); handleUpgrade(); }}
+                  disabled={checkoutBusy}
+                  className="block w-full text-left px-3 py-2 rounded-md text-sm font-medium text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+                >
+                  {checkoutBusy ? 'Loading…' : 'Upgrade to Plus'}
+                </button>
+              )}
               {onSignOut && (
                 <button
                   onClick={() => { setMobileOpen(false); onSignOut(); }}
