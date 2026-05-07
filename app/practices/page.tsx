@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { HelpTooltip } from '@/components/HelpTooltip';
 import { StandardPage } from '@/components/layout';
 import { Card, Button, EmptyState, Loading, ErrorState } from '@/components/ui';
 import { pillarColors } from '@/lib/design/pillarColors';
@@ -368,6 +369,12 @@ export default function PracticesPage() {
                   )
                 })}
 
+                {activeTrials.length > 0 && (
+                  <div className="flex items-center gap-2 pt-2">
+                    <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Trying out</p>
+                    <HelpTooltip content="A trial lets you test a practice for 7 days before committing. Trials don't use your active practice slot. At the end, keep it or let it go." />
+                  </div>
+                )}
                 {activeTrials.map((t) => (
                   <Card key={t.id} variant="interactive" className="flex items-start justify-between gap-4">
                     <div className="space-y-2 min-w-0">
