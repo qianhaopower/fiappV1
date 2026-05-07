@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getDataClient } from "@/utils/dataServerClient";
 import { createDynamoClient } from "@/utils/dynamoClient";
 import { withAuth } from "@/utils/authServer";
+import { trackEvent } from "@/utils/metricsClient";
 import { isTrialActive, type TrialItem } from "@/lib/practices/trial";
 
 export const runtime = "nodejs";
@@ -75,6 +76,7 @@ export async function GET(req: Request) {
       return jsonWithNoStore({ ok: true, data: { ...read2.data, activeTrialCount } }, 200);
     }
 
+    trackEvent('totalUsers', 'newUsers')
     return jsonWithNoStore({ ok: true, data: { ...created.data, activeTrialCount } }, 200);
   });
 }
