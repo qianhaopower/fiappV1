@@ -79,6 +79,11 @@ export async function withAuth(
   try {
     return await handler(user);
   } catch (error) {
+    // Amplify Data client can throw NoSignedUser inside handlers when the
+    // server context isn't propagated — treat it as 401, not 500
+    if (error instanceof Error && error.name === 'NoSignedUser') {
+      return unauthorizedResponse()
+    }
     console.error('[withAuth] handler error:', error);
     return NextResponse.json(
       { ok: false, error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } },
