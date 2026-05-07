@@ -30,8 +30,8 @@ export default function AccountPage() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground mb-0.5">Plan</p>
-                <p className="text-sm font-medium text-foreground mb-2">{plan}</p>
-                <UpgradeButton />
+                <p className="text-sm font-medium text-foreground">{plan}</p>
+                <div className="mt-2"><UpgradeButton /></div>
               </div>
             </div>
           </div>

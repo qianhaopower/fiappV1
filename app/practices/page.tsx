@@ -252,7 +252,7 @@ export default function PracticesPage() {
   return (
     <StandardPage
       title="My Practices"
-      description="Your committed practices and what you're testing."
+      description="Active, paused, and trials."
       actions={
         <Button variant="outline" size="sm" asChild>
           <Link href="/results">+ Add practice</Link>

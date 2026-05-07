@@ -23,17 +23,17 @@ interface PageHeaderProps {
 
 export function PageHeader({ eyebrow, title, description, actions }: PageHeaderProps) {
   return (
-    <div className="border-b border-border/60 pb-8 mb-10">
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+    <div className="border-b border-border/60 pb-5 mb-6">
+      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           {eyebrow && (
             <span className="inline-flex items-center rounded-full bg-muted/60 px-3 py-1 text-xs uppercase tracking-[0.22em] text-muted-foreground">
               {eyebrow}
             </span>
           )}
-          <h1 className={`text-4xl sm:text-5xl font-bold text-foreground${eyebrow ? ' mt-3' : ''}`}>{title}</h1>
+          <h1 className={`text-2xl sm:text-3xl font-semibold tracking-tight text-foreground${eyebrow ? ' mt-3' : ''}`}>{title}</h1>
           {description && (
-            <p className="mt-3 text-lg text-muted-foreground max-w-2xl">{description}</p>
+            <p className="mt-1.5 text-sm text-muted-foreground max-w-2xl">{description}</p>
           )}
         </div>
         {actions && <div className="flex items-center gap-2">{actions}</div>}

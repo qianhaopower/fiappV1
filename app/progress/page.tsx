@@ -127,7 +127,7 @@ export default function ProgressPage() {
               {data.milestones.map((m) => (
                 <Card key={m.sk} variant="subtle" className="flex items-start gap-4">
                   <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
-                    ★
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
                   </div>
                   <div>
                     <p className="font-semibold text-foreground">{m.title}</p>
