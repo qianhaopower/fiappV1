@@ -4,6 +4,7 @@ Allow: /privacy
 Allow: /terms
 Allow: /disclaimer
 Allow: /contact
+Allow: /faq
 
 Disallow: /auth
 Disallow: /today

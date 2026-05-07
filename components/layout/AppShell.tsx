@@ -124,14 +124,21 @@ export function AppShell({ children, onSignOut }: AppShellProps) {
                   <Link
                     href="/account"
                     onClick={() => setAccountOpen(false)}
-                    className="block px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                    className="block px-4 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                   >
                     View account
+                  </Link>
+                  <Link
+                    href="/faq"
+                    onClick={() => setAccountOpen(false)}
+                    className="block px-4 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  >
+                    Help & FAQ
                   </Link>
                   {onSignOut && (
                     <button
                       onClick={() => { setAccountOpen(false); onSignOut() }}
-                      className="w-full text-left px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors border-t border-border/60"
+                      className="w-full text-left px-4 py-2 font-sans !text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors border-t border-border/60"
                     >
                       Sign out
                     </button>

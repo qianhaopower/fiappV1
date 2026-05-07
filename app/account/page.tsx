@@ -50,6 +50,19 @@ export default function AccountPage() {
           </div>
         </Card>
 
+        {/* Help */}
+        <Card>
+          <div className="space-y-3">
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Help</p>
+            <p className="text-sm text-muted-foreground">
+              New to the app or have questions about how it works?
+            </p>
+            <Button variant="outline" asChild>
+              <Link href="/faq">Read the FAQ →</Link>
+            </Button>
+          </div>
+        </Card>
+
         {/* Data & privacy */}
         <Card>
           <div className="space-y-3">

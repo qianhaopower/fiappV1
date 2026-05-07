@@ -152,6 +152,9 @@
     overflow-x: hidden;
     touch-action: pan-y;
   }
+  button, input, select, textarea {
+    font: inherit;
+  }
 }
 
 @keyframes dot-pop {
