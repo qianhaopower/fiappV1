@@ -79,6 +79,16 @@ export async function withAuth(
   try {
     return await handler(user);
   } catch (error) {
+    // Amplify Data client throws NoSignedUser when server context isn't
+    // propagated — log as warning only, return 500 so decideRoute doesn't
+    // redirect authenticated users back to /auth
+    if (error instanceof Error && error.name === 'NoSignedUser') {
+      console.warn('[withAuth] NoSignedUser in handler — Amplify Data client missing server context')
+      return NextResponse.json(
+        { ok: false, error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } },
+        { status: 500 }
+      )
+    }
     console.error('[withAuth] handler error:', error);
     return NextResponse.json(
       { ok: false, error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } },

@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 
-import { getDataClient } from "@/utils/dataServerClient";
 import { createDynamoClient } from "@/utils/dynamoClient";
 import { withAuth } from "@/utils/authServer";
 import { trackEvent } from "@/utils/metricsClient";
@@ -8,6 +7,29 @@ import { isTrialActive, type TrialItem } from "@/lib/practices/trial";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+type ProfileItem = {
+  PK: string;
+  SK: string;
+  userId: string;
+  subscriptionStatus: string;
+  createdAt: string;
+  updatedAt: string;
+  activePracticeIds?: string[];
+  activePracticeSkById?: Record<string, unknown>;
+  todayFocusPracticeId?: string | null;
+  latestAssessmentId?: string | null;
+  focusPillar?: string | null;
+  returnCounters?: Record<string, unknown>;
+  practiceCounters?: Record<string, unknown>;
+  milestonesAchieved?: string[];
+};
+
+function stripKeys(item: ProfileItem) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { PK, SK, ...profile } = item;
+  return profile;
+}
 
 function jsonWithNoStore(body: unknown, status: number) {
   const res = NextResponse.json(body, { status });
@@ -35,48 +57,55 @@ async function getActiveTrialCountOrDefault(userId: string): Promise<number> {
 
 export async function GET(req: Request) {
   return withAuth(req, async (user) => {
-    const client = getDataClient();
+    const client = createDynamoClient();
+    const profileKey = { PK: `USER#${user.userId}`, SK: "PROFILE" };
 
-    const [profileResult, activeTrialCount] = await Promise.all([
-      client.queries.getMyProfile(),
+    const [existing, activeTrialCount] = await Promise.all([
+      client.getItem<ProfileItem>(profileKey),
       getActiveTrialCountOrDefault(user.userId),
     ]);
 
-    if (profileResult.errors?.length) {
-      console.error("[GET /api/me] getMyProfile errors:", profileResult.errors);
+    if (existing) {
       return jsonWithNoStore(
-        { ok: false, error: { code: "INTERNAL_ERROR", message: "Failed to read profile" } },
-        500
-      );
-    }
-
-    if (profileResult.data) {
-      return jsonWithNoStore(
-        { ok: true, data: { ...profileResult.data, activeTrialCount } },
+        { ok: true, data: { ...stripKeys(existing), activeTrialCount } },
         200
       );
     }
 
-    // Profile missing — create default (idempotent)
-    const created = await client.mutations.createMyProfile();
-    if (created.errors?.length) {
-      console.error("[GET /api/me] createMyProfile errors:", created.errors);
-      // Race: re-read
-      const read2 = await client.queries.getMyProfile();
-      if (read2.errors?.length || !read2.data) {
-        console.error("[GET /api/me] profile reread after create failed:", {
-          errors: read2.errors,
-          hasData: Boolean(read2.data),
-        });
+    // Profile missing — create default (idempotent via condition on PK)
+    const now = new Date().toISOString();
+    const newItem: ProfileItem = {
+      ...profileKey,
+      userId: user.userId,
+      subscriptionStatus: "FREE",
+      createdAt: now,
+      updatedAt: now,
+      activePracticeIds: [],
+      activePracticeSkById: {},
+      todayFocusPracticeId: null,
+      latestAssessmentId: null,
+      focusPillar: null,
+      returnCounters: {},
+      practiceCounters: {},
+      milestonesAchieved: [],
+    };
+
+    const created = await client.putItemIfNotExists(newItem);
+
+    if (!created) {
+      // Race: another request created it first — re-read
+      const reread = await client.getItem<ProfileItem>(profileKey);
+      if (!reread) {
+        console.error("[GET /api/me] profile reread after race failed");
         return jsonWithNoStore(
           { ok: false, error: { code: "INTERNAL_ERROR", message: "Failed to create or read profile" } },
           500
         );
       }
-      return jsonWithNoStore({ ok: true, data: { ...read2.data, activeTrialCount } }, 200);
+      return jsonWithNoStore({ ok: true, data: { ...stripKeys(reread), activeTrialCount } }, 200);
     }
 
-    trackEvent('totalUsers', 'newUsers')
-    return jsonWithNoStore({ ok: true, data: { ...created.data, activeTrialCount } }, 200);
+    trackEvent("totalUsers", "newUsers");
+    return jsonWithNoStore({ ok: true, data: { ...stripKeys(newItem), activeTrialCount } }, 200);
   });
 }
