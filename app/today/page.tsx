@@ -50,6 +50,7 @@ export default function TodayPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [logging, setLogging] = useState(false)
+  const [loggingValue, setLoggingValue] = useState<boolean | null>(null)
   const [trialLogging, setTrialLogging] = useState<Record<string, boolean>>({})
   const [logError, setLogError] = useState('')
   const [trialLogError, setTrialLogError] = useState<Record<string, string>>({})
@@ -96,8 +97,10 @@ export default function TodayPage() {
 
   async function handleLog(value: boolean) {
     if (!focusPractice) return
-    const newValue = todayDidIt === value ? !value : value
+    if (todayDidIt === value) return
+    const newValue = value
     setLogging(true)
+    setLoggingValue(newValue)
     setLogError('')
     try {
       const res = await fetch('/api/return', {
@@ -120,6 +123,7 @@ export default function TodayPage() {
       setLogError('Could not save. Please try again.')
     } finally {
       setLogging(false)
+      setLoggingValue(null)
     }
   }
 
@@ -203,6 +207,7 @@ export default function TodayPage() {
                     <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-primary/10 text-primary border border-primary/30">
                       Today&apos;s focus
                     </span>
+                    <HelpTooltip content="'Did it' logs that you completed your practice today. 'Not today' logs that you skipped — no judgment, it still counts as showing up. You can change your answer any time today." />
                   </div>
                   <p className="mt-3 text-xl font-semibold text-foreground">{focusPractice.title}</p>
                   <p className="mt-1 text-sm text-muted-foreground">{focusPractice.description}</p>
@@ -210,26 +215,23 @@ export default function TodayPage() {
 
                 {/* Primary action */}
                 <div className="space-y-2 pt-1">
-                  <div className="flex items-center justify-end gap-1.5 mb-1">
-                    <HelpTooltip content="'Did it' logs that you completed your practice today. 'Not today' logs that you skipped — no judgment, it still counts as showing up. You can change your answer any time today." />
-                  </div>
                   <Button
                     size="lg"
                     variant={todayDidIt === true ? 'default' : 'outline'}
                     disabled={logging}
                     onClick={() => handleLog(true)}
-                    className={`w-full font-semibold ${todayDidIt !== true ? 'border-primary/40 text-primary hover:bg-primary/5' : ''} ${justLogged ? 'animate-button-confirm' : ''}`}
+                    className={`w-full font-semibold ${todayDidIt === null ? 'border-primary/40 text-primary hover:bg-primary/5' : ''} ${justLogged ? 'animate-button-confirm' : ''}`}
                   >
-                    {logging && todayDidIt !== true ? '…' : '✓ Did it'}
+                    {logging && loggingValue === true ? '…' : '✓ Did it'}
                   </Button>
                   <Button
                     size="sm"
-                    variant="ghost"
+                    variant={todayDidIt === false ? 'outline' : 'ghost'}
                     disabled={logging}
                     onClick={() => handleLog(false)}
-                    className="w-full text-muted-foreground hover:text-foreground"
+                    className={`w-full ${todayDidIt === false ? 'border-border/50 text-muted-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                   >
-                    {logging && todayDidIt !== false ? '…' : 'Not today'}
+                    {logging && loggingValue === false ? '…' : 'Not today'}
                   </Button>
                 </div>
 
