@@ -15,6 +15,7 @@ export default function AssessmentPage() {
   const [answers, setAnswers] = useState<Record<string, boolean>>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [introAccepted, setIntroAccepted] = useState(false);
 
   function getContrastingTextColor(hex: string) {
     const match = /^#?([0-9a-fA-F]{6})$/.exec(hex);
@@ -100,6 +101,53 @@ export default function AssessmentPage() {
     setIndex(0);
     setError(null);
     setSubmitting(false);
+  }
+
+  if (!introAccepted) {
+    return (
+      <NarrowFormPage title="">
+        <div className="space-y-3">
+          <p className="text-xs tracking-[0.12em] text-muted-foreground">
+            Friends Intelligence · Assessment
+          </p>
+          <Card>
+            <div className="space-y-5">
+              <div>
+                <h1 className="text-xl font-semibold text-foreground">Before you begin</h1>
+                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                  This assessment helps you see where you stand across the seven Friends Intelligence pillars — Financial, Relationship, Information, Emotional, Nutrition, Dynamic, and Sleep.
+                </p>
+              </div>
+              <ul className="space-y-3 text-sm text-muted-foreground">
+                <li className="flex items-start gap-2.5">
+                  <span className="mt-0.5 text-primary font-semibold shrink-0">35</span>
+                  <span>yes/no questions — takes about 8 minutes</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="mt-0.5 text-primary font-semibold shrink-0">→</span>
+                  <span>Answer based on the last 7–14 days, not how you want things to be</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="mt-0.5 text-primary font-semibold shrink-0">✓</span>
+                  <span>Scores are for self-reflection only — not a diagnosis or judgment</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="mt-0.5 text-primary font-semibold shrink-0">↺</span>
+                  <span>You can retake it any time from your account</span>
+                </li>
+              </ul>
+              <Button className="w-full" onClick={() => setIntroAccepted(true)}>
+                Start assessment →
+              </Button>
+            </div>
+          </Card>
+          <p className="text-xs text-muted-foreground text-center">
+            For personal reflection only —{' '}
+            <Link href="/disclaimer" className="underline underline-offset-2 hover:text-foreground">not professional advice</Link>.
+          </p>
+        </div>
+      </NarrowFormPage>
+    );
   }
 
   return (

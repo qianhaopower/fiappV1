@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { HelpTooltip } from '@/components/HelpTooltip';
 import { StandardPage } from '@/components/layout';
 import { Card, Button, Loading, ErrorState, EmptyState } from '@/components/ui';
 import { PillarRadarChart } from '@/components/ui/PillarRadarChart';
@@ -121,7 +122,10 @@ export default function ResultsPage() {
           <>
             {/* Focus pillar highlight */}
             <Card className="border-primary/30 bg-primary/5">
-              <p className="text-xs uppercase tracking-[0.2em] text-primary mb-2">Focus Pillar</p>
+              <div className="flex items-center gap-2 mb-2">
+                <p className="text-xs uppercase tracking-[0.2em] text-primary">Focus Pillar</p>
+                <HelpTooltip content="Your focus pillar is your lowest-scoring area. It's where small changes tend to have the biggest impact. You're not broken — you just have the most room to grow here." />
+              </div>
               <div className="flex items-center gap-3">
                 <span
                   className="h-4 w-4 rounded-full shrink-0"
@@ -146,7 +150,10 @@ export default function ResultsPage() {
 
             {/* All pillar scores */}
             <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-4">All Pillars</p>
+              <div className="flex items-center gap-2 mb-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">All Pillars</p>
+                <HelpTooltip content="Each pillar has 5 questions. Your score reflects how many you answered Yes to in the last 7–14 days. A 3/5 isn't a failure — it's a starting point." />
+              </div>
               <div className="space-y-3">
                 {pillarOrder.map((pillar) => {
                   const score = scores![pillar] ?? 0;

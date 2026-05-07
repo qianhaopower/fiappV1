@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { HelpTooltip } from '@/components/HelpTooltip';
 import { NarrowFormPage } from '@/components/layout';
 import { Card, Button, Loading, ErrorState } from '@/components/ui';
 import { pillarColors } from '@/lib/design/pillarColors';
@@ -209,6 +210,9 @@ export default function TodayPage() {
 
                 {/* Primary action */}
                 <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-end gap-1.5 mb-1">
+                    <HelpTooltip content="'Did it' logs that you completed your practice today. 'Not today' logs that you skipped — no judgment, it still counts as showing up. You can change your answer any time today." />
+                  </div>
                   <Button
                     size="lg"
                     variant={todayDidIt === true ? 'default' : 'outline'}
