@@ -13,6 +13,7 @@ function shouldUseAppShell(pathname: string | null) {
   if (pathname === "/privacy") return false;
   if (pathname === "/terms") return false;
   if (pathname === "/contact") return false;
+  if (pathname === "/disclaimer") return false;
   if (pathname.startsWith("/payment")) return false;
   return true;
 }
