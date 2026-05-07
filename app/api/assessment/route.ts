@@ -8,6 +8,7 @@ import {
 } from "@/lib/assessment/questions";
 import { computeScores, pickFocusPillar } from "../../../lib/assessment/scoring";
 import { withAuth } from "@/utils/authServer";
+import { trackEvent, trackPillarFocus } from "@/utils/metricsClient";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -81,6 +82,9 @@ export async function POST(req: Request) {
         ":focusPillar": focusPillar,
       },
     });
+
+    trackEvent('totalAssessments', 'assessments')
+    trackPillarFocus(focusPillar)
 
     return NextResponse.json(
       { assessmentId, focusPillar, scoresByPillar },

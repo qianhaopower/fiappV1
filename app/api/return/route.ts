@@ -17,6 +17,7 @@ import {
   makeMilestoneSK,
   type NewMilestone,
 } from '@/lib/milestones/milestones'
+import { trackEvent } from '@/utils/metricsClient'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -80,6 +81,11 @@ export async function POST(req: Request) {
     // No-op if value unchanged
     if (existing && delta === 0) {
       return NextResponse.json({ ok: true, noop: true, didIt, date: returnDate, newMilestones: [] }, { status: 200 })
+    }
+
+    // Track new didIt=true returns (net new check-ins only)
+    if (didIt === true && delta > 0) {
+      trackEvent('totalReturns', 'returns')
     }
 
     const now = new Date().toISOString()

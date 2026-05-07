@@ -9,6 +9,7 @@ const PROTECTED_PREFIXES = [
   '/assessment',
   '/progress',
   '/account',
+  '/admin',
   '/decideRoute',
 ]
 

@@ -14,5 +14,6 @@ Disallow: /progress
 Disallow: /account
 Disallow: /assessment
 Disallow: /decideRoute
+Disallow: /admin
 Disallow: /api/
 Disallow: /payment/

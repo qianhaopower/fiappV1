@@ -2,6 +2,7 @@ import crypto from 'crypto'
 import { NextResponse } from 'next/server'
 import { createDynamoClient } from '@/utils/dynamoClient'
 import { withAuth } from '@/utils/authServer'
+import { trackEvent } from '@/utils/metricsClient'
 import { practicesById } from '@/lib/practices/library'
 import {
   TRIAL_DURATION_DAYS,
@@ -125,6 +126,7 @@ export async function POST(req: Request) {
         expiresAt,
       }
       await client.putItem(trial)
+      trackEvent('totalTrials', 'trials')
       return NextResponse.json({ trial }, { status: 201 })
     }
 
@@ -223,6 +225,7 @@ export async function POST(req: Request) {
           },
         }),
       ])
+      trackEvent('totalPromotions')
       return NextResponse.json(
         { practiceId, warning: capCheck.allowed && capCheck.warning ? capCheck.warning : undefined },
         { status: 201 }
