@@ -127,7 +127,7 @@ export default function ResultsPage() {
                   className="h-4 w-4 rounded-full shrink-0"
                   style={{ backgroundColor: pillarColors[focusPillar!] }}
                 />
-                <h2 className="text-2xl font-bold text-foreground">
+                <h2 className="text-xl font-semibold text-foreground">
                   {pillarLabels[focusPillar!]} Intelligence
                 </h2>
               </div>
@@ -156,23 +156,21 @@ export default function ResultsPage() {
                   return (
                     <div
                       key={pillar}
-                      className={`flex items-center gap-4 rounded-xl p-4 border ${
+                      className={`rounded-xl p-4 border ${
                         isFocus ? 'border-primary/30 bg-primary/5' : 'border-border/60 bg-card'
                       }`}
                     >
-                      <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                      <span className="w-28 text-sm font-medium text-foreground shrink-0">
-                        {pillarLabels[pillar]}
-                      </span>
-                      <div className="flex-1 h-2 rounded-full bg-muted/60">
-                        <div className="h-2 rounded-full" style={{ width: `${pct}%`, backgroundColor: color }} />
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                        <span className="text-sm font-medium text-foreground flex-1">{pillarLabels[pillar]}</span>
+                        <span className="text-xs text-muted-foreground">{score}/{MAX_SCORE}</span>
+                        {isFocus && (
+                          <span className="text-xs font-semibold text-primary">focus</span>
+                        )}
                       </div>
-                      <span className="w-10 text-right text-sm text-muted-foreground shrink-0">
-                        {score}/{MAX_SCORE}
-                      </span>
-                      {isFocus && (
-                        <span className="text-xs font-semibold text-primary shrink-0">focus</span>
-                      )}
+                      <div className="h-1.5 rounded-full bg-muted/60">
+                        <div className="h-1.5 rounded-full" style={{ width: `${pct}%`, backgroundColor: color }} />
+                      </div>
                     </div>
                   );
                 })}

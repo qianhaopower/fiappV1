@@ -8,10 +8,19 @@ export async function fetchMe<TProfile>(): Promise<{
   status: number;
   data: ApiMeResponse<TProfile> | null;
 }> {
-  const res = await fetch("/api/me", {
-    cache: "no-store",
-    credentials: "include",
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10_000);
+
+  let res: Response;
+  try {
+    res = await fetch("/api/me", {
+      cache: "no-store",
+      credentials: "include",
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 
   let body: { ok?: boolean; data?: TProfile } | null = null;
   try {

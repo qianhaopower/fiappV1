@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { assessmentQuestions } from "@/lib/assessment/questions";
 import { pillarColors } from "@/lib/design/pillarColors";
 import { NarrowFormPage } from "@/components/layout";
@@ -229,6 +230,10 @@ export default function AssessmentPage() {
           </div>
         </Card>
       </div>
+      <p className="text-xs text-muted-foreground text-center pt-2">
+        This assessment is for personal reflection only —{' '}
+        <Link href="/disclaimer" className="underline underline-offset-2 hover:text-foreground">not professional advice</Link>.
+      </p>
     </NarrowFormPage>
   );
 }

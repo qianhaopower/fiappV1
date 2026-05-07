@@ -30,8 +30,8 @@ export default function AccountPage() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground mb-0.5">Plan</p>
-                <p className="text-sm font-medium text-foreground mb-2">{plan}</p>
-                <UpgradeButton />
+                <p className="text-sm font-medium text-foreground">{plan}</p>
+                <div className="mt-2"><UpgradeButton /></div>
               </div>
             </div>
           </div>
@@ -47,6 +47,25 @@ export default function AccountPage() {
             <Button variant="outline" asChild>
               <Link href="/assessment">Retake assessment →</Link>
             </Button>
+          </div>
+        </Card>
+
+        {/* Data & privacy */}
+        <Card>
+          <div className="space-y-3">
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Data & privacy</p>
+            <p className="text-sm text-muted-foreground">
+              To request a copy or deletion of your data, email{' '}
+              <a href="mailto:hello@friendsintelligence.net?subject=Data%20deletion%20request" className="text-primary underline underline-offset-2">
+                hello@friendsintelligence.net
+              </a>
+              . We action deletion requests within 30 days.
+            </p>
+            <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+              <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy policy</Link>
+              <Link href="/terms" className="hover:text-foreground transition-colors">Terms of use</Link>
+              <Link href="/disclaimer" className="hover:text-foreground transition-colors">Disclaimer</Link>
+            </div>
           </div>
         </Card>
 

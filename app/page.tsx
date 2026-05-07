@@ -404,6 +404,7 @@ export default function LandingPage() {
           <div className="flex gap-5">
             <Link href="/privacy" className="text-ink-3 no-underline hover:text-ink">Privacy</Link>
             <Link href="/terms" className="text-ink-3 no-underline hover:text-ink">Terms</Link>
+            <Link href="/disclaimer" className="text-ink-3 no-underline hover:text-ink">Disclaimer</Link>
             <Link href="/contact" className="text-ink-3 no-underline hover:text-ink">Contact</Link>
           </div>
           <div>© 2026 Friends Intelligence</div>

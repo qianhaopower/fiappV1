@@ -79,6 +79,9 @@ export default function AuthenticatorWrapper() {
           <p className="text-sm text-muted-foreground mt-2">
             Sign in to continue your journey
           </p>
+          <p className="text-xs text-muted-foreground mt-3 max-w-sm mx-auto leading-5">
+            An account saves your assessment results and practice progress so you can pick up where you left off. We only store your email and your responses — nothing is shared or sold.
+          </p>
         </div>
 
         <div className="fiapp-auth-shell">
@@ -122,10 +125,17 @@ export default function AuthenticatorWrapper() {
           </Authenticator>
         </div>
 
-        <div className="mt-6 text-center text-xs text-muted-foreground">
-          <Link href="/" className="text-muted-foreground hover:text-foreground">
-            ← Back to home
-          </Link>
+        <div className="mt-6 text-center text-xs text-muted-foreground space-y-2">
+          <div>
+            <Link href="/" className="text-muted-foreground hover:text-foreground">
+              ← Back to home
+            </Link>
+          </div>
+          <div className="flex justify-center gap-4">
+            <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
+            <Link href="/terms" className="hover:text-foreground transition-colors">Terms</Link>
+            <Link href="/disclaimer" className="hover:text-foreground transition-colors">Disclaimer</Link>
+          </div>
         </div>
       </div>
     </div>

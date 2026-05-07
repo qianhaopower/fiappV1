@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /
+Allow: /privacy
+Allow: /terms
+Allow: /disclaimer
+Allow: /contact
+
+Disallow: /auth
+Disallow: /today
+Disallow: /practices
+Disallow: /results
+Disallow: /progress
+Disallow: /account
+Disallow: /assessment
+Disallow: /decideRoute
+Disallow: /api/
+Disallow: /payment/
