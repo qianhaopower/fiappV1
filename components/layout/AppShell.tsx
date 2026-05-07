@@ -75,7 +75,7 @@ export function AppShell({ children, onSignOut }: AppShellProps) {
             <Link href="/today" className="flex items-center gap-2 group">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/logo-mark.svg" alt="Friends Intelligence" className="h-7 w-7 shrink-0" />
-              <span className="hidden sm:inline font-semibold tracking-tight text-foreground group-hover:text-primary transition-colors text-sm">
+              <span className="whitespace-nowrap font-semibold tracking-tight text-foreground group-hover:text-primary transition-colors text-sm">
                 Friends Intelligence
               </span>
             </Link>
