@@ -99,11 +99,6 @@ export default function ResultsPage() {
     <StandardPage
       title="Your Insights"
       description="Where you stand across the 7 Friends pillars — and what to work on next."
-      actions={assessment ? (
-        <Button variant="ghost" size="sm" asChild>
-          <Link href="/assessment">Retake assessment</Link>
-        </Button>
-      ) : undefined}
     >
       <div className="space-y-10">
 
@@ -231,10 +226,19 @@ export default function ResultsPage() {
             </div>
 
             {/* CTA */}
-            <div className="pt-2">
-              <Button asChild size="lg">
+            <div className="pt-2 space-y-3">
+              <Button asChild size="lg" className="w-full sm:w-auto">
                 <Link href="/practices">Go to My Practices →</Link>
               </Button>
+              <div>
+                <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
+                  <Link href="/assessment">Retake assessment</Link>
+                </Button>
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  Scores update when you retake — useful after a few weeks of practice.{" "}
+                  <Link href="/faq" className="underline underline-offset-2 hover:text-foreground">Questions about your scores?</Link>
+                </p>
+              </div>
             </div>
           </>
         )}
