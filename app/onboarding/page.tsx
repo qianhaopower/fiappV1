@@ -2,9 +2,20 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { pillarOrder, pillarLabels } from "@/lib/assessment/pillars";
+import { pillarOrder, pillarLabels, type Pillar } from "@/lib/assessment/pillars";
 import { pillarColors } from "@/lib/design/pillarColors";
+import { PillarRadarChart } from "@/components/ui/PillarRadarChart";
 import { Button } from "@/components/ui";
+
+const SAMPLE_SCORES: Record<Pillar, number> = {
+  financial: 2,
+  relationship: 4,
+  information: 3,
+  emotional: 3,
+  nutrition: 4,
+  dynamic: 2,
+  sleep: 3,
+};
 
 const STEPS = 3;
 
@@ -75,6 +86,10 @@ function StepPillars({ onNext }: { onNext: () => void }) {
             </span>
           );
         })}
+      </div>
+      <div className="rounded-xl border border-border bg-muted/20 p-4">
+        <PillarRadarChart scores={SAMPLE_SCORES} focusPillar="financial" />
+        <p className="mt-1 text-center text-xs text-muted-foreground">Sample results</p>
       </div>
       <Button className="w-full" onClick={onNext}>
         Continue →
