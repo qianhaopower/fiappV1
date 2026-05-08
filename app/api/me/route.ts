@@ -147,7 +147,8 @@ export async function PATCH(req: Request) {
     const client = createDynamoClient()
     await client.updateItem({
       Key: { PK: `USER#${user.userId}`, SK: "PROFILE" },
-      UpdateExpression: `SET ${keys.map((k, i) => `${k} = :v${i}`).join(", ")}`,
+      UpdateExpression: `SET ${keys.map((k, i) => `#a${i} = :v${i}`).join(", ")}`,
+      ExpressionAttributeNames: Object.fromEntries(keys.map((k, i) => [`#a${i}`, k])),
       ExpressionAttributeValues: Object.fromEntries(keys.map((k, i) => [`:v${i}`, updates[k]])),
     })
 

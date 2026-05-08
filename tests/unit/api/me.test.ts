@@ -172,7 +172,7 @@ describe('PATCH /api/me', () => {
     expect((await res.json()).ok).toBe(true)
     expect(updateItemMock).toHaveBeenCalledOnce()
     const call = updateItemMock.mock.calls[0][0]
-    expect(call.UpdateExpression).toContain('timezone')
+    expect(Object.values(call.ExpressionAttributeNames)).toContain('timezone')
     expect(Object.values(call.ExpressionAttributeValues)).toContain('America/New_York')
   })
 
@@ -181,7 +181,7 @@ describe('PATCH /api/me', () => {
     expect(res.status).toBe(200)
     expect(updateItemMock).toHaveBeenCalledOnce()
     const call = updateItemMock.mock.calls[0][0]
-    expect(call.UpdateExpression).toContain('dayResetTime')
+    expect(Object.values(call.ExpressionAttributeNames)).toContain('dayResetTime')
     expect(Object.values(call.ExpressionAttributeValues)).toContain(180)
   })
 
@@ -190,8 +190,8 @@ describe('PATCH /api/me', () => {
     expect(res.status).toBe(200)
     expect(updateItemMock).toHaveBeenCalledOnce()
     const call = updateItemMock.mock.calls[0][0]
-    expect(call.UpdateExpression).toContain('timezone')
-    expect(call.UpdateExpression).toContain('dayResetTime')
+    expect(Object.values(call.ExpressionAttributeNames)).toContain('timezone')
+    expect(Object.values(call.ExpressionAttributeNames)).toContain('dayResetTime')
   })
 
   it('returns 200 without calling updateItem when body is empty', async () => {
