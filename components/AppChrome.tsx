@@ -16,6 +16,7 @@ function shouldUseAppShell(pathname: string | null) {
   if (pathname === "/disclaimer") return false;
   if (pathname === "/faq") return false;
   if (pathname.startsWith("/admin")) return false;
+  if (pathname.startsWith("/onboarding")) return false;
   if (pathname.startsWith("/payment")) return false;
   return true;
 }

@@ -7,9 +7,9 @@ export type ProfileForRouting = {
 
 export function decideRoute(
   profile: ProfileForRouting
-): "/assessment" | "/results" | "/practices" | "/today" {
+): "/onboarding" | "/assessment" | "/results" | "/practices" | "/today" {
   if (!profile.latestAssessmentId) {
-    return "/assessment";
+    return "/onboarding";
   }
 
   const hasActivePractices = (profile.activePracticeIds?.length ?? 0) > 0;

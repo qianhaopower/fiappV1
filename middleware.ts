@@ -7,6 +7,7 @@ const PROTECTED_PREFIXES = [
   '/practices',
   '/results',
   '/assessment',
+  '/onboarding',
   '/progress',
   '/account',
   '/admin',
