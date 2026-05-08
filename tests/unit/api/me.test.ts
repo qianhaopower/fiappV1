@@ -1,226 +1,229 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { GET } from "@/app/api/me/route";
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { GET, PATCH } from '@/app/api/me/route'
 
-const getMyProfileMock = vi.fn();
-const createMyProfileMock = vi.fn();
+const getItemMock = vi.fn()
+const putItemIfNotExistsMock = vi.fn()
+const queryMock = vi.fn()
+const updateItemMock = vi.fn()
 
-vi.mock("@/utils/dataServerClient", () => ({
-  getDataClient: () => ({
-    queries: { getMyProfile: getMyProfileMock },
-    mutations: { createMyProfile: createMyProfileMock },
+vi.mock('@/utils/dynamoClient', () => ({
+  createDynamoClient: () => ({
+    getItem: getItemMock,
+    putItemIfNotExists: putItemIfNotExistsMock,
+    query: queryMock,
+    updateItem: updateItemMock,
   }),
-}));
+}))
 
-const dynamoQueryMock = vi.fn();
-vi.mock("@/utils/dynamoClient", () => ({
-  createDynamoClient: () => ({ query: dynamoQueryMock }),
-}));
+vi.mock('@/utils/metricsClient', () => ({ trackEvent: vi.fn() }))
 
-const runWithAmplifyMock = vi.fn();
-vi.mock("@/utils/amplifyServerUtils", () => ({
-  runWithAmplifyServerContext: (opts: {
-    operation: (ctx: unknown) => Promise<{ user: { userId: string; username?: string } }>;
-  }) => runWithAmplifyMock(opts),
-}));
+const getCurrentUserMock = vi.fn()
+vi.mock('aws-amplify/auth/server', () => ({
+  getCurrentUser: () => getCurrentUserMock(),
+}))
+vi.mock('@/utils/amplifyServerUtils', () => ({
+  runWithAmplifyServerContext: ({
+    operation,
+  }: {
+    operation: (ctx: unknown) => Promise<unknown>
+  }) => operation({}),
+}))
 
-describe("GET /api/me", () => {
-  beforeEach(() => {
-    getMyProfileMock.mockReset();
-    createMyProfileMock.mockReset();
-    dynamoQueryMock.mockReset();
-    dynamoQueryMock.mockResolvedValue([]); // no active trials by default
-    runWithAmplifyMock.mockResolvedValue({
-      user: { userId: "usr-test", username: "test@example.com" },
-    });
-  });
+const existingProfile = {
+  PK: 'USER#usr-1',
+  SK: 'PROFILE',
+  userId: 'usr-1',
+  subscriptionStatus: 'FREE',
+  createdAt: '2024-01-01T00:00:00Z',
+  updatedAt: '2024-01-01T00:00:00Z',
+  activePracticeIds: [],
+  latestAssessmentId: null,
+}
 
-  it("returns existing profile with activeTrialCount=0 when no trials", async () => {
-    const existingProfile = {
-      userId: "usr-1",
-      subscriptionStatus: "FREE",
-      createdAt: "2024-01-01T00:00:00Z",
-      updatedAt: "2024-01-01T00:00:00Z",
-      activePracticeIds: [],
-      latestAssessmentId: null,
-    };
+beforeEach(() => {
+  getCurrentUserMock.mockResolvedValue({ userId: 'usr-1', username: 'test@example.com' })
+  getItemMock.mockReset()
+  putItemIfNotExistsMock.mockReset()
+  queryMock.mockReset()
+  updateItemMock.mockReset()
+  queryMock.mockResolvedValue([])
+  updateItemMock.mockResolvedValue(undefined)
+})
 
-    getMyProfileMock.mockResolvedValue({ data: existingProfile, errors: undefined });
+describe('GET /api/me', () => {
+  it('returns existing profile with activeTrialCount=0 when no trials', async () => {
+    getItemMock.mockResolvedValue(existingProfile)
 
-    const req = new Request("http://localhost/api/me");
-    const res = await GET(req);
-    const json = await res.json();
+    const res = await GET(new Request('http://localhost/api/me'))
+    const json = await res.json()
 
-    expect(res.status).toBe(200);
-    expect(json.ok).toBe(true);
-    expect(json.data.userId).toBe("usr-1");
-    expect(json.data.activeTrialCount).toBe(0);
-    expect(getMyProfileMock).toHaveBeenCalledTimes(1);
-    expect(createMyProfileMock).not.toHaveBeenCalled();
-  });
+    expect(res.status).toBe(200)
+    expect(json.ok).toBe(true)
+    expect(json.data.userId).toBe('usr-1')
+    expect(json.data.activeTrialCount).toBe(0)
+    expect(json.data.PK).toBeUndefined()
+    expect(json.data.SK).toBeUndefined()
+  })
 
-  it("returns activeTrialCount=1 when one active trial exists", async () => {
-    const existingProfile = {
-      userId: "usr-1",
-      subscriptionStatus: "FREE",
-      createdAt: "2024-01-01T00:00:00Z",
-      updatedAt: "2024-01-01T00:00:00Z",
-      activePracticeIds: [],
-      latestAssessmentId: "a1",
-    };
-    getMyProfileMock.mockResolvedValue({ data: existingProfile, errors: undefined });
-    dynamoQueryMock.mockResolvedValue([{
-      practiceId: "sleep-consistent-bedtime",
-      status: "trial",
+  it('counts active trials correctly', async () => {
+    getItemMock.mockResolvedValue(existingProfile)
+    queryMock.mockResolvedValue([{
+      practiceId: 'sleep-consistent-bedtime',
+      status: 'trial',
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      SK: "TRIAL#x#sleep-consistent-bedtime",
-    }]);
+      SK: 'TRIAL#x#sleep-consistent-bedtime',
+    }])
 
-    const req = new Request("http://localhost/api/me");
-    const res = await GET(req);
-    const json = await res.json();
+    const res = await GET(new Request('http://localhost/api/me'))
+    const json = await res.json()
 
-    expect(res.status).toBe(200);
-    expect(json.data.activeTrialCount).toBe(1);
-  });
+    expect(res.status).toBe(200)
+    expect(json.data.activeTrialCount).toBe(1)
+  })
 
-  it("returns profile with activeTrialCount=0 when trial count lookup fails", async () => {
-    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
-    const existingProfile = {
-      userId: "usr-1",
-      subscriptionStatus: "FREE",
-      createdAt: "2024-01-01T00:00:00Z",
-      updatedAt: "2024-01-01T00:00:00Z",
-      activePracticeIds: [],
-      latestAssessmentId: "a1",
-    };
-    getMyProfileMock.mockResolvedValue({ data: existingProfile, errors: undefined });
-    dynamoQueryMock.mockRejectedValue(new Error("Access denied"));
+  it('does not count expired trials', async () => {
+    getItemMock.mockResolvedValue(existingProfile)
+    queryMock.mockResolvedValue([{
+      practiceId: 'sleep-consistent-bedtime',
+      status: 'trial',
+      expiresAt: new Date(Date.now() - 1000).toISOString(),
+      SK: 'TRIAL#x#sleep-consistent-bedtime',
+    }])
 
-    const req = new Request("http://localhost/api/me");
-    const res = await GET(req);
-    const json = await res.json();
+    const res = await GET(new Request('http://localhost/api/me'))
+    const json = await res.json()
 
-    expect(res.status).toBe(200);
-    expect(json.ok).toBe(true);
-    expect(json.data.activeTrialCount).toBe(0);
-    expect(consoleError).toHaveBeenCalledWith(
-      "[GET /api/me] failed to read active trials:",
-      expect.any(Error)
-    );
+    expect(res.status).toBe(200)
+    expect(json.data.activeTrialCount).toBe(0)
+  })
 
-    consoleError.mockRestore();
-  });
+  it('returns activeTrialCount=0 when trial query fails', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    getItemMock.mockResolvedValue(existingProfile)
+    queryMock.mockRejectedValue(new Error('DynamoDB error'))
 
-  it("does not count expired trials", async () => {
-    const existingProfile = {
-      userId: "usr-1",
-      subscriptionStatus: "FREE",
-      createdAt: "2024-01-01T00:00:00Z",
-      updatedAt: "2024-01-01T00:00:00Z",
-      activePracticeIds: [],
-      latestAssessmentId: "a1",
-    };
-    getMyProfileMock.mockResolvedValue({ data: existingProfile, errors: undefined });
-    dynamoQueryMock.mockResolvedValue([{
-      practiceId: "sleep-consistent-bedtime",
-      status: "trial",
-      expiresAt: new Date(Date.now() - 1000).toISOString(), // expired
-      SK: "TRIAL#x#sleep-consistent-bedtime",
-    }]);
+    const res = await GET(new Request('http://localhost/api/me'))
+    const json = await res.json()
 
-    const req = new Request("http://localhost/api/me");
-    const res = await GET(req);
-    const json = await res.json();
+    expect(res.status).toBe(200)
+    expect(json.data.activeTrialCount).toBe(0)
+    consoleError.mockRestore()
+  })
 
-    expect(res.status).toBe(200);
-    expect(json.data.activeTrialCount).toBe(0);
-  });
+  it('creates profile when missing and returns it', async () => {
+    getItemMock.mockResolvedValue(undefined)
+    putItemIfNotExistsMock.mockResolvedValue(true)
 
-  it("creates profile when missing, returns it with activeTrialCount", async () => {
-    getMyProfileMock.mockResolvedValue({ data: null, errors: undefined });
+    const res = await GET(new Request('http://localhost/api/me'))
+    const json = await res.json()
 
-    const newProfile = {
-      userId: "usr-2",
-      subscriptionStatus: "FREE",
-      createdAt: "2024-01-02T00:00:00Z",
-      updatedAt: "2024-01-02T00:00:00Z",
-      activePracticeIds: [],
-      activePracticeSkById: {},
-      todayFocusPracticeId: null,
-      latestAssessmentId: null,
-      focusPillar: null,
-    };
+    expect(res.status).toBe(200)
+    expect(json.ok).toBe(true)
+    expect(json.data.subscriptionStatus).toBe('FREE')
+    expect(json.data.activeTrialCount).toBe(0)
+    expect(putItemIfNotExistsMock).toHaveBeenCalledOnce()
+  })
 
-    createMyProfileMock.mockResolvedValue({ data: newProfile, errors: undefined });
+  it('re-reads profile on race condition (putItemIfNotExists returns false)', async () => {
+    getItemMock
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce(existingProfile)
+    putItemIfNotExistsMock.mockResolvedValue(false)
 
-    const req = new Request("http://localhost/api/me");
-    const res = await GET(req);
-    const json = await res.json();
+    const res = await GET(new Request('http://localhost/api/me'))
+    const json = await res.json()
 
-    expect(res.status).toBe(200);
-    expect(json.ok).toBe(true);
-    expect(json.data.subscriptionStatus).toBe("FREE");
-    expect(json.data.activeTrialCount).toBe(0);
-    expect(getMyProfileMock).toHaveBeenCalledTimes(1);
-    expect(createMyProfileMock).toHaveBeenCalledTimes(1);
-  });
+    expect(res.status).toBe(200)
+    expect(json.data.userId).toBe('usr-1')
+    expect(getItemMock).toHaveBeenCalledTimes(2)
+  })
 
-  it("logs and returns 500 when profile read returns AppSync errors", async () => {
-    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
-    getMyProfileMock.mockResolvedValue({
-      data: null,
-      errors: [{ message: "Resolver failed" }],
-    });
+  it('returns 500 when profile re-read after race also fails', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    getItemMock
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce(undefined)
+    putItemIfNotExistsMock.mockResolvedValue(false)
 
-    const req = new Request("http://localhost/api/me");
-    const res = await GET(req);
-    const json = await res.json();
+    const res = await GET(new Request('http://localhost/api/me'))
+    expect(res.status).toBe(500)
+    consoleError.mockRestore()
+  })
 
-    expect(res.status).toBe(500);
-    expect(json.error?.message).toBe("Failed to read profile");
-    expect(consoleError).toHaveBeenCalledWith(
-      "[GET /api/me] getMyProfile errors:",
-      [{ message: "Resolver failed" }]
-    );
+  it('returns 401 when unauthenticated', async () => {
+    getCurrentUserMock.mockRejectedValue(new Error('Not authenticated'))
+    const res = await GET(new Request('http://localhost/api/me'))
+    expect(res.status).toBe(401)
+  })
+})
 
-    consoleError.mockRestore();
-  });
+describe('PATCH /api/me', () => {
+  function makeReq(body: object) {
+    return new Request('http://localhost/api/me', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+  }
 
-  it("returns same profile on second call (idempotent, no overwrite)", async () => {
-    const profile = {
-      userId: "usr-3",
-      subscriptionStatus: "FREE",
-      createdAt: "2024-01-03T00:00:00Z",
-      updatedAt: "2024-01-03T00:00:00Z",
-      activePracticeIds: [],
-      latestAssessmentId: null,
-    };
+  it('updates timezone and returns 200', async () => {
+    const res = await PATCH(makeReq({ timezone: 'America/New_York' }))
+    expect(res.status).toBe(200)
+    expect((await res.json()).ok).toBe(true)
+    expect(updateItemMock).toHaveBeenCalledOnce()
+    const call = updateItemMock.mock.calls[0][0]
+    expect(call.UpdateExpression).toContain('timezone')
+    expect(Object.values(call.ExpressionAttributeValues)).toContain('America/New_York')
+  })
 
-    getMyProfileMock.mockResolvedValue({ data: profile, errors: undefined });
+  it('updates dayResetTime and returns 200', async () => {
+    const res = await PATCH(makeReq({ dayResetTime: 180 }))
+    expect(res.status).toBe(200)
+    expect(updateItemMock).toHaveBeenCalledOnce()
+    const call = updateItemMock.mock.calls[0][0]
+    expect(call.UpdateExpression).toContain('dayResetTime')
+    expect(Object.values(call.ExpressionAttributeValues)).toContain(180)
+  })
 
-    const req = new Request("http://localhost/api/me");
-    const res1 = await GET(req);
-    const json1 = await res1.json();
-    const res2 = await GET(req);
-    const json2 = await res2.json();
+  it('updates both fields in a single updateItem call', async () => {
+    const res = await PATCH(makeReq({ timezone: 'Australia/Melbourne', dayResetTime: 240 }))
+    expect(res.status).toBe(200)
+    expect(updateItemMock).toHaveBeenCalledOnce()
+    const call = updateItemMock.mock.calls[0][0]
+    expect(call.UpdateExpression).toContain('timezone')
+    expect(call.UpdateExpression).toContain('dayResetTime')
+  })
 
-    expect(res1.status).toBe(200);
-    expect(res2.status).toBe(200);
-    expect(json1.data.userId).toBe(json2.data.userId);
-    expect(json1.data.subscriptionStatus).toBe("FREE");
-    expect(json1.data.activeTrialCount).toBe(0);
-    expect(createMyProfileMock).not.toHaveBeenCalled();
-  });
+  it('returns 200 without calling updateItem when body is empty', async () => {
+    const res = await PATCH(makeReq({}))
+    expect(res.status).toBe(200)
+    expect(updateItemMock).not.toHaveBeenCalled()
+  })
 
-  it("returns 401 when unauthenticated", async () => {
-    runWithAmplifyMock.mockRejectedValue(new Error("Not authenticated"));
+  it('returns 400 for invalid timezone string', async () => {
+    const res = await PATCH(makeReq({ timezone: 'Not/A/Timezone' }))
+    expect(res.status).toBe(400)
+    expect(updateItemMock).not.toHaveBeenCalled()
+  })
 
-    const req = new Request("http://localhost/api/me");
-    const res = await GET(req);
-    const json = await res.json();
+  it('returns 400 for dayResetTime below 0', async () => {
+    const res = await PATCH(makeReq({ dayResetTime: -1 }))
+    expect(res.status).toBe(400)
+  })
 
-    expect(res.status).toBe(401);
-    expect(json.ok).toBe(false);
-    expect(json.error?.code).toBe("UNAUTHORIZED");
-  });
-});
+  it('returns 400 for dayResetTime above 1439', async () => {
+    const res = await PATCH(makeReq({ dayResetTime: 1440 }))
+    expect(res.status).toBe(400)
+  })
+
+  it('returns 400 for non-integer dayResetTime', async () => {
+    const res = await PATCH(makeReq({ dayResetTime: 4.5 }))
+    expect(res.status).toBe(400)
+  })
+
+  it('returns 401 when unauthenticated', async () => {
+    getCurrentUserMock.mockRejectedValue(new Error('Not authenticated'))
+    const res = await PATCH(makeReq({ timezone: 'UTC' }))
+    expect(res.status).toBe(401)
+  })
+})

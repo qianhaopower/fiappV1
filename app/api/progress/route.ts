@@ -4,7 +4,7 @@ import { withAuth } from '@/utils/authServer'
 import type { ProfileData } from '@/lib/practices/trial'
 import type { MilestoneItem } from '@/lib/milestones/milestones'
 import {
-  todayUTC,
+  returnDayForUser,
   dateRange,
   makeReturnPK,
   makeReturnSK,
@@ -54,7 +54,10 @@ export async function GET(req: Request) {
 
     // Compute streaks from return records for all active practices
     const activePracticeIds = profile?.activePracticeIds ?? []
-    const today = todayUTC()
+    const today = returnDayForUser({
+      timezone: profile?.timezone ?? 'UTC',
+      resetMinutes: profile?.dayResetTime ?? 240,
+    })
     const startDate = dateRange(STREAK_LOOKBACK_DAYS, today)[0]
 
     const allReturnRecords = await Promise.all(

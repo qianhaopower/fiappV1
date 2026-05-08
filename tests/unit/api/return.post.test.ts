@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { POST } from '@/app/api/return/route'
 
+vi.mock('@/utils/metricsClient', () => ({ trackEvent: vi.fn() }))
+
 const mainGetItemMock = vi.fn()
 const mainQueryMock = vi.fn()
 const mainUpdateItemMock = vi.fn()
@@ -190,5 +192,40 @@ describe('POST /api/return', () => {
     const json = await res.json()
     expect(json.noop).toBe(true)
     expect(json.newMilestones).toEqual([])
+  })
+
+  it('uses user timezone from profile when date is omitted', async () => {
+    mainGetItemMock.mockResolvedValue({
+      activePracticeIds: ['sleep-consistent-bedtime'],
+      returnCounters: {},
+      timezone: 'UTC',
+      dayResetTime: 0,
+    })
+    returnsGetItemMock.mockResolvedValue(undefined)
+
+    const res = await POST(makeReq({ practiceId: 'sleep-consistent-bedtime', didIt: true }))
+    expect(res.status).toBe(200)
+    const json = await res.json()
+    expect(json.date).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+  })
+
+  it('respects explicit date param over user timezone', async () => {
+    mainGetItemMock.mockResolvedValue({
+      activePracticeIds: ['sleep-consistent-bedtime'],
+      returnCounters: {},
+      timezone: 'America/New_York',
+      dayResetTime: 240,
+    })
+    returnsGetItemMock.mockResolvedValue(undefined)
+
+    const res = await POST(makeReq({ practiceId: 'sleep-consistent-bedtime', didIt: true, date: '2026-01-10' }))
+    expect(res.status).toBe(200)
+    const json = await res.json()
+    expect(json.date).toBe('2026-01-10')
+  })
+
+  it('returns 400 for invalid explicit date format', async () => {
+    const res = await POST(makeReq({ practiceId: 'sleep-consistent-bedtime', didIt: true, date: 'not-a-date' }))
+    expect(res.status).toBe(400)
   })
 })

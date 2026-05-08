@@ -65,15 +65,15 @@ Add unit tests for:
 
 When `date` is omitted:
 
-- Load the user's profile.
-- Use `timezone` and `dayResetTime` to calculate the return date.
+- The profile is already loaded by this handler (for the active-practice check). Extract `timezone` and `dayResetTime` from it — no extra DB call is needed.
+- Use `returnDayForUser()` to calculate the return date.
 - Store the return using the existing key shape: `DATE#YYYY-MM-DD`.
 
 Keep explicit `date` support for tests, admin workflows, or future backfill needs. Normal UI logging should omit `date`.
 
 ### 4. Update `GET /api/returns`
 
-Generate the last N habit days using the user's configured timezone and reset time.
+Load the user's profile to get `timezone` and `dayResetTime`. Use `returnDayForUser()` to get `currentReturnDate`, then pass it into `dateRange()` as the `endDate` argument. The current `dateRange()` already accepts an `endDate` parameter; no new variant is needed.
 
 The response should include the server's current return date, for example:
 
@@ -86,7 +86,19 @@ The response should include the server's current return date, for example:
 
 This prevents the Today page from independently calculating "today" and disagreeing with the server.
 
-### 5. Update The Today Page
+### 5. Update `GET /api/progress` And `computeStreaks`
+
+`GET /api/progress` computes streaks and uses `todayUTC()` for both the streak anchor and the DynamoDB date range query. This must be updated alongside the other endpoints or streaks will remain UTC-based even after returns are timezone-aware.
+
+Changes:
+
+- Load `timezone` and `dayResetTime` from the user's profile (already fetched by this handler).
+- Call `returnDayForUser()` to get the user's current return date.
+- Pass it to `dateRange()` as `endDate` and to `computeStreaks()` as `today`.
+
+`computeStreaks()` already accepts `today` as an optional parameter, so no signature change is needed — just pass the user's return date instead of letting it default to `todayUTC()`.
+
+### 6. Update The Today Page
 
 Stop importing `todayUTC()` client-side for deciding today's dot.
 
@@ -98,7 +110,20 @@ Instead:
 
 This keeps the UI and API aligned.
 
-### 6. Add Settings UI
+### 7. Persist Timezone On First Load
+
+`timezone` must be written to the profile or it defaults to `UTC` indefinitely.
+
+Mechanism:
+
+- Add a PATCH `/api/me` endpoint that accepts `{ timezone, dayResetTime }` and updates the profile record.
+- On the client, detect the browser timezone with `Intl.DateTimeFormat().resolvedOptions().timeZone`.
+- In the app layout or root Today page effect, after the profile is loaded: if `profile.timezone` is `UTC` or missing, and the browser timezone differs, fire the PATCH once to persist it. This is a silent background write — no UI shown to the user.
+- The Settings UI (Step 8) lets users override this later.
+
+This keeps the default experience zero-friction while ensuring the profile reflects the user's actual timezone after first load.
+
+### 8. Add Settings UI
 
 Add an Account or Settings section for:
 
@@ -114,7 +139,7 @@ Initial reset-time options:
 
 Avoid fully custom time in the first version unless there is a clear user need.
 
-### 7. Migration And Backward Compatibility
+### 9. Migration And Backward Compatibility
 
 No table migration is required.
 
@@ -125,9 +150,9 @@ Profiles without `timezone` or `dayResetTime` should behave as:
 - `timezone = UTC`
 - `dayResetTime = 240`
 
-Then, on the client, the app can update `timezone` to the browser-detected value when appropriate.
+The silent PATCH on first load (Step 7) handles the transition for existing users without requiring manual action.
 
-### 8. Docs And Tests
+### 10. Docs And Tests
 
 Update docs:
 
@@ -143,13 +168,13 @@ Add tests for:
 - Logging after reset.
 - Date range generation in `GET /api/returns`.
 - Today page using server-provided `currentReturnDate`.
+- `GET /api/progress` streak computation using user's return date, not UTC.
+- PATCH `/api/me` updating `timezone` and `dayResetTime`.
 
 ## Open Decisions
 
-- Should timezone be set automatically on first authenticated client load, or explicitly confirmed in Settings?
-- Should changing reset time affect only future logs, or can it reinterpret today's current log during the same calendar day?
-- Should travelers keep their home timezone or follow their device timezone?
-- Do we need account-level timezone immediately, or can v1 derive it from the browser and only persist reset time?
+- Should changing reset time affect only future logs, or can it reinterpret today's current log during the same calendar day? (Recommend: future only, to prevent streak gaming.)
+- Should travelers keep their home timezone or follow their device timezone? (The silent first-load PATCH will update timezone on each new device, which follows the device. If home-timezone is the preference, the Settings UI must let users lock it.)
 
 ## Suggested First Version
 

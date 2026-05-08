@@ -4,7 +4,7 @@ import { withAuth } from '@/utils/authServer'
 import { practicesById } from '@/lib/practices/library'
 import { isTrialActive, type TrialItem, type ProfileData } from '@/lib/practices/trial'
 import {
-  todayUTC,
+  returnDayForUser,
   makeReturnPK,
   makeReturnSK,
   computeDelta,
@@ -44,9 +44,7 @@ export async function POST(req: Request) {
     if (!practicesById.get(practiceId)) {
       return NextResponse.json({ error: 'PRACTICE_NOT_FOUND' }, { status: 404 })
     }
-
-    const returnDate = date ?? todayUTC()
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(returnDate)) {
+    if (date !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       return NextResponse.json({ error: 'Invalid date format, use YYYY-MM-DD' }, { status: 400 })
     }
 
@@ -62,6 +60,11 @@ export async function POST(req: Request) {
         ExpressionAttributeValues: { ':pk': pk, ':prefix': 'TRIAL#' },
       }),
     ])
+
+    const returnDate = date ?? returnDayForUser({
+      timezone: profile?.timezone ?? 'UTC',
+      resetMinutes: profile?.dayResetTime ?? 240,
+    })
 
     const activePracticeIds = profile?.activePracticeIds ?? []
     const isActive = activePracticeIds.includes(practiceId)

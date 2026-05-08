@@ -79,6 +79,8 @@ describe('GET /api/progress', () => {
     mainGetItemMock.mockResolvedValue({
       activePracticeIds: ['sleep-consistent-bedtime'],
       returnCounters: {},
+      timezone: 'UTC',
+      dayResetTime: 0, // midnight reset — today always equals UTC date, no flakiness at 4 AM UTC
     })
     returnsQueryMock.mockResolvedValue([
       { PK: 'x', SK: `DATE#${today}`, didIt: true, createdAt: '', updatedAt: '' },
