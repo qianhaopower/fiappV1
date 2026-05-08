@@ -48,6 +48,7 @@
     "aws-cdk-lib": "^2.234.1",
     "aws-sdk-client-mock": "^4.0.1",
     "constructs": "^10.4.5",
+    "dotenv": "^17.4.2",
     "dynalite": "^4.0.0",
     "esbuild": "^0.27.2",
     "eslint": "^9",

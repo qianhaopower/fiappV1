@@ -74,6 +74,7 @@ SETUP_COMPLETE.md
 # Playwright
 test-results/
 playwright-report/
+tests/e2e/.auth.json
 # Env
 .env
 .env.local
