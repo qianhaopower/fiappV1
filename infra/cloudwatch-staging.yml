@@ -1,0 +1,103 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: FIApp staging monitoring — metric filters and CloudWatch dashboard
+
+Parameters:
+  AmplifyAppId:
+    Type: String
+    Default: d3nyg9qvz1tj5n
+    Description: Amplify app ID (same app as production, different branch)
+
+Resources:
+
+  # ── Metric Filters ──────────────────────────────────────────────────────────
+
+  APIErrorFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Sub /aws/amplify/${AmplifyAppId}
+      FilterPattern: '"[withAuth] handler error"'
+      MetricTransformations:
+        - MetricName: APIErrors
+          MetricNamespace: FIApp-Staging
+          MetricValue: "1"
+          DefaultValue: 0
+
+  AllErrorFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Sub /aws/amplify/${AmplifyAppId}
+      FilterPattern: "ERROR"
+      MetricTransformations:
+        - MetricName: AllErrors
+          MetricNamespace: FIApp-Staging
+          MetricValue: "1"
+          DefaultValue: 0
+
+  AuthErrorFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Sub /aws/amplify/${AmplifyAppId}
+      FilterPattern: '"UNAUTHORIZED" OR "NoSignedUser"'
+      MetricTransformations:
+        - MetricName: AuthErrors
+          MetricNamespace: FIApp-Staging
+          MetricValue: "1"
+          DefaultValue: 0
+
+  # ── Dashboard ───────────────────────────────────────────────────────────────
+
+  Dashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: FIApp-Staging
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric",
+              "x": 0, "y": 0, "width": 8, "height": 6,
+              "properties": {
+                "title": "API Errors (5-min)",
+                "metrics": [["FIApp-Staging", "APIErrors"]],
+                "stat": "Sum",
+                "period": 300,
+                "view": "timeSeries",
+                "region": "ap-southeast-2"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 8, "y": 0, "width": 8, "height": 6,
+              "properties": {
+                "title": "Auth Errors (5-min)",
+                "metrics": [["FIApp-Staging", "AuthErrors"]],
+                "stat": "Sum",
+                "period": 300,
+                "view": "timeSeries",
+                "region": "ap-southeast-2"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 16, "y": 0, "width": 8, "height": 6,
+              "properties": {
+                "title": "All Errors (5-min)",
+                "metrics": [["FIApp-Staging", "AllErrors"]],
+                "stat": "Sum",
+                "period": 300,
+                "view": "timeSeries",
+                "region": "ap-southeast-2"
+              }
+            },
+            {
+              "type": "log",
+              "x": 0, "y": 6, "width": 24, "height": 8,
+              "properties": {
+                "title": "Recent API Errors",
+                "query": "SOURCE '/aws/amplify/${AmplifyAppId}' | fields @timestamp, @message | filter @message like /withAuth/ | sort @timestamp desc | limit 25",
+                "region": "ap-southeast-2",
+                "view": "table"
+              }
+            }
+          ]
+        }

@@ -11,20 +11,29 @@ export const backend = defineBackend({
 
 const externalDataSourcesStack = backend.createStack("FIAppExternalDataSources");
 
-// FIAPP_MAIN was created by the sandbox stack — import it so the production stack
-// references the existing table instead of trying to create a duplicate.
-const fiappMainTable = aws_dynamodb.Table.fromTableName(
-  externalDataSourcesStack,
-  "FIAPP_MAIN",
-  "FIAPP_MAIN"
-);
+const branch = process.env.AWS_BRANCH ?? "main";
+const isProduction = branch === "main";
+const mainTableName = isProduction ? "FIAPP_MAIN" : `FIAPP_MAIN_${branch.toUpperCase()}`;
+const returnsTableName = isProduction ? "FIAPP_RETURNS" : `FIAPP_RETURNS_${branch.toUpperCase()}`;
+
+// Production: import the existing table (created by the original sandbox stack).
+// All other branches: create a fresh table scoped to that branch.
+const fiappMainTable = isProduction
+  ? aws_dynamodb.Table.fromTableName(externalDataSourcesStack, "FIAPP_MAIN", mainTableName)
+  : new aws_dynamodb.Table(externalDataSourcesStack, "FIAPP_MAIN", {
+      tableName: mainTableName,
+      partitionKey: { name: "PK", type: aws_dynamodb.AttributeType.STRING },
+      sortKey: { name: "SK", type: aws_dynamodb.AttributeType.STRING },
+      billingMode: aws_dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: RemovalPolicy.RETAIN,
+    });
 
 // IMPORTANT: This string is the DataSource name your schema must reference
 backend.data.addDynamoDbDataSource("FIAppMainDataSource", fiappMainTable);
 
-// Returns table — created and owned by the production pipeline.
+// Returns table — always owned by the pipeline; scoped by branch on non-production.
 new aws_dynamodb.Table(externalDataSourcesStack, "FIAPP_RETURNS", {
-  tableName: "FIAPP_RETURNS",
+  tableName: returnsTableName,
   partitionKey: { name: "PK", type: aws_dynamodb.AttributeType.STRING },
   sortKey: { name: "SK", type: aws_dynamodb.AttributeType.STRING },
   billingMode: aws_dynamodb.BillingMode.PAY_PER_REQUEST,
