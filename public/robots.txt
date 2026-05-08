@@ -12,6 +12,7 @@ Disallow: /practices
 Disallow: /results
 Disallow: /progress
 Disallow: /account
+Disallow: /onboarding
 Disallow: /assessment
 Disallow: /decideRoute
 Disallow: /admin
