@@ -4,14 +4,7 @@ backend:
     build:
       commands:
         - npm ci --cache .npm --prefer-offline
-        - |
-          CHANGED=$(git diff --name-only HEAD^1 HEAD 2>/dev/null || git show --name-only --format="" HEAD)
-          if echo "$CHANGED" | grep -q '^amplify/'; then
-            echo "amplify/ changed — deploying backend"
-            npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AWS_APP_ID
-          else
-            echo "No amplify/ changes — skipping backend deploy"
-          fi
+        - npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AWS_APP_ID
 frontend:
   phases:
     preBuild:
@@ -20,6 +13,15 @@ frontend:
     build:
       commands:
         - env | grep -e FIAPP_ >> .env.production
+        - |
+          if [ "$AWS_BRANCH" = "main" ]; then
+            echo "FIAPP_MAIN_TABLE=FIAPP_MAIN" >> .env.production
+            echo "FIAPP_RETURNS_TABLE=FIAPP_RETURNS" >> .env.production
+          else
+            BRANCH_UPPER=$(echo "$AWS_BRANCH" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
+            echo "FIAPP_MAIN_TABLE=FIAPP_MAIN_${BRANCH_UPPER}" >> .env.production
+            echo "FIAPP_RETURNS_TABLE=FIAPP_RETURNS_${BRANCH_UPPER}" >> .env.production
+          fi
         - NEXT_TELEMETRY_DISABLED=1 npm run build
   artifacts:
     baseDirectory: .next
