@@ -25,6 +25,25 @@ jobs:
 
       - run: npm run test
 
+  integration:
+    name: Integration tests (dynalite)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run test:integration
+        env:
+          AWS_REGION: ap-southeast-2
+          FIAPP_AWS_ACCESS_KEY_ID: test
+          FIAPP_AWS_SECRET_ACCESS_KEY: test
+
   e2e-smoke:
     name: E2E smoke (unauthenticated)
     runs-on: ubuntu-latest
