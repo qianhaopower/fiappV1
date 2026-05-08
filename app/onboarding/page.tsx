@@ -60,7 +60,7 @@ function StepWelcome({ onNext }: { onNext: () => void }) {
 
 function StepPillars({ onNext }: { onNext: () => void }) {
   return (
-    <div className="space-y-8">
+    <div className="space-y-5 sm:space-y-8">
       <div className="space-y-4">
         <p className="text-xs tracking-[0.12em] uppercase text-muted-foreground">
           The framework
@@ -87,8 +87,10 @@ function StepPillars({ onNext }: { onNext: () => void }) {
           );
         })}
       </div>
-      <div className="rounded-xl border border-border bg-muted/20 p-4">
-        <PillarRadarChart scores={SAMPLE_SCORES} focusPillar="financial" />
+      <div className="rounded-xl border border-border bg-muted/20 p-3 sm:p-4">
+        <div className="mx-auto max-w-[280px] sm:max-w-none">
+          <PillarRadarChart scores={SAMPLE_SCORES} focusPillar="financial" />
+        </div>
         <p className="mt-1 text-center text-xs text-muted-foreground">Sample results</p>
       </div>
       <Button className="w-full" onClick={onNext}>
@@ -158,7 +160,7 @@ export default function OnboardingPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-lg px-6 py-12">
+      <main className="mx-auto max-w-lg px-6 py-8 sm:py-12">
         <div className="mb-8 flex items-center gap-4">
           {step > 0 && (
             <button
