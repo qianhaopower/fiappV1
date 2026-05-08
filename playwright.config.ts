@@ -1,33 +1,45 @@
-import { defineConfig, devices } from '@playwright/test'
+import { defineConfig, devices } from "@playwright/test";
+import dotenv from "dotenv";
 
-const isCI = !!process.env.CI
-const port = isCI ? 3005 : 3000
+dotenv.config({ path: ".env.test.local" });
+
+const isCI = !!process.env.CI;
+
+// BASE_URL can point at local dev, staging, or production.
+// When set, no local server is started.
+const baseURL =
+  process.env.BASE_URL ??
+  `http://localhost:${isCI ? 3005 : 3000}`;
+
+const isLocal = baseURL.includes("localhost");
 
 export default defineConfig({
-  testDir: './tests/e2e',
+  testDir: "./tests/e2e",
+  globalSetup: "./tests/e2e/global-setup.ts",
   timeout: 60_000,
   retries: isCI ? 1 : 0,
+
   use: {
-    baseURL: `http://localhost:${port}`,
-    trace: 'on-first-retry',
+    baseURL,
+    trace: "on-first-retry",
   },
-  webServer: isCI
+
+  // Only spin up a local server when targeting localhost
+  webServer: isLocal
     ? {
-        command: `npx next start -p ${port}`,
-        url: `http://localhost:${port}`,
-        reuseExistingServer: false,
+        command: isCI
+          ? `npx next start -p ${new URL(baseURL).port}`
+          : `npm run dev -- -p ${new URL(baseURL).port}`,
+        url: baseURL,
+        reuseExistingServer: !isCI,
         timeout: 120_000,
       }
-    : {
-        command: `npm run dev -- -p ${port}`,
-        url: `http://localhost:${port}`,
-        reuseExistingServer: true,
-        timeout: 120_000,
-      },
+    : undefined,
+
   projects: [
     {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"] },
     },
   ],
-})
+});
