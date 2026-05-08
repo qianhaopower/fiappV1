@@ -159,7 +159,15 @@ export default function OnboardingPage() {
       </header>
 
       <main className="mx-auto max-w-lg px-6 py-12">
-        <div className="mb-8">
+        <div className="mb-8 flex items-center gap-4">
+          {step > 0 && (
+            <button
+              onClick={() => setStep((s) => s - 1)}
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              ← Back
+            </button>
+          )}
           <StepDots current={step} />
         </div>
 
