@@ -35,7 +35,7 @@ describe("DecideRouteClient", () => {
 
     render(<DecideRouteClient />);
 
-    expect(screen.getByText("Loading...")).toBeInTheDocument();
+    expect(screen.getByText("Loading your profile…")).toBeInTheDocument();
     expect(replaceMock).not.toHaveBeenCalled();
   });
 
@@ -54,7 +54,7 @@ describe("DecideRouteClient", () => {
     render(<DecideRouteClient />);
 
     await waitFor(() => {
-      expect(replaceMock).toHaveBeenCalledWith("/assessment");
+      expect(replaceMock).toHaveBeenCalledWith("/onboarding");
     });
   });
 

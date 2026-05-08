@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { UpgradeButton } from "@/components/UpgradeButton";
 
 const useProfileMock = vi.fn();
@@ -12,6 +12,7 @@ vi.mock("@/contexts/ProfileContext", () => ({
 vi.mock("sonner", () => ({
   toast: {
     info: (...args: unknown[]) => toastMock(...args),
+    error: (...args: unknown[]) => toastMock(...args),
   },
 }));
 
@@ -57,19 +58,22 @@ describe("UpgradeButton", () => {
     expect(screen.getByRole("button", { name: "Upgrade to Plus" })).toBeInTheDocument();
   });
 
-  it("calls toast.info on click when FREE", () => {
+  it("shows toast.error when checkout fetch fails", async () => {
     useProfileMock.mockReturnValue({
       profile: { subscriptionStatus: "FREE" },
       loading: false,
       error: null,
       refetch: vi.fn(),
     });
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Network error")));
 
     render(<UpgradeButton />);
     fireEvent.click(screen.getByRole("button", { name: "Upgrade to Plus" }));
 
-    expect(toastMock).toHaveBeenCalledWith("Plus plan is coming soon", {
-      description: "Plus lets you keep up to 10 active practices.",
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalledWith("Could not start checkout. Please try again.");
     });
+
+    vi.unstubAllGlobals();
   });
 });

@@ -21,6 +21,7 @@ describe("Assessment page", () => {
 
   it("shows first question and progress, next disabled until answered", () => {
     render(<AssessmentPage />);
+    fireEvent.click(screen.getByRole("button", { name: /Start assessment/ }));
 
     expect(screen.getByText(/Question\s*1\s*\/\s*35/)).toBeInTheDocument();
     expect(screen.getByText(assessmentQuestions[0].text)).toBeInTheDocument();
@@ -37,6 +38,7 @@ describe("Assessment page", () => {
 
   it("advances with next and supports back with preserved answer", () => {
     render(<AssessmentPage />);
+    fireEvent.click(screen.getByRole("button", { name: /Start assessment/ }));
 
     fireEvent.click(screen.getByRole("button", { name: "Yes" }));
 
@@ -57,6 +59,7 @@ describe("Assessment page", () => {
     });
 
     render(<AssessmentPage />);
+    fireEvent.click(screen.getByRole("button", { name: /Start assessment/ }));
 
     for (let i = 0; i < assessmentQuestions.length; i += 1) {
       fireEvent.click(screen.getByRole("button", { name: "Yes" }));
@@ -80,6 +83,7 @@ describe("Assessment page", () => {
     });
 
     render(<AssessmentPage />);
+    fireEvent.click(screen.getByRole("button", { name: /Start assessment/ }));
 
     for (let i = 0; i < assessmentQuestions.length; i += 1) {
       fireEvent.click(screen.getByRole("button", { name: "Yes" }));
@@ -103,6 +107,7 @@ describe("Assessment page", () => {
     });
 
     render(<AssessmentPage />);
+    fireEvent.click(screen.getByRole("button", { name: /Start assessment/ }));
 
     for (let i = 0; i < assessmentQuestions.length; i += 1) {
       fireEvent.click(screen.getByRole("button", { name: "Yes" }));

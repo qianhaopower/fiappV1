@@ -9,7 +9,7 @@ describe("decideRoute", () => {
       todayFocusPracticeId: "p1",
     };
 
-    expect(decideRoute(profile)).toBe("/assessment");
+    expect(decideRoute(profile)).toBe("/onboarding");
   });
 
   it("routes to /results when no active practices and no active trials", () => {
