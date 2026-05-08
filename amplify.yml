@@ -12,7 +12,6 @@ frontend:
         - npm ci --cache .npm --prefer-offline
     build:
       commands:
-        - env | grep -e FIAPP_ >> .env.production
         - |
           if [ "$AWS_BRANCH" = "main" ]; then
             echo "FIAPP_MAIN_TABLE=FIAPP_MAIN" >> .env.production
@@ -22,6 +21,7 @@ frontend:
             echo "FIAPP_MAIN_TABLE=FIAPP_MAIN_${BRANCH_UPPER}" >> .env.production
             echo "FIAPP_RETURNS_TABLE=FIAPP_RETURNS_${BRANCH_UPPER}" >> .env.production
           fi
+        - env | grep -e FIAPP_ >> .env.production
         - NEXT_TELEMETRY_DISABLED=1 npm run build
   artifacts:
     baseDirectory: .next
