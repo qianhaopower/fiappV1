@@ -19,6 +19,37 @@ export function todayUTC(): string {
   return new Date().toISOString().split('T')[0]
 }
 
+export function returnDayForUser({
+  now,
+  timezone,
+  resetMinutes,
+}: {
+  now?: Date
+  timezone: string
+  resetMinutes: number
+}): string {
+  const d = now ?? new Date()
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(d)
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '0'
+  // hour12: false returns 0–23; guard against "24" returned by some runtimes at midnight
+  const localMinutes = (parseInt(get('hour')) % 24) * 60 + parseInt(get('minute'))
+  const localDate = `${get('year')}-${get('month')}-${get('day')}`
+  if (localMinutes < resetMinutes) {
+    const [y, m, day] = localDate.split('-').map(Number)
+    const prev = new Date(Date.UTC(y, m - 1, day - 1))
+    return prev.toISOString().slice(0, 10)
+  }
+  return localDate
+}
+
 export function dateRange(days: number, endDate = todayUTC()): string[] {
   const end = new Date(`${endDate}T00:00:00Z`)
   const dates: string[] = []

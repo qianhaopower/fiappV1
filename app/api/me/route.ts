@@ -109,3 +109,47 @@ export async function GET(req: Request) {
     return jsonWithNoStore({ ok: true, data: { ...stripKeys(newItem), activeTrialCount } }, 200);
   });
 }
+
+export async function PATCH(req: Request) {
+  return withAuth(req, async (user) => {
+    let body: { timezone?: string; dayResetTime?: number }
+    try {
+      body = (await req.json()) as { timezone?: string; dayResetTime?: number }
+    } catch {
+      return jsonWithNoStore({ error: "Invalid JSON" }, 400);
+    }
+
+    const { timezone, dayResetTime } = body ?? {}
+    const updates: Record<string, unknown> = {}
+
+    if (timezone !== undefined) {
+      try {
+        Intl.DateTimeFormat(undefined, { timeZone: timezone })
+      } catch {
+        return jsonWithNoStore({ error: "Invalid timezone" }, 400);
+      }
+      updates.timezone = timezone
+    }
+
+    if (dayResetTime !== undefined) {
+      if (typeof dayResetTime !== "number" || !Number.isInteger(dayResetTime) || dayResetTime < 0 || dayResetTime > 1439) {
+        return jsonWithNoStore({ error: "dayResetTime must be an integer 0–1439" }, 400);
+      }
+      updates.dayResetTime = dayResetTime
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return jsonWithNoStore({ ok: true }, 200);
+    }
+
+    const keys = Object.keys(updates)
+    const client = createDynamoClient()
+    await client.updateItem({
+      Key: { PK: `USER#${user.userId}`, SK: "PROFILE" },
+      UpdateExpression: `SET ${keys.map((k, i) => `${k} = :v${i}`).join(", ")}`,
+      ExpressionAttributeValues: Object.fromEntries(keys.map((k, i) => [`:v${i}`, updates[k]])),
+    })
+
+    return jsonWithNoStore({ ok: true }, 200);
+  });
+}

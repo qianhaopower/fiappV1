@@ -8,7 +8,6 @@ import { Card, Button, Loading, ErrorState } from '@/components/ui';
 import { pillarColors } from '@/lib/design/pillarColors';
 import { pillarLabels } from '@/lib/assessment/pillars';
 import { practicesById } from '@/lib/practices/library';
-import { todayUTC } from '@/lib/returns/returns';
 import type { Practice } from '@/lib/practices/library';
 import type { Pillar } from '@/lib/assessment/pillars';
 import type { DotEntry } from '@/lib/returns/returns';
@@ -30,6 +29,7 @@ type ActiveData = {
 
 type ReturnsData = {
   returns: DotEntry[]
+  currentReturnDate?: string
 }
 
 type ReturnResponse = {
@@ -45,6 +45,7 @@ export default function TodayPage() {
   const [focusPractice, setFocusPractice] = useState<Practice | null>(null)
   const [activeTrials, setActiveTrials] = useState<Trial[]>([])
   const [dots, setDots] = useState<DotEntry[]>([])
+  const [currentReturnDate, setCurrentReturnDate] = useState<string | null>(null)
   const [todayDidIt, setTodayDidIt] = useState<boolean | null>(null)
   const [trialDidIt, setTrialDidIt] = useState<Record<string, boolean | null>>({})
   const [loading, setLoading] = useState(true)
@@ -62,7 +63,9 @@ export default function TodayPage() {
     if (!res.ok) return
     const data: ReturnsData = await res.json()
     setDots(data.returns)
-    const today = data.returns.find((d) => d.date === todayUTC())
+    const returnDate = data.currentReturnDate
+    if (returnDate) setCurrentReturnDate(returnDate)
+    const today = data.returns.find((d) => d.date === returnDate)
     setTodayDidIt(today?.didIt ?? null)
   }, [])
 
@@ -70,8 +73,22 @@ export default function TodayPage() {
     const res = await fetch(`/api/returns?practiceId=${practiceId}&days=1`)
     if (!res.ok) return
     const data: ReturnsData = await res.json()
-    const today = data.returns.find((d) => d.date === todayUTC())
+    const returnDate = data.currentReturnDate
+    const today = data.returns.find((d) => d.date === returnDate)
     setTrialDidIt((prev) => ({ ...prev, [practiceId]: today?.didIt ?? null }))
+  }, [])
+
+  useEffect(() => {
+    const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone
+    const storageKey = 'fi_tz_synced'
+    if (typeof localStorage !== 'undefined' && localStorage.getItem(storageKey) === browserTz) return
+    fetch('/api/me', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ timezone: browserTz }),
+    })
+      .then((r) => { if (r.ok && typeof localStorage !== 'undefined') localStorage.setItem(storageKey, browserTz) })
+      .catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -272,7 +289,7 @@ export default function TodayPage() {
                           : dot.didIt === false
                           ? 'bg-foreground/20 border-foreground/35'
                           : 'bg-muted/70 border-border/50'
-                      } ${justLogged && dot.date === todayUTC() ? 'animate-dot-pop' : ''}`}
+                      } ${justLogged && dot.date === currentReturnDate ? 'animate-dot-pop' : ''}`}
                     />
                   )
                 })}

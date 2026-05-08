@@ -7,6 +7,7 @@ import {
   makeReturnSK,
   todayUTC,
   computeStreaks,
+  returnDayForUser,
 } from '@/lib/returns/returns'
 
 describe('todayUTC', () => {
@@ -115,6 +116,82 @@ describe('computeStreaks', () => {
     const dates = new Set(['2026-04-01', '2026-04-02', '2026-04-03', '2026-05-03'])
     const { currentStreak, longestStreak } = computeStreaks(dates, today)
     expect(longestStreak).toBeGreaterThanOrEqual(currentStreak)
+  })
+})
+
+describe('returnDayForUser', () => {
+  // UTC — after reset
+  it('returns today UTC when local time is after reset', () => {
+    const now = new Date('2026-01-15T06:00:00Z') // 6 AM UTC, reset at 4 AM
+    expect(returnDayForUser({ now, timezone: 'UTC', resetMinutes: 240 })).toBe('2026-01-15')
+  })
+
+  // UTC — before reset
+  it('returns yesterday UTC when local time is before reset', () => {
+    const now = new Date('2026-01-15T02:00:00Z') // 2 AM UTC, reset at 4 AM
+    expect(returnDayForUser({ now, timezone: 'UTC', resetMinutes: 240 })).toBe('2026-01-14')
+  })
+
+  it('returns today at exactly the reset minute', () => {
+    const now = new Date('2026-01-15T04:00:00Z') // 4:00 AM UTC = 240 min
+    expect(returnDayForUser({ now, timezone: 'UTC', resetMinutes: 240 })).toBe('2026-01-15')
+  })
+
+  it('returns yesterday one minute before reset', () => {
+    const now = new Date('2026-01-15T03:59:00Z') // 3:59 AM UTC
+    expect(returnDayForUser({ now, timezone: 'UTC', resetMinutes: 240 })).toBe('2026-01-14')
+  })
+
+  // Melbourne (AEDT = UTC+11 in January)
+  it('returns Melbourne local date when after reset', () => {
+    // 2026-01-15T06:00:00Z = 17:00 AEDT (5 PM) — after 4 AM reset
+    const now = new Date('2026-01-15T06:00:00Z')
+    expect(returnDayForUser({ now, timezone: 'Australia/Melbourne', resetMinutes: 240 })).toBe('2026-01-15')
+  })
+
+  it('returns Melbourne yesterday when before reset', () => {
+    // 2026-01-14T15:00:00Z = 02:00 AEDT (2 AM) on Jan 15 — before 4 AM reset
+    const now = new Date('2026-01-14T15:00:00Z')
+    expect(returnDayForUser({ now, timezone: 'Australia/Melbourne', resetMinutes: 240 })).toBe('2026-01-14')
+  })
+
+  // US Eastern (EST = UTC-5 in January)
+  it('returns US Eastern local date when after reset', () => {
+    // 2026-01-15T10:00:00Z = 05:00 EST — after 4 AM reset
+    const now = new Date('2026-01-15T10:00:00Z')
+    expect(returnDayForUser({ now, timezone: 'America/New_York', resetMinutes: 240 })).toBe('2026-01-15')
+  })
+
+  it('returns US Eastern yesterday when before reset', () => {
+    // 2026-01-15T06:00:00Z = 01:00 EST — before 4 AM reset
+    const now = new Date('2026-01-15T06:00:00Z')
+    expect(returnDayForUser({ now, timezone: 'America/New_York', resetMinutes: 240 })).toBe('2026-01-14')
+  })
+
+  // DST: US Eastern spring-forward 2026-03-08 (clocks go 2 AM → 3 AM, EST→EDT UTC-4)
+  it('handles DST spring-forward: 3:59 AM EDT is before reset', () => {
+    // 2026-03-08T07:59:00Z = 03:59 EDT (UTC-4) — before 4 AM reset
+    const now = new Date('2026-03-08T07:59:00Z')
+    expect(returnDayForUser({ now, timezone: 'America/New_York', resetMinutes: 240 })).toBe('2026-03-07')
+  })
+
+  it('handles DST spring-forward: 4:00 AM EDT is at reset', () => {
+    // 2026-03-08T08:00:00Z = 04:00 EDT (UTC-4) — at reset
+    const now = new Date('2026-03-08T08:00:00Z')
+    expect(returnDayForUser({ now, timezone: 'America/New_York', resetMinutes: 240 })).toBe('2026-03-08')
+  })
+
+  // Midnight reset
+  it('midnight reset (dayResetTime=0) always returns current local date', () => {
+    const now = new Date('2026-01-15T00:30:00Z') // 12:30 AM UTC
+    expect(returnDayForUser({ now, timezone: 'UTC', resetMinutes: 0 })).toBe('2026-01-15')
+  })
+
+  // Year boundary rollback
+  it('rolls back across year boundary correctly', () => {
+    // 2026-01-01T02:00:00Z = 2 AM UTC, before 4 AM reset → 2025-12-31
+    const now = new Date('2026-01-01T02:00:00Z')
+    expect(returnDayForUser({ now, timezone: 'UTC', resetMinutes: 240 })).toBe('2025-12-31')
   })
 })
 

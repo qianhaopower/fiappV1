@@ -27,6 +27,8 @@ export type ProfileData = {
   activePracticeSkById?: Record<string, string>
   todayFocusPracticeId?: string | null
   returnCounters?: Record<string, number> | string
+  timezone?: string
+  dayResetTime?: number
 }
 
 export type CapCheckResult =
