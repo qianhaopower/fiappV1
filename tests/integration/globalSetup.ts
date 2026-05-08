@@ -1,7 +1,7 @@
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const createDynalite = require("dynalite");
 
-let server: { close: (cb: () => void) => void };
+let server: { listen: (port: number, cb: (err?: Error) => void) => void; close: (cb: () => void) => void };
 
 export default async function globalSetup() {
   server = createDynalite({ createTableMs: 0 });
