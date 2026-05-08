@@ -37,6 +37,14 @@ describe('dateRange', () => {
     const range = dateRange(5, '2026-01-05')
     expect(range).toEqual(['2026-01-01', '2026-01-02', '2026-01-03', '2026-01-04', '2026-01-05'])
   })
+
+  it('GAP-R1: dateRange(1) returns only the end date', () => {
+    expect(dateRange(1, '2026-01-15')).toEqual(['2026-01-15'])
+  })
+
+  it('GAP-R2: dateRange(0) returns empty array', () => {
+    expect(dateRange(0, '2026-01-15')).toEqual([])
+  })
 })
 
 describe('computeDelta', () => {

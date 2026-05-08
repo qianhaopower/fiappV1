@@ -9,6 +9,8 @@
     "test": "vitest run",
     "test:unit": "vitest run",
     "test:watch": "vitest",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:all": "vitest run && vitest run --config vitest.integration.config.ts",
     "test:e2e": "playwright test",
     "lint": "eslint \"app/**/*.{js,jsx,ts,tsx}\" \"components/**/*.{js,jsx,ts,tsx}\" \"utils/**/*.{js,jsx,ts,tsx}\"",
     "lint:fix": "eslint \"app/**/*.{js,jsx,ts,tsx}\" \"components/**/*.{js,jsx,ts,tsx}\" \"utils/**/*.{js,jsx,ts,tsx}\" --fix"
@@ -46,6 +48,7 @@
     "aws-cdk-lib": "^2.234.1",
     "aws-sdk-client-mock": "^4.0.1",
     "constructs": "^10.4.5",
+    "dynalite": "^4.0.0",
     "esbuild": "^0.27.2",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",

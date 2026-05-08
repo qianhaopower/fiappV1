@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { decideRoute, type ProfileForRouting } from "@/lib/decideRoute";
 
 describe("decideRoute", () => {
-  it("routes to /assessment when no assessment", () => {
+  it("routes to /onboarding when no assessment", () => {
     const profile: ProfileForRouting = {
       latestAssessmentId: null,
       activePracticeIds: ["p1"],
@@ -95,5 +95,26 @@ describe("decideRoute", () => {
     };
 
     expect(decideRoute(profile)).toBe("/results");
+  });
+
+  it("GAP-D1: has both active practices and active trial with focus → /today", () => {
+    const profile: ProfileForRouting = {
+      latestAssessmentId: "a1",
+      activePracticeIds: ["p1"],
+      activeTrialCount: 1,
+      todayFocusPracticeId: "p1",
+    };
+
+    expect(decideRoute(profile)).toBe("/today");
+  });
+
+  it("GAP-D2: empty string latestAssessmentId → /onboarding", () => {
+    const profile: ProfileForRouting = {
+      latestAssessmentId: "",
+      activePracticeIds: ["p1"],
+      todayFocusPracticeId: "p1",
+    };
+
+    expect(decideRoute(profile)).toBe("/onboarding");
   });
 });

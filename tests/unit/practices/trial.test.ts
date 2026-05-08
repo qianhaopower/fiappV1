@@ -10,6 +10,8 @@ import {
   PAID_CAP,
   PAID_WARN_HIGH,
   PAID_WARN_LOW,
+  TRIAL_DURATION_DAYS,
+  MAX_CONCURRENT_TRIALS,
   type TrialItem,
 } from '@/lib/practices/trial'
 
@@ -69,6 +71,12 @@ describe('getTrialDaysRemaining', () => {
     const trial = makeTrial({ expiresAt: new Date(Date.now() - 1000).toISOString() })
     expect(getTrialDaysRemaining(trial)).toBe(0)
   })
+
+  it('GAP-T4: returns approximately 4 for a trial that started 3 days ago', () => {
+    const expiresAt = new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString()
+    const trial = makeTrial({ expiresAt })
+    expect(getTrialDaysRemaining(trial)).toBe(4)
+  })
 })
 
 describe('checkActiveCap', () => {
@@ -86,16 +94,55 @@ describe('checkActiveCap', () => {
     expect(checkActiveCap('PAID', 0)).toEqual({ allowed: true })
   })
 
+  it(`GAP-T1a: PAID: no warning below PAID_WARN_LOW (count=${PAID_WARN_LOW - 1})`, () => {
+    const result = checkActiveCap('PAID', PAID_WARN_LOW - 1)
+    expect(result.allowed).toBe(true)
+    if (result.allowed) expect(result.warning).toBeUndefined()
+  })
+
   it(`PAID: warns at ${PAID_WARN_LOW}`, () => {
     const result = checkActiveCap('PAID', PAID_WARN_LOW)
     expect(result.allowed).toBe(true)
-    if (result.allowed) expect(result.warning).toBe('APPROACHING_CAP')
+    if (result.allowed) {
+      expect(result.warning).toBe('APPROACHING_CAP')
+      expect(result.remaining).toBe(PAID_CAP - PAID_WARN_LOW)
+    }
+  })
+
+  it(`GAP-T1b: PAID: warns between PAID_WARN_LOW and PAID_WARN_HIGH (count=6)`, () => {
+    const result = checkActiveCap('PAID', 6)
+    expect(result.allowed).toBe(true)
+    if (result.allowed) {
+      expect(result.warning).toBe('APPROACHING_CAP')
+      expect(result.remaining).toBe(PAID_CAP - 6)
+    }
   })
 
   it(`PAID: warns at ${PAID_WARN_HIGH}`, () => {
     const result = checkActiveCap('PAID', PAID_WARN_HIGH)
     expect(result.allowed).toBe(true)
-    if (result.allowed) expect(result.warning).toBe('APPROACHING_CAP')
+    if (result.allowed) {
+      expect(result.warning).toBe('APPROACHING_CAP')
+      expect(result.remaining).toBe(PAID_CAP - PAID_WARN_HIGH)
+    }
+  })
+
+  it(`GAP-T1c: PAID: warns at count=8, remaining=2`, () => {
+    const result = checkActiveCap('PAID', 8)
+    expect(result.allowed).toBe(true)
+    if (result.allowed) {
+      expect(result.warning).toBe('APPROACHING_CAP')
+      expect(result.remaining).toBe(2)
+    }
+  })
+
+  it(`GAP-T1d: PAID: warns at count=9, remaining=1`, () => {
+    const result = checkActiveCap('PAID', 9)
+    expect(result.allowed).toBe(true)
+    if (result.allowed) {
+      expect(result.warning).toBe('APPROACHING_CAP')
+      expect(result.remaining).toBe(1)
+    }
   })
 
   it(`PAID: blocks at ${PAID_CAP}`, () => {
@@ -106,6 +153,21 @@ describe('checkActiveCap', () => {
 
   it('defaults to FREE behaviour when status is undefined', () => {
     const result = checkActiveCap(undefined, FREE_CAP)
+    expect(result.allowed).toBe(false)
+  })
+
+  it('GAP-T2a: lowercase "paid" is treated as PAID — allows at count below cap', () => {
+    const result = checkActiveCap('paid', 1)
+    expect(result.allowed).toBe(true)
+  })
+
+  it('GAP-T2b: lowercase "free" is treated as FREE — blocks at FREE_CAP', () => {
+    const result = checkActiveCap('free', FREE_CAP)
+    expect(result.allowed).toBe(false)
+  })
+
+  it('GAP-T3: null status defaults to FREE behaviour — blocks at FREE_CAP', () => {
+    const result = checkActiveCap(null as unknown as undefined, FREE_CAP)
     expect(result.allowed).toBe(false)
   })
 })
@@ -120,4 +182,13 @@ describe('SK helpers', () => {
   it('makeUPracticeSK produces correct format', () => {
     expect(makeUPracticeSK('sleep-rest')).toBe('UPRACTICE#sleep-rest')
   })
+})
+
+describe('GAP-T5: exported constants', () => {
+  it('TRIAL_DURATION_DAYS is 7', () => expect(TRIAL_DURATION_DAYS).toBe(7))
+  it('MAX_CONCURRENT_TRIALS is 1', () => expect(MAX_CONCURRENT_TRIALS).toBe(1))
+  it('FREE_CAP is 1', () => expect(FREE_CAP).toBe(1))
+  it('PAID_CAP is 10', () => expect(PAID_CAP).toBe(10))
+  it('PAID_WARN_LOW is 5', () => expect(PAID_WARN_LOW).toBe(5))
+  it('PAID_WARN_HIGH is 7', () => expect(PAID_WARN_HIGH).toBe(7))
 })
