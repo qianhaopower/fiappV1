@@ -1,5 +1,26 @@
 # FIApp v1 — Claude Code Instructions
 
+## Branching strategy — HARD RULES
+
+**NEVER merge a PR.** The user merges all PRs manually from the GitHub web UI. Do not run
+`gh pr merge`, `git merge`, or any equivalent. If the user asks you to merge, remind them
+to do it from the GitHub UI.
+
+**NEVER push directly to `main` or `staging`.** All changes go through a PR.
+
+**Only `staging` may merge into `main`.** Feature branches merge to `staging` first.
+This is enforced by the `Branch policy` CI check — do not attempt to bypass it.
+
+**Branching flow:**
+```
+feat/* branch  →  PR to staging  →  test on staging URL  →  PR to main  →  production
+```
+
+After merging a feature to `main`, sync staging back up:
+```
+git checkout staging && git merge main && git push origin staging
+```
+
 ## E2E tests (Layer 3) — SAFETY RULES
 
 **NEVER run `npm run test:e2e` or `npx playwright test` unless one of these is true:**
