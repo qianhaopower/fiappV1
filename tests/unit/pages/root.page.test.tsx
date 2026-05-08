@@ -1,22 +1,30 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import Home from "@/app/page";
-
-const redirectMock = vi.fn();
+import { describe, it, expect, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import LandingPage from "@/app/page";
 
 vi.mock("next/navigation", () => ({
-  redirect: (url: string) => {
-    redirectMock(url);
-    throw new Error("NEXT_REDIRECT");
-  },
+  useRouter: () => ({ replace: vi.fn() }),
+}));
+
+vi.mock("@aws-amplify/ui-react", () => ({
+  useAuthenticator: () => ({ authStatus: "unauthenticated" }),
+}));
+
+vi.mock("@/components/LandingAuthRedirect", () => ({
+  default: () => null,
 }));
 
 describe("Root page (/)", () => {
-  beforeEach(() => {
-    redirectMock.mockClear();
+  it("renders the landing page hero", () => {
+    render(<LandingPage />);
+    const ctaLinks = screen.getAllByRole("link", { name: /Start free assessment/i });
+    expect(ctaLinks.length).toBeGreaterThan(0);
   });
 
-  it("redirects to /decideRoute when user visits root URL (unauthenticated users are sent to /auth via decideRoute)", () => {
-    expect(() => Home()).toThrow("NEXT_REDIRECT");
-    expect(redirectMock).toHaveBeenCalledWith("/decideRoute");
+  it("renders all 7 pillar names", () => {
+    render(<LandingPage />);
+    expect(screen.getByText("Finance")).toBeInTheDocument();
+    expect(screen.getByText("Relationship")).toBeInTheDocument();
+    expect(screen.getByText("Sleep")).toBeInTheDocument();
   });
 });

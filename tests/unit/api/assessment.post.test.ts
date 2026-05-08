@@ -12,6 +12,11 @@ vi.mock("@/utils/dynamoClient", () => ({
   }),
 }));
 
+vi.mock("@/utils/metricsClient", () => ({
+  trackEvent: vi.fn(),
+  trackPillarFocus: vi.fn(),
+}));
+
 const getCurrentUserMock = vi.fn();
 vi.mock("aws-amplify/auth/server", () => ({
   getCurrentUser: () => getCurrentUserMock(),
