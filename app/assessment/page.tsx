@@ -132,7 +132,7 @@ export default function AssessmentPage() {
                   <span>Scores are for self-reflection only — not a diagnosis or judgment</span>
                 </li>
                 <li className="flex items-start gap-2.5">
-                  <span className="mt-0.5 text-primary font-semibold shrink-0">↺</span>
+                  <span className="mt-0.5 text-primary font-semibold shrink-0">→</span>
                   <span>You can retake it any time from your account</span>
                 </li>
               </ul>
