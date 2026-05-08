@@ -26,9 +26,10 @@ type ProfileItem = {
 };
 
 function stripKeys(item: ProfileItem) {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { PK, SK, ...profile } = item;
-  return profile;
+  const profile: Partial<ProfileItem> = { ...item };
+  delete profile.PK;
+  delete profile.SK;
+  return profile as Omit<ProfileItem, "PK" | "SK">;
 }
 
 function jsonWithNoStore(body: unknown, status: number) {
