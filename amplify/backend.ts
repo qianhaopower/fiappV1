@@ -44,7 +44,6 @@ isProduction
       billingMode: aws_dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: RemovalPolicy.RETAIN,
     });
-
 // Grant the Pre-Sign-Up Lambda permission to list and link users in the Cognito
 // user pool. Required for both account-linking directions in handler.ts.
 backend.preSignUpTrigger.resources.lambda.addToRolePolicy(
