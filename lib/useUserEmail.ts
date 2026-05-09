@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuthenticator } from "@aws-amplify/ui-react";
-import { fetchUserAttributes } from "aws-amplify/auth";
+import { fetchAuthSession, fetchUserAttributes } from "aws-amplify/auth";
 
 export function useUserEmail(): string {
   const { user } = useAuthenticator((ctx) => [ctx.user]);
@@ -14,18 +14,32 @@ export function useUserEmail(): string {
       return;
     }
     let cancelled = false;
-    fetchUserAttributes()
-      .then((attrs) => {
-        if (!cancelled && attrs.email) setEmail(attrs.email);
-      })
-      .catch(() => {});
+
+    (async () => {
+      try {
+        const attrs = await fetchUserAttributes();
+        if (!cancelled && attrs.email) {
+          setEmail(attrs.email);
+          return;
+        }
+      } catch {}
+
+      try {
+        const session = await fetchAuthSession();
+        const claim = session.tokens?.idToken?.payload?.email;
+        if (!cancelled && typeof claim === "string" && claim) {
+          setEmail(claim);
+        }
+      } catch {}
+    })();
+
     return () => {
       cancelled = true;
     };
   }, [user]);
 
-  const fallback = user?.signInDetails?.loginId ?? "";
+  const loginId = user?.signInDetails?.loginId ?? "";
   const username = user?.username ?? "";
-  const isFederatedUsername = username.includes("_") && /^[a-z]+_[a-zA-Z0-9-]+$/.test(username);
-  return email || fallback || (isFederatedUsername ? "" : username);
+  const isFederatedUsername = /^[a-z]+_[a-zA-Z0-9-]+$/.test(username);
+  return email || loginId || (isFederatedUsername ? "" : username);
 }
