@@ -8,7 +8,7 @@ import { randomUUID } from "crypto";
 export function makeRawClient(): DynamoDBClient {
   return new DynamoDBClient({
     region: process.env.AWS_REGION ?? "ap-southeast-2",
-    endpoint: process.env.AWS_ENDPOINT_URL_DYNAMODB ?? "http://localhost:8000",
+    endpoint: process.env.AWS_ENDPOINT_URL_DYNAMODB ?? "http://127.0.0.1:18000",
     credentials: {
       accessKeyId: process.env.FIAPP_AWS_ACCESS_KEY_ID ?? "test",
       secretAccessKey: process.env.FIAPP_AWS_SECRET_ACCESS_KEY ?? "test",

@@ -1,0 +1,23 @@
+name: Sync staging with main
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  sync:
+    name: Fast-forward staging to main
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fast-forward staging
+        run: |
+          git checkout staging
+          git merge origin/main --ff-only
+          git push origin staging

@@ -1,4 +1,5 @@
 import { chromium, type FullConfig } from "@playwright/test";
+import fs from "fs";
 import path from "path";
 
 export const AUTH_STATE_PATH = path.resolve(
@@ -9,6 +10,14 @@ export const AUTH_STATE_PATH = path.resolve(
 const E2E_TEST_EMAIL = "qianhaopower+e2etest@gmail.com";
 
 export default async function globalSetup(config: FullConfig) {
+  // In auth-mock mode (CI smoke tests), write an empty storage state and skip
+  // real login — the app bypasses Cognito so no real session is needed.
+  if (process.env.NEXT_PUBLIC_E2E_AUTH_MOCK === "1") {
+    fs.mkdirSync(path.dirname(AUTH_STATE_PATH), { recursive: true });
+    fs.writeFileSync(AUTH_STATE_PATH, JSON.stringify({ cookies: [], origins: [] }));
+    return;
+  }
+
   const baseURL =
     config.projects[0]?.use?.baseURL ?? "http://localhost:3000";
   const isLocal = baseURL.includes("localhost");
