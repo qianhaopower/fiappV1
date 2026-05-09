@@ -3,7 +3,7 @@ import { defineBackend } from "@aws-amplify/backend";
 import { auth } from "./auth/resource";
 import { data } from "./data/resource";
 import { preSignUpTrigger } from "./auth/pre-sign-up-trigger/resource";
-import { aws_dynamodb, aws_iam, RemovalPolicy } from "aws-cdk-lib";
+import { Aws, aws_dynamodb, aws_iam, RemovalPolicy } from "aws-cdk-lib";
 
 export const backend = defineBackend({
   auth,
@@ -53,6 +53,6 @@ backend.preSignUpTrigger.resources.lambda.addToRolePolicy(
       "cognito-idp:ListUsers",
       "cognito-idp:AdminLinkProviderForUser",
     ],
-    resources: [backend.auth.resources.userPool.userPoolArn],
+    resources: [`arn:aws:cognito-idp:${Aws.REGION}:${Aws.ACCOUNT_ID}:userpool/*`],
   })
 );
