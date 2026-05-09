@@ -1,35 +1,19 @@
 import { test, expect } from '@playwright/test'
 
-/**
- * P0 smoke tests — unauthenticated routes only.
- * These run in CI without any real Cognito credentials.
- */
-
+// These smoke tests verify the server-side middleware redirects unauthenticated
+// requests to /auth. We use the API request context (no JavaScript, no cookies)
+// to directly check the HTTP 307 response — bypassing any client-side redirect
+// loops that occur when Amplify's guest Identity Pool assigns an anonymous identity.
 test.describe('Public routing', () => {
-  test('unauthenticated user hitting /today is redirected to /auth', async ({ page }) => {
-    await page.goto('/today')
-    await expect(page).toHaveURL(/\/auth/)
-  })
+  const protectedRoutes = ['/today', '/practices', '/results', '/progress', '/account']
 
-  test('unauthenticated user hitting /practices is redirected to /auth', async ({ page }) => {
-    await page.goto('/practices')
-    await expect(page).toHaveURL(/\/auth/)
-  })
-
-  test('unauthenticated user hitting /results is redirected to /auth', async ({ page }) => {
-    await page.goto('/results')
-    await expect(page).toHaveURL(/\/auth/)
-  })
-
-  test('unauthenticated user hitting /progress is redirected to /auth', async ({ page }) => {
-    await page.goto('/progress')
-    await expect(page).toHaveURL(/\/auth/)
-  })
-
-  test('unauthenticated user hitting /account is redirected to /auth', async ({ page }) => {
-    await page.goto('/account')
-    await expect(page).toHaveURL(/\/auth/)
-  })
+  for (const route of protectedRoutes) {
+    test(`unauthenticated user hitting ${route} is redirected to /auth`, async ({ request }) => {
+      const response = await request.get(route, { maxRedirects: 0 })
+      expect(response.status()).toBe(307)
+      expect(response.headers()['location']).toMatch(/\/auth/)
+    })
+  }
 })
 
 test.describe('Auth page', () => {

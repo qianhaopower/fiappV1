@@ -59,5 +59,8 @@ export default async function globalSetup(config: FullConfig) {
   });
 
   await context.storageState({ path: AUTH_STATE_PATH });
+  // Clear cookies from the browser profile before closing so persistent Amplify
+  // auth cookies don't bleed into unauthenticated test contexts in subsequent runs.
+  await context.clearCookies();
   await browser.close();
 }
