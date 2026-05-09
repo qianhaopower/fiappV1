@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createDynamoClient, createReturnsClient } from '@/utils/dynamoClient'
-import { withAuth } from '@/utils/authServer'
+import { withAuth, rateLimitedResponse } from '@/utils/authServer'
+import { checkRateLimit } from '@/utils/rateLimiter'
 import { practicesById } from '@/lib/practices/library'
 import { isTrialActive, type TrialItem, type ProfileData } from '@/lib/practices/trial'
 import {
@@ -30,6 +31,8 @@ type Body = {
 
 export async function POST(req: Request) {
   return withAuth(req, async (user) => {
+    if (!checkRateLimit(`return:${user.userId}`, 10)) return rateLimitedResponse()
+
     let body: Body
     try {
       body = (await req.json()) as Body

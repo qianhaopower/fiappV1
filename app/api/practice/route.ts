@@ -1,7 +1,8 @@
 import crypto from 'crypto'
 import { NextResponse } from 'next/server'
 import { createDynamoClient } from '@/utils/dynamoClient'
-import { withAuth } from '@/utils/authServer'
+import { withAuth, rateLimitedResponse } from '@/utils/authServer'
+import { checkRateLimit } from '@/utils/rateLimiter'
 import { trackEvent } from '@/utils/metricsClient'
 import { practicesById } from '@/lib/practices/library'
 import {
@@ -78,6 +79,8 @@ type Body = {
 
 export async function POST(req: Request) {
   return withAuth(req, async (user) => {
+    if (!checkRateLimit(`practice:${user.userId}`, 20)) return rateLimitedResponse()
+
     let body: Body
     try {
       body = (await req.json()) as Body
