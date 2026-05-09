@@ -47,9 +47,19 @@ BASE_URL=https://your-production-url.com npm run test:e2e
 
 ## Test commands
 
-| Command | What it runs |
-|---|---|
-| `npm run test` | Layer 1: unit tests (vitest) |
-| `npm run test:integration` | Layer 2: integration tests (vitest + dynalite) |
-| `npm run test:all` | Layer 1 + Layer 2 |
-| `npm run test:e2e` | Layer 3: E2E tests (Playwright, manual only) |
+| Command | What it runs | When |
+|---|---|---|
+| `npm run test` | Layer 1: unit tests (vitest) | CI + local |
+| `npm run test:integration` | Layer 2: integration tests (vitest + dynalite) | CI + **run locally before any PR** |
+| `npm run test:all` | Layer 1 + Layer 2 | Quick full local check |
+| `npm run test:e2e` | Layer 3: E2E tests (Playwright, manual only) | **Run against staging before merging to main** |
+
+**Reminder — always run before opening a PR:**
+```sh
+npm run test:all        # Layer 1 + Layer 2 locally
+```
+
+**Reminder — always run before merging staging → main:**
+```sh
+BASE_URL=https://<staging-url> npm run test:e2e   # Layer 3 against staging
+```
