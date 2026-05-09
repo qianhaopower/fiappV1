@@ -1,8 +1,10 @@
+import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getCurrentUser } from "aws-amplify/auth/server";
 
 import { runWithAmplifyServerContext } from "@/utils/amplifyServerUtils";
+import { log } from "@/utils/logger";
 
 export type AuthUser = {
   userId: string;
@@ -57,6 +59,21 @@ export function unauthorizedResponse() {
   return res;
 }
 
+export function rateLimitedResponse() {
+  const res = NextResponse.json(
+    {
+      ok: false,
+      error: {
+        code: "RATE_LIMITED",
+        message: "Too many requests — please slow down",
+      },
+    },
+    { status: 429 },
+  );
+  res.headers.set("Cache-Control", "no-store");
+  return res;
+}
+
 export function isUnauthorizedError(error: unknown): error is UnauthorizedError {
   return error instanceof UnauthorizedError;
 }
@@ -70,15 +87,29 @@ export async function withAuth(
   req: Request | undefined,
   handler: (_user: AuthUser) => Promise<Response>
 ): Promise<Response> {
+  const requestId = crypto.randomUUID()
+  const startedAt = Date.now()
+  const method = req?.method ?? 'UNKNOWN'
+  let route = 'unknown'
+  if (req?.url) {
+    try { route = new URL(req.url).pathname } catch { route = req.url }
+  }
+
   let user: AuthUser;
   try {
     user = await getUserId(req);
   } catch {
+    log({ requestId, route, method, outcome: 'unauthorized', status: 401, latencyMs: Date.now() - startedAt })
     return unauthorizedResponse();
   }
   try {
-    return await handler(user);
+    const response = await handler(user)
+    const status = response.status
+    const outcome = status === 429 ? 'rate_limited' : status < 400 ? 'ok' : 'error'
+    log({ requestId, route, method, outcome, status, latencyMs: Date.now() - startedAt, userId: user.userId })
+    return response
   } catch (error) {
+    log({ requestId, route, method, outcome: 'error', status: 500, latencyMs: Date.now() - startedAt, userId: user.userId }, 'error')
     // Amplify Data client throws NoSignedUser when server context isn't
     // propagated — log as warning only, return 500 so decideRoute doesn't
     // redirect authenticated users back to /auth
