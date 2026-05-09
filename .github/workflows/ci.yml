@@ -19,6 +19,9 @@ jobs:
 
       - run: npm ci
 
+      - name: Create placeholder amplify_outputs.json
+        run: node scripts/create-amplify-stub.mjs
+
       - run: npm run lint
 
       - run: npx tsc --noEmit
@@ -41,6 +44,9 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      - name: Create placeholder amplify_outputs.json
+        run: node scripts/create-amplify-stub.mjs
 
       - run: npm run test:integration
         env:
