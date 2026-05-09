@@ -3,13 +3,13 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useAuthenticator } from '@aws-amplify/ui-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui'
 import { PlanBadge } from '@/components/PlanBadge'
 import { DevSubscriptionToggle } from '@/components/DevSubscriptionToggle'
 import { useProfile } from '@/contexts/ProfileContext'
 import { getPlanLabel, isPlusPlan } from '@/lib/plans'
+import { useUserEmail } from '@/lib/useUserEmail'
 
 interface AppShellProps {
   children: React.ReactNode
@@ -48,10 +48,8 @@ export function AppShell({ children, onSignOut }: AppShellProps) {
     }
   }
   const accountRef = useRef<HTMLDivElement>(null)
-  const { user } = useAuthenticator((ctx) => [ctx.user])
   const { profile } = useProfile()
-
-  const email = user?.signInDetails?.loginId ?? user?.username ?? ''
+  const email = useUserEmail()
   const planLabel = getPlanLabel(profile?.subscriptionStatus)
 
   useEffect(() => {

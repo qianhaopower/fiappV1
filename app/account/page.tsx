@@ -7,12 +7,12 @@ import { Card, Button } from '@/components/ui';
 import { useProfile } from '@/contexts/ProfileContext';
 import { getPlanLabel } from '@/lib/plans';
 import { UpgradeButton } from '@/components/UpgradeButton';
+import { useUserEmail } from '@/lib/useUserEmail';
 
 export default function AccountPage() {
-  const { user, signOut } = useAuthenticator((ctx) => [ctx.user, ctx.signOut])
+  const { signOut } = useAuthenticator((ctx) => [ctx.signOut])
   const { profile } = useProfile()
-
-  const email = user?.signInDetails?.loginId ?? user?.username ?? '—'
+  const email = useUserEmail() || '—'
   const plan = getPlanLabel(profile?.subscriptionStatus)
 
   async function handleSignOut() {
