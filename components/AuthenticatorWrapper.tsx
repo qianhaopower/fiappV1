@@ -4,6 +4,8 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Authenticator, useAuthenticator } from "@aws-amplify/ui-react";
+import { Hub } from "aws-amplify/utils";
+import { getCurrentUser } from "aws-amplify/auth";
 import { ensureAmplifyConfigured } from "@/lib/amplifyClient";
 
 const passwordSettings = {
@@ -66,6 +68,28 @@ function AuthRedirect() {
 
 export default function AuthenticatorWrapper() {
   ensureAmplifyConfigured();
+  const router = useRouter();
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getCurrentUser()
+      .then(() => {
+        if (!cancelled) router.replace("/decideRoute");
+      })
+      .catch(() => {});
+
+    const unsubscribe = Hub.listen("auth", ({ payload }) => {
+      if (payload.event === "signedIn" || payload.event === "signInWithRedirect") {
+        router.replace("/decideRoute");
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [router]);
 
   return (
     <div className="min-h-screen bg-muted/40 flex items-center justify-center px-4 py-10">
