@@ -2,11 +2,13 @@
 import { defineBackend } from "@aws-amplify/backend";
 import { auth } from "./auth/resource";
 import { data } from "./data/resource";
-import { aws_dynamodb, RemovalPolicy } from "aws-cdk-lib";
+import { preSignUpTrigger } from "./auth/pre-sign-up-trigger/resource";
+import { aws_dynamodb, aws_iam, RemovalPolicy } from "aws-cdk-lib";
 
 export const backend = defineBackend({
   auth,
   data,
+  preSignUpTrigger,
 });
 
 const externalDataSourcesStack = backend.createStack("FIAppExternalDataSources");
@@ -42,3 +44,15 @@ isProduction
       billingMode: aws_dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: RemovalPolicy.RETAIN,
     });
+
+// Grant the Pre-Sign-Up Lambda permission to list and link users in the Cognito
+// user pool. Required for both account-linking directions in handler.ts.
+backend.preSignUpTrigger.resources.lambda.addToRolePolicy(
+  new aws_iam.PolicyStatement({
+    actions: [
+      "cognito-idp:ListUsers",
+      "cognito-idp:AdminLinkProviderForUser",
+    ],
+    resources: [backend.auth.resources.userPool.userPoolArn],
+  })
+);

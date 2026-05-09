@@ -87,6 +87,7 @@ export default function AuthenticatorWrapper() {
         <div className="fiapp-auth-shell">
           <Authenticator
             className="fiapp-auth"
+            socialProviders={['google']}
             passwordSettings={passwordSettings}
             formFields={{
               signIn: {
