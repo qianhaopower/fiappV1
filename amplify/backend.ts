@@ -31,11 +31,14 @@ const fiappMainTable = isProduction
 // IMPORTANT: This string is the DataSource name your schema must reference
 backend.data.addDynamoDbDataSource("FIAppMainDataSource", fiappMainTable);
 
-// Returns table — always owned by the pipeline; scoped by branch on non-production.
-new aws_dynamodb.Table(externalDataSourcesStack, "FIAPP_RETURNS", {
-  tableName: returnsTableName,
-  partitionKey: { name: "PK", type: aws_dynamodb.AttributeType.STRING },
-  sortKey: { name: "SK", type: aws_dynamodb.AttributeType.STRING },
-  billingMode: aws_dynamodb.BillingMode.PAY_PER_REQUEST,
-  removalPolicy: RemovalPolicy.RETAIN,
-});
+// Production: import the existing table so stack deletion never conflicts with RETAIN.
+// All other branches: create a fresh table scoped to that branch.
+isProduction
+  ? aws_dynamodb.Table.fromTableName(externalDataSourcesStack, "FIAPP_RETURNS", returnsTableName)
+  : new aws_dynamodb.Table(externalDataSourcesStack, "FIAPP_RETURNS", {
+      tableName: returnsTableName,
+      partitionKey: { name: "PK", type: aws_dynamodb.AttributeType.STRING },
+      sortKey: { name: "SK", type: aws_dynamodb.AttributeType.STRING },
+      billingMode: aws_dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: RemovalPolicy.RETAIN,
+    });
