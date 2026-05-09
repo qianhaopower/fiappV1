@@ -14,10 +14,8 @@ test.describe("Sign out", () => {
 
     await page.getByRole("button", { name: /sign out/i }).click();
 
-    // Amplify clears tokens but doesn't auto-navigate.
-    // Navigate to a protected page — middleware should redirect to /auth.
-    await page.waitForTimeout(1500);
-    await page.goto("/today");
+    // handleSignOut calls /api/auth/signout (clears server cookies), then
+    // Amplify signOut(), then window.location.href = '/auth'.
     await expect(page).toHaveURL(/\/auth/, { timeout: 15_000 });
   });
 });
