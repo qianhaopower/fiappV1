@@ -15,6 +15,17 @@ export default function AccountPage() {
   const email = user?.signInDetails?.loginId ?? user?.username ?? '—'
   const plan = getPlanLabel(profile?.subscriptionStatus)
 
+  async function handleSignOut() {
+    try {
+      await fetch('/api/auth/signout', { method: 'POST', credentials: 'include' })
+    } catch {
+      // ignore — still proceed with client-side signout
+    } finally {
+      await signOut()
+      window.location.href = '/auth'
+    }
+  }
+
   return (
     <NarrowFormPage title="Account" description="Your profile and settings.">
       <div className="space-y-4">
@@ -86,7 +97,7 @@ export default function AccountPage() {
         <Card>
           <div className="space-y-3">
             <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Session</p>
-            <Button variant="outline" onClick={signOut} className="w-full">
+            <Button variant="outline" onClick={handleSignOut} className="w-full">
               Sign out
             </Button>
           </div>
