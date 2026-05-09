@@ -331,9 +331,9 @@ in Google must be `https://<that-domain>/oauth2/idpresponse`.
 **To find the domain**:
 - AWS Console → Cognito → User pools → click the pool → **App integration** tab → scroll to **Domain**
 
-**Domains seen so far**:
+**Domains in use**:
 - staging: `859e9affd7cfe5c6d721.auth.ap-southeast-2.amazoncognito.com`
-- production: (look it up — need to add to this doc)
+- production: `f231c36ec852fd5dd1f2.auth.ap-southeast-2.amazoncognito.com`
 
 ### Pre-Sign-Up Lambda
 - Created by Amplify Gen 2 from `amplify/auth/pre-sign-up-trigger/resource.ts`
@@ -366,7 +366,7 @@ The values were entered manually by the user via Amplify Secret Manager.
 **Critical**: must include `/oauth2/idpresponse` (the path that Cognito's
 hosted UI listens on for the OAuth callback).
 - `https://859e9affd7cfe5c6d721.auth.ap-southeast-2.amazoncognito.com/oauth2/idpresponse` (staging)
-- `https://<prod-cognito-domain>/oauth2/idpresponse` (production — fill in after looking up)
+- `https://f231c36ec852fd5dd1f2.auth.ap-southeast-2.amazoncognito.com/oauth2/idpresponse` (production)
 
 If a user gets `redirect_uri_mismatch` from Google, this is what's wrong — the
 Cognito domain wasn't added to Google.
