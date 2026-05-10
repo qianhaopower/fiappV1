@@ -335,6 +335,40 @@ in Google must be `https://<that-domain>/oauth2/idpresponse`.
 - staging: `859e9affd7cfe5c6d721.auth.ap-southeast-2.amazoncognito.com`
 - production: `f231c36ec852fd5dd1f2.auth.ap-southeast-2.amazoncognito.com`
 
+### Google sign-in branding/domain text
+
+Google can show the Cognito Hosted UI domain on the account chooser:
+`to continue to f231c36ec852fd5dd1f2.auth.ap-southeast-2.amazoncognito.com`.
+That text is outside our React UI. It comes from the Google OAuth/Cognito
+redirect flow.
+
+Preferred production fix:
+
+1. In Cognito, add a custom user-pool domain such as
+   `auth.friendsintelligence.net`.
+2. In DNS, point that subdomain to the CloudFront alias target that Cognito
+   provides.
+3. In Google Cloud Console, add this authorized redirect URI:
+   `https://auth.friendsintelligence.net/oauth2/idpresponse`.
+4. In Amplify Hosting env vars, set
+   `FIAPP_PROD_COGNITO_OAUTH_DOMAIN=auth.friendsintelligence.net`.
+   The build only exposes this as `NEXT_PUBLIC_COGNITO_OAUTH_DOMAIN` on the
+   `main` branch, so staging won't accidentally use the production Cognito
+   domain.
+5. Redeploy the app so `lib/amplifyConfig.ts` swaps the generated
+   `amazoncognito.com` OAuth domain for the custom domain.
+
+Also check Google Auth Platform branding:
+
+- App name: `Friends Intelligence`
+- Support email: monitored support address
+- App logo, privacy policy, terms links
+- Authorized domain: `friendsintelligence.net`
+
+Google may still show a domain instead of the app name/logo until OAuth app
+branding verification is complete. The custom Cognito domain at least makes the
+domain user-facing and recognizable while verification is pending.
+
 ### Pre-Sign-Up Lambda
 - Created by Amplify Gen 2 from `amplify/auth/pre-sign-up-trigger/resource.ts`
 - Runtime: Node.js 18.x (Amplify default)

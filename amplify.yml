@@ -21,6 +21,9 @@ frontend:
             echo "FIAPP_MAIN_TABLE=FIAPP_MAIN_${BRANCH_UPPER}" >> .env.production
             echo "FIAPP_RETURNS_TABLE=FIAPP_RETURNS_${BRANCH_UPPER}" >> .env.production
           fi
+          if [ "$AWS_BRANCH" = "main" ] && [ -n "$FIAPP_PROD_COGNITO_OAUTH_DOMAIN" ]; then
+            echo "NEXT_PUBLIC_COGNITO_OAUTH_DOMAIN=$FIAPP_PROD_COGNITO_OAUTH_DOMAIN" >> .env.production
+          fi
         - env | grep -e FIAPP_ >> .env.production
         - NEXT_TELEMETRY_DISABLED=1 npm run build
   artifacts:
