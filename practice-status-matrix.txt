@@ -1,0 +1,73 @@
+================================================================
+PRACTICE STATUS MATRIX
+================================================================
+
+----------------------------------------------------------------
+RECORD TYPE 1: TRIAL
+----------------------------------------------------------------
+Status      | In activePracticeIds? | Counts to cap? | Can Focus?
+------------|----------------------|----------------|------------
+trial       | No                   | No             | YES
+promoted    | No                   | -- (terminal)  | No
+discarded   | No                   | -- (terminal)  | No
+expired     | No                   | -- (terminal)  | No
+
+----------------------------------------------------------------
+RECORD TYPE 2: UPRACTICE
+----------------------------------------------------------------
+Status      | In activePracticeIds? | Counts to cap? | Can Focus?
+------------|----------------------|----------------|------------
+active      | YES                  | YES            | YES
+paused      | No                   | No             | No
+replaced    | No                   | -- (terminal)  | No
+
+----------------------------------------------------------------
+FOCUS OVERLAY (separate flag on PROFILE)
+----------------------------------------------------------------
+- todayFocusPracticeId is NOT a status on the practice record.
+- It is a pointer on the user's PROFILE record.
+- Valid targets: TRIAL(trial) or UPRACTICE(active) only.
+- Only ONE practice can be focused at a time.
+- Setting a new focus overwrites the previous one.
+
+----------------------------------------------------------------
+VALID LIVE STATES (what a practice can actually be right now)
+----------------------------------------------------------------
+State                  | Record   | Status  | Focused?
+-----------------------|----------|---------|----------
+Trying, not focused    | TRIAL    | trial   | No
+Trying, focused        | TRIAL    | trial   | Yes
+Active, not focused    | UPRACTICE| active  | No
+Active, focused        | UPRACTICE| active  | Yes
+Paused                 | UPRACTICE| paused  | Never
+
+----------------------------------------------------------------
+TERMINAL STATES (historical tombstones, never shown as live)
+----------------------------------------------------------------
+promoted  -- trial was kept, UPRACTICE record was created
+discarded -- user said "not for me"
+expired   -- 7-day trial window passed with no decision
+replaced  -- practice was swapped out via Replace flow
+
+----------------------------------------------------------------
+SUBSCRIPTION CAPS
+----------------------------------------------------------------
+Plan  | Max active practices (UPRACTICE active in activePracticeIds)
+------|--------------------------------------------------------------
+FREE  | 1
+PAID  | 10 (soft warning at 5+)
+
+Note: Trials do NOT count toward caps.
+      Paused practices do NOT count toward caps.
+      Replace does not change cap count (1-for-1 swap).
+      Promote and Resume both check caps and block if exceeded.
+
+----------------------------------------------------------------
+KEY MENTAL MODEL
+----------------------------------------------------------------
+Focus is an OVERLAY, not a state.
+A practice is either live (trial or active) or not (terminal).
+Separately, ONE live practice can be pinned as today's focus,
+which controls what appears on the /today screen.
+
+================================================================
