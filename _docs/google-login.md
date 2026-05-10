@@ -342,21 +342,52 @@ Google can show the Cognito Hosted UI domain on the account chooser:
 That text is outside our React UI. It comes from the Google OAuth/Cognito
 redirect flow.
 
-Preferred production fix:
+Production custom domain setup:
 
-1. In Cognito, add a custom user-pool domain such as
-   `auth.friendsintelligence.net`.
-2. In DNS, point that subdomain to the CloudFront alias target that Cognito
-   provides.
-3. In Google Cloud Console, add this authorized redirect URI:
-   `https://auth.friendsintelligence.net/oauth2/idpresponse`.
-4. In Amplify Hosting env vars, set
-   `FIAPP_PROD_COGNITO_OAUTH_DOMAIN=auth.friendsintelligence.net`.
-   The build only exposes this as `NEXT_PUBLIC_COGNITO_OAUTH_DOMAIN` on the
-   `main` branch, so staging won't accidentally use the production Cognito
-   domain.
-5. Redeploy the app so `lib/amplifyConfig.ts` swaps the generated
+1. Create the certificate:
+   - AWS Console -> Certificate Manager
+   - Region must be **US East (N. Virginia) / `us-east-1`**
+   - Request a public certificate for `auth.friendsintelligence.net`
+   - Use DNS validation
+   - If DNS is in Route 53, click **Create records in Route 53**
+   - Wait until the certificate status is **Issued**
+2. Create the Cognito custom domain:
+   - AWS Console -> Cognito
+   - Region: **Asia Pacific (Sydney) / `ap-southeast-2`**
+   - Open the production user pool whose current domain is
+     `f231c36ec852fd5dd1f2.auth.ap-southeast-2.amazoncognito.com`
+   - Go to **Branding -> Domain** or **App integration -> Domain**
+   - Create a custom domain for `auth.friendsintelligence.net`
+   - Select the ACM certificate from step 1
+   - Wait for Cognito to finish creating the domain. AWS says this can take up
+     to 60 minutes.
+3. Create the Route 53 app-domain record:
+   - Hosted zone: `friendsintelligence.net`
+   - Record name: `auth`
+   - Record type: `A`
+   - Alias: enabled
+   - Route traffic to: **Alias to CloudFront distribution**
+   - Target: the CloudFront alias target Cognito provides for the custom domain
+   - Evaluate target health: `No`
+4. Add the Google OAuth redirect URI:
+   - Google Cloud Console -> APIs & Services -> Credentials
+   - Open the OAuth 2.0 Web Client
+   - Add `https://auth.friendsintelligence.net/oauth2/idpresponse`
+   - Do **not** add Amplify env vars here; Google only accepts URLs in this list
+5. Add the Amplify Hosting env var:
+   - AWS Console -> Amplify -> app -> Environment variables
+   - Set `FIAPP_PROD_COGNITO_OAUTH_DOMAIN=auth.friendsintelligence.net`
+   - It is okay if Amplify applies this to all branches. `amplify.yml` only
+     exposes it as `NEXT_PUBLIC_COGNITO_OAUTH_DOMAIN` when
+     `AWS_BRANCH=main`, so staging won't accidentally use the production
+     Cognito domain.
+6. Redeploy the app so `lib/amplifyConfig.ts` swaps the generated
    `amazoncognito.com` OAuth domain for the custom domain.
+7. Test in an incognito browser:
+   - Open `https://friendsintelligence.net/auth`
+   - Click **Sign in with Google**
+   - Google should show either `auth.friendsintelligence.net` or, after Google
+     branding verification, `Friends Intelligence`.
 
 Also check Google Auth Platform branding:
 
@@ -401,6 +432,7 @@ The values were entered manually by the user via Amplify Secret Manager.
 hosted UI listens on for the OAuth callback).
 - `https://859e9affd7cfe5c6d721.auth.ap-southeast-2.amazoncognito.com/oauth2/idpresponse` (staging)
 - `https://f231c36ec852fd5dd1f2.auth.ap-southeast-2.amazoncognito.com/oauth2/idpresponse` (production)
+- `https://auth.friendsintelligence.net/oauth2/idpresponse` (production custom domain)
 
 If a user gets `redirect_uri_mismatch` from Google, this is what's wrong — the
 Cognito domain wasn't added to Google.
