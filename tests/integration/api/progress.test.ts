@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import { GET } from "@/app/api/progress/route";
 import { makeRawClient, makeTableNames, createTables, deleteTables } from "../tableUtils";
 import { seedProfile, seedActivePractice, seedReturn, seedMilestone } from "../seeds";
+import { dateRange, returnDayForUser } from "@/lib/returns/returns";
 import type { withAuth as WithAuthType } from "@/utils/authServer";
 
 vi.mock("@/utils/metricsClient", () => ({ trackEvent: vi.fn(), trackPillarFocus: vi.fn() }));
@@ -111,7 +112,11 @@ describe("GET /api/progress", () => {
     });
     await seedActivePractice(userId, PRACTICE);
 
-    const dates = ["2026-05-06", "2026-05-07", "2026-05-08"];
+    const today = returnDayForUser({
+      timezone: "UTC",
+      resetMinutes: 0,
+    });
+    const dates = dateRange(3, today);
     for (const d of dates) {
       await seedReturn(userId, PRACTICE, d, true);
     }
