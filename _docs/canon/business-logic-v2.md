@@ -158,6 +158,196 @@ Removed modes: `startTrial`, `promoteTrial`, `discardTrial`, `add`, `replace`, `
 
 ---
 
+## API contract (v2)
+
+Replaces [api-contract.md](api-contract.md). All endpoints require an authenticated user; `userId` is resolved server-side from the session. Error responses follow `{ error: "CODE", ...optional fields }` with an appropriate HTTP status.
+
+### `GET /api/me`
+
+**Purpose:** return PROFILE (create if missing).
+
+**Returns:**
+```json
+{
+  "subscriptionStatus": "FREE" | "PAID",
+  "activePracticeIds": ["..."],
+  "latestAssessmentId": "..." | null,
+  "lowestPillarId": "sleep" | "..." | null,
+  "counters": { "returnCounters": { "<practiceId>": number } },
+  "todayFocusPracticeId": "..." | null
+}
+```
+
+Notes:
+- `lowestPillarId` replaces the v1 `focusPillar` field. The legacy name may still be served during transition; clients should prefer `lowestPillarId`.
+- `todayFocusPracticeId` is **display-only** in v2. It is **not** a routing input. Clients must not depend on it for guard logic.
+
+---
+
+### `POST /api/assessment`
+
+**Purpose:** record a new assessment, score pillars, identify the lowest pillar, derive suggested practices via the 1:1 mapping.
+
+**Body:**
+```json
+{
+  "answers": { "<questionId>": boolean }
+}
+```
+
+**Server actions:**
+1. Validate that every `questionId` belongs to the 35-question bank.
+2. Compute `pillarScores` (one score per pillar).
+3. Compute `lowestPillarId`.
+4. Compute `suggestedPracticeIds` (see "Recommendation logic" above — top 3 weakest-answer practices in the lowest pillar; deterministic tie-breakers).
+5. Write `ASSESS#<assessmentId>` item with all of the above.
+6. Update `PROFILE.latestAssessmentId` and `PROFILE.lowestPillarId`.
+
+**Returns:**
+```json
+{
+  "assessmentId": "...",
+  "pillarScores": { "<pillarId>": number },
+  "lowestPillarId": "...",
+  "suggestedPracticeIds": ["...", "...", "..."]
+}
+```
+
+---
+
+### `GET /api/assessment/latest`
+
+**Returns:** the latest `ASSESS` summary (including `suggestedPracticeIds`) or `null` if none.
+
+---
+
+### `GET /api/practices/suggestions`
+
+**Purpose:** return practices to recommend to the user.
+
+**Behaviour:**
+- If the user has a latest assessment: return the top 3 practices mapped to the weakest-answered questions in the lowest-scoring pillar. Deterministic — never random.
+- If no assessment exists: return a stable fallback (one practice from each of a small fixed set of pillars).
+
+**Returns:**
+```json
+{
+  "suggestions": [
+    {
+      "practiceId": "...",
+      "title": "...",
+      "pillar": "...",
+      "mappedQuestionId": "...",
+      "rationale": "..."
+    }
+  ]
+}
+```
+
+---
+
+### `POST /api/practice`
+
+The **only** endpoint for `UserPractice` state transitions. Body always includes `mode` and `practiceId`.
+
+**Modes:**
+
+#### `mode: "startPractice"`
+
+Creates a new `UPRACTICE` or reactivates an existing inactive one (these are merged because the user's mental model is the same — see "Starting a practice" above).
+
+- If no record exists: create with `status: "active"`, `firstStartedAt = now`, `lastActivatedAt = now`, `totalCompletions = 0`.
+- If record exists with `status: "inactive"`: flip to `active`, set `lastActivatedAt = now`, preserve `firstStartedAt`, `totalCompletions`, DailyReturn history.
+- If record exists with `status: "active"`: return `200` with `{ alreadyActive: true }`.
+
+Cap enforcement runs in both create and reactivate cases. Free users at cap → `409 CAP_REACHED` (client should offer the switch flow).
+
+**Returns:**
+```json
+{ "practiceId": "...", "status": "active", "warning"?: "APPROACHING_CAP" }
+```
+
+#### `mode: "makePracticeInactive"`
+
+Flips an active practice to inactive. Removes from `activePracticeIds`. Preserves the `UPRACTICE` record, `totalCompletions`, and DailyReturn history. Sets `lastInactivatedAt = now`.
+
+- If practice is already inactive or has no record: `409 PRACTICE_NOT_ACTIVE`.
+
+**Returns:** `{ ok: true }`
+
+#### `mode: "reactivatePractice"`
+
+Alias for `startPractice` when a record exists with `status: "inactive"`. Provided as a separate mode for UX clarity (UI button "Bring this back"). Server may route both to the same handler.
+
+#### `mode: "switchToPractice"`
+
+For free users at the 1-active cap (or paid users at the 10-active cap who prefer one-shot replacement).
+
+**Body:**
+```json
+{
+  "mode": "switchToPractice",
+  "practiceId": "...",                // practice to activate
+  "deactivatePracticeId": "..."       // current active practice to make inactive
+}
+```
+
+**Server:** atomically (a) flip `deactivatePracticeId` → inactive, (b) start/reactivate `practiceId` as active. Both must succeed or neither.
+
+**Returns:** `{ ok: true, practiceId: "...", deactivated: "..." }`
+
+#### Removed in v2
+
+`add`, `replace`, `pause`, `resume`, `setFocus`, `startTrial`, `promoteTrial`, `discardTrial`. Servers may keep handlers temporarily as no-ops or removed entirely; clients must not call them.
+
+---
+
+### `POST /api/return`
+
+**Body:**
+```json
+{
+  "practiceId": "...",
+  "date": "YYYY-MM-DD",
+  "didIt": boolean
+}
+```
+
+**Rules:**
+- The practice must be currently active for this user. Otherwise `409 PRACTICE_NOT_ACTIVE`.
+- Counter updates are delta-based and toggle-aware: `false → true` increments `returnCounters[practiceId]`, `true → false` decrements. Same `(practiceId, date)` cannot double-count.
+- DailyReturn records survive lifecycle transitions: a practice going inactive does **not** delete returns.
+
+**Returns:**
+```json
+{ "counters": { "<practiceId>": number }, "milestones"?: ["..."] }
+```
+
+---
+
+### `GET /api/returns`
+
+**Query:** `practiceId` (optional — omit for all active practices), `days` (optional, default 14).
+
+**Returns:** `{ returns: [ { practiceId, date, didIt } ] }`
+
+---
+
+### `GET /api/progress`
+
+**Returns:** `{ counters, milestones: { achieved: [...], nextUp: [...] } }`. Must be robust to zero counters and zero milestones.
+
+---
+
+### Conventions
+
+- Auth: every endpoint resolves `userId` server-side; client cannot pass it.
+- Caps: enforced server-side. Free=1 active, Paid=10 active. Inactive practices and library entries do not count.
+- Soft warnings at 5+/7+ active (Paid plan): **optional**. If kept, returned as `warning: "APPROACHING_CAP"` alongside a `200` response — never as an error.
+- Confirm flows: v2 does not require server-issued confirm tokens for switch/inactivate. The client UI handles confirmation; the server trusts the call.
+
+---
+
 ## North star
 
 > FIApp uses 35 structured questions to identify life patterns that need attention, maps each question to one practical behaviour, and helps users activate, track, stop, and return to those practices over time.
