@@ -134,13 +134,33 @@ Note: with assessment but 0 active practices, the default destination is **still
 - DailyReturn history is preserved when a practice becomes inactive.
 - 14-day track reflects the **last 14 calendar days only** — empty grid after long inactivity is correct. Long-term history lives in `totalCompletions` + full DailyReturn record.
 
+### Streak rule
+
+Streak is **pure rolling**, derived from `DailyReturn` records — lifecycle status is irrelevant to the calculation.
+
+- Streak = count of consecutive days ending today with `didIt=true`.
+- A gap of missed days breaks the streak. This happens equally whether the user simply skipped days or made the practice inactive — both produce missing positive DailyReturn records.
+- Reactivating a practice after a long pause shows `streak = 0` until the user logs a day. This is correct: the streak number represents recent unbroken effort, not historical engagement (which is captured by `totalCompletions`).
+
 ---
 
 ## Subscription caps
 
-- **Free:** 1 active practice max. Starting/reactivating another triggers a **switch flow** ("make current inactive → activate this"). No "replaced" status.
-- **Paid:** up to 10 active practices. Block at 10. (Optional soft warnings at 5+/7+ may be retained — does **not** introduce new lifecycle states.)
+- **Free:** 1 active practice max. Starting/reactivating another triggers a **switch flow** (see dialog copy below). No "replaced" status — the previous practice becomes inactive and can be brought back later.
+- **Paid:** up to 10 active practices. Block at 10. **No soft warnings** at 5+/7+ — the hard cap is the only boundary. (v1 had progressive warnings; v2 removes them for simplicity. Can be added back later if user feedback requests them.)
 - Inactive practices, suggested practices, and library entries do **not** count toward the cap.
+
+### Free-user switch dialog (canonical copy)
+
+When a free user at the 1-active cap taps "Start this practice" on a different practice, show:
+
+> **Switch to "[new practice title]"?**
+>
+> "[current practice title]" will move to your practice bank. You can bring it back anytime.
+>
+> [ Switch ] [ Cancel ]
+
+The dialog deliberately does **not** name the active/inactive mechanic — users see it as "switching between practices," not "deactivating one to activate another."
 
 ---
 
@@ -379,9 +399,12 @@ Avoid in user-facing copy: "Trial", "Promote", "Discard", "Expire", "Replace", "
 ## Open decisions (deferred)
 
 - `returnCounters` (current field) vs. `totalCompletions` (spec field) — UI rename only; backend stays as `returnCounters` for now.
-- Free-user switch flow exact UX wording.
-- Streak behavior across reactivation gaps.
-- Whether to keep the 5+/7+ soft cap warnings.
+
+### Resolved 2026-05-13
+
+- **Free-user switch flow wording** → "Direct switch dialog" copy locked in (see §Subscription caps).
+- **Streak across reactivation gaps** → Pure rolling, derived from DailyReturn (see §Daily return logging).
+- **5+/7+ soft cap warnings** → Dropped in v2 (see §Subscription caps).
 
 ---
 
