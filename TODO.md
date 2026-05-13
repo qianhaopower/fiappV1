@@ -33,18 +33,25 @@ Done on `feat/practice-library-35-mapping` (commit 5b5f8c0):
 - [x] Results page consumes the new suggestion data with no code change (Practice[] shape preserved, extra fields ignored)
 - [x] Tests updated: `tests/unit/practices/suggestions.test.ts` (10 tests), `tests/unit/api/practices.suggestions.get.test.ts` (6 tests), `tests/integration/api/suggestions.test.ts` (5 tests), `tests/unit/api/assessment.post.test.ts` + `tests/integration/api/assessment.test.ts` (assertions on new fields)
 
-### Cut 3 — Lifecycle simplification
+### Cut 3 — Lifecycle simplification ✅
 
-- [ ] Rewrite `app/api/practice/route.ts` to 4 modes (`startPractice`, `makePracticeInactive`, `reactivatePractice`, `switchToPractice`)
-- [ ] Stop creating `TRIAL#` items; ignore existing on read
-- [ ] Lenient read of legacy `paused`/`replaced` UPRACTICE statuses (treat as `inactive`)
-- [ ] Server-side cap check using new statuses (Free=1, Paid=10; 5/7 warnings per Q7)
-- [ ] Practice-card CTA logic ("Start" / "Bring this back" / "Active") in `app/results/page.tsx`, `app/practices/page.tsx`, `app/today/page.tsx`
-- [ ] Switch-flow UI for free-user at-cap (wording per Q5)
-- [ ] Remove pause/resume/replace/trial UI from all surfaces
-- [ ] Rewrite `tests/unit/api/practice.post.test.ts`, `tests/integration/api/practice.test.ts`
-- [ ] Update `tests/integration/seeds.ts`
-- [ ] PR to `staging`
+Backend phase done (commit 99fd0c9):
+- [x] Rewrite `app/api/practice/route.ts` to 4 modes (`startPractice`, `makePracticeInactive`, `reactivatePractice`, `switchToPractice`)
+- [x] Stop creating `TRIAL#` items; ignore existing on read
+- [x] Lenient read of legacy `paused`/`replaced` UPRACTICE statuses (treat as `inactive`)
+- [x] Server-side cap check using new statuses (Free=1, Paid=10; no soft warnings per Q7)
+- [x] `/api/me`: stop reading TRIAL#; `/api/return`: stop accepting trials, error code is `PRACTICE_NOT_ACTIVE`
+- [x] `checkActiveCap` simplified (no warning paths)
+- [x] Rewrite `tests/unit/api/practice.post.test.ts`, `tests/integration/api/practice.test.ts`
+- [x] Delete `tests/unit/api/practice.e6.test.ts` (tested removed setFocus mode)
+- [x] Update tests for `/api/me` and `/api/return` (no trial paths)
+
+UI phase done (commit 9228f33):
+- [x] `/api/practices/active`: return `inactivePractices` (renamed from `pausedPractices`), drop TRIAL query
+- [x] `/today`: render all active practices as cards; remove focus-practice concept; remove trial sections; empty state for 0 active
+- [x] `/practices`: full rewrite as practice bank — 35 practices grouped by pillar, per-card CTA, switch dialog
+- [x] `/results`: "Try this practice" → v2 CTA logic (Start / Bring this back / View on Today); switch dialog
+- [x] Switch dialog with Q5 copy in both /practices and /results
 
 ### Cut 4 — Routing
 
