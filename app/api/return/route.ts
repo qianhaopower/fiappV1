@@ -3,7 +3,7 @@ import { createDynamoClient, createReturnsClient } from '@/utils/dynamoClient'
 import { withAuth, rateLimitedResponse } from '@/utils/authServer'
 import { checkRateLimit } from '@/utils/rateLimiter'
 import { practicesById } from '@/lib/practices/library'
-import { type ProfileData } from '@/lib/practices/trial'
+import { type ProfileData } from '@/lib/practices/caps'
 import {
   returnDayForUser,
   makeReturnPK,

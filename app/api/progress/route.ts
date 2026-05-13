@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createDynamoClient, createReturnsClient } from '@/utils/dynamoClient'
 import { withAuth } from '@/utils/authServer'
-import type { ProfileData } from '@/lib/practices/trial'
+import type { ProfileData } from '@/lib/practices/caps'
 import type { MilestoneItem } from '@/lib/milestones/milestones'
 import {
   returnDayForUser,

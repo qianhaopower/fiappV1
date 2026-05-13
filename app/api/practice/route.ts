@@ -8,7 +8,7 @@ import {
   checkActiveCap,
   makeUPracticeSK,
   type ProfileData,
-} from '@/lib/practices/trial'
+} from '@/lib/practices/caps'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -101,7 +101,6 @@ async function handleStartOrReactivate(args: {
   }
 
   const activePracticeIds = profile?.activePracticeIds ?? []
-  const activePracticeSkById = profile?.activePracticeSkById ?? {}
 
   const capCheck = checkActiveCap(profile?.subscriptionStatus, activePracticeIds.length)
   if (!capCheck.allowed) {
@@ -110,7 +109,6 @@ async function handleStartOrReactivate(args: {
 
   const now = new Date().toISOString()
   const newIds = [...activePracticeIds, practiceId]
-  const newSkById = { ...activePracticeSkById, [practiceId]: sk }
 
   if (!existing) {
     await Promise.all([
@@ -122,12 +120,11 @@ async function handleStartOrReactivate(args: {
         status: 'active',
         firstStartedAt: now,
         lastActivatedAt: now,
-        addedAt: now,
       }),
       client.updateItem({
         Key: { PK: pk, SK: 'PROFILE' },
-        UpdateExpression: 'SET activePracticeIds = :ids, activePracticeSkById = :skById',
-        ExpressionAttributeValues: { ':ids': newIds, ':skById': newSkById },
+        UpdateExpression: 'SET activePracticeIds = :ids',
+        ExpressionAttributeValues: { ':ids': newIds },
       }),
     ])
     trackEvent('totalPromotions')
@@ -145,8 +142,8 @@ async function handleStartOrReactivate(args: {
     }),
     client.updateItem({
       Key: { PK: pk, SK: 'PROFILE' },
-      UpdateExpression: 'SET activePracticeIds = :ids, activePracticeSkById = :skById',
-      ExpressionAttributeValues: { ':ids': newIds, ':skById': newSkById },
+      UpdateExpression: 'SET activePracticeIds = :ids',
+      ExpressionAttributeValues: { ':ids': newIds },
     }),
   ])
   return NextResponse.json({ practiceId, status: 'active', reactivated: true }, { status: 200 })
@@ -170,8 +167,6 @@ async function handleMakeInactive(args: {
   }
 
   const activePracticeIds = (profile?.activePracticeIds ?? []).filter((id) => id !== practiceId)
-  const activePracticeSkById = { ...(profile?.activePracticeSkById ?? {}) }
-  delete activePracticeSkById[practiceId]
 
   const now = new Date().toISOString()
   await Promise.all([
@@ -183,8 +178,8 @@ async function handleMakeInactive(args: {
     }),
     client.updateItem({
       Key: { PK: pk, SK: 'PROFILE' },
-      UpdateExpression: 'SET activePracticeIds = :ids, activePracticeSkById = :skById',
-      ExpressionAttributeValues: { ':ids': activePracticeIds, ':skById': activePracticeSkById },
+      UpdateExpression: 'SET activePracticeIds = :ids',
+      ExpressionAttributeValues: { ':ids': activePracticeIds },
     }),
   ])
 
@@ -226,9 +221,6 @@ async function handleSwitch(args: {
   const activePracticeIds = (profile?.activePracticeIds ?? [])
     .filter((id) => id !== deactivatePracticeId)
     .concat(practiceId)
-  const activePracticeSkById = { ...(profile?.activePracticeSkById ?? {}) }
-  delete activePracticeSkById[deactivatePracticeId]
-  activePracticeSkById[practiceId] = newSk
 
   const now = new Date().toISOString()
 
@@ -250,7 +242,6 @@ async function handleSwitch(args: {
       status: 'active',
       firstStartedAt: now,
       lastActivatedAt: now,
-      addedAt: now,
     })
   } else {
     await client.updateItem({
@@ -263,8 +254,8 @@ async function handleSwitch(args: {
 
   await client.updateItem({
     Key: { PK: pk, SK: 'PROFILE' },
-    UpdateExpression: 'SET activePracticeIds = :ids, activePracticeSkById = :skById',
-    ExpressionAttributeValues: { ':ids': activePracticeIds, ':skById': activePracticeSkById },
+    UpdateExpression: 'SET activePracticeIds = :ids',
+    ExpressionAttributeValues: { ':ids': activePracticeIds },
   })
 
   return NextResponse.json(

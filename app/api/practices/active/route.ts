@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createDynamoClient } from '@/utils/dynamoClient'
 import { withAuth } from '@/utils/authServer'
 import { practicesById } from '@/lib/practices/library'
-import { type ProfileData } from '@/lib/practices/trial'
+import { type ProfileData } from '@/lib/practices/caps'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'

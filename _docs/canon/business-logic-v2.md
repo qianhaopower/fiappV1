@@ -1,7 +1,7 @@
 # docs/canon/business-logic-v2.md
 # FIApp v1 — Business Logic v2 (CANONICAL)
 
-**Status:** Canonical — supersedes [state-machine.md](state-machine.md) and [practice-caps-and-trials.md](practice-caps-and-trials.md).
+**Status:** Canonical. The v1 docs `state-machine.md`, `routing-table.md`, `api-contract.md`, and `practice-caps-and-trials.md` were superseded by this file and deleted in Cut 5 of the v2 rollout (history in git).
 **Adopted:** 2026-05-13
 **Summary:** Move from 21 practices to 35; collapse lifecycle to `active | inactive`; add 1:1 question↔practice mapping; make `/today` unconditionally accessible.
 
@@ -88,8 +88,6 @@ Same CTA rules everywhere: results screen, practice bank, recommendation cards.
 ---
 
 ## Routing rules (v2)
-
-Replaces [state-machine.md](state-machine.md) §4, §10 and [routing-table.md](routing-table.md) §2, §3.
 
 ### Default route resolution (`decideRoute`)
 
@@ -192,7 +190,7 @@ Removed modes: `startTrial`, `promoteTrial`, `discardTrial`, `add`, `replace`, `
 
 ## API contract (v2)
 
-Replaces [api-contract.md](api-contract.md). All endpoints require an authenticated user; `userId` is resolved server-side from the session. Error responses follow `{ error: "CODE", ...optional fields }` with an appropriate HTTP status.
+All endpoints require an authenticated user; `userId` is resolved server-side from the session. Error responses follow `{ error: "CODE", ...optional fields }` with an appropriate HTTP status.
 
 ### `GET /api/me`
 

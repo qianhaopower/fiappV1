@@ -63,16 +63,21 @@ Done on `feat/v2-routing-strip-focus` (commit pending):
 - [x] `tests/unit/decideRoute.test.ts` rewritten for the 2-branch logic
 - [x] `tests/unit/decideRouteClient.test.tsx` rewritten — covers /onboarding, /today (with and without focus), /auth paths
 
-### Cut 5 — Cleanup
+### Cut 5 — Cleanup ✅ (mostly)
 
-- [ ] Delete `lib/practices/trial.ts`
-- [ ] Delete any handlers kept as no-ops in Cut 3
-- [ ] Drop dead PROFILE fields (`practiceCounters`; `activePracticeSkById` if Cut 3 confirmed unused)
-- [ ] Delete `tests/unit/practices/trial.test.ts`
-- [ ] Full rewrite of `_docs/canon/launch-checklist.md` against v2 UX
-- [ ] Full rewrite of `_docs/canon/testing-checklist.md` against v2 invariants
-- [ ] Decide: delete or archive the fully-superseded canon docs (state-machine, routing-table, api-contract, practice-caps-and-trials)
-- [ ] PR to `staging`
+Done on `feat/v2-cleanup` (commit pending):
+- [x] Rename `lib/practices/trial.ts` → `lib/practices/caps.ts`; trim to just cap helpers + `makeUPracticeSK` + `ProfileData`. Trial helpers (isTrialActive, TrialItem, makeTrialSK, TRIAL_DURATION_DAYS, MAX_CONCURRENT_TRIALS) deleted.
+- [x] Drop `activePracticeSkById` from `/api/practice` writes and `ProfileData` — SK is now derived directly from `practiceId`
+- [x] Drop dead PROFILE fields from `/api/me` defaults and response: `activePracticeSkById`, `practiceCounters`, `todayFocusPracticeId`, `activeTrialCount`. Legacy stored items still tolerated on read.
+- [x] Drop `seedTrial` from `tests/integration/seeds.ts`; drop dead fields from `seedProfile`/`seedActivePractice`
+- [x] Delete `tests/unit/practices/trial.test.ts`
+- [x] Update unit + integration tests for the new shape (`me`, `return`, `practice.post`)
+- [x] Delete 4 fully-superseded canon docs (state-machine, routing-table, api-contract, practice-caps-and-trials)
+- [x] Remove dead links to those docs from `business-logic-v2.md`
+
+Deferred to a separate "v2 docs cleanup" follow-up:
+- [ ] Full rewrite of `_docs/canon/launch-checklist.md` against v2 UX (currently has supersede header + v1 content)
+- [ ] Full rewrite of `_docs/canon/testing-checklist.md` against v2 invariants (same)
 
 ---
 

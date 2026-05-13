@@ -189,7 +189,7 @@ describe('POST /api/practice — startPractice', () => {
 describe('POST /api/practice — makePracticeInactive', () => {
   it('flips active to inactive (200)', async () => {
     mockStore(
-      { activePracticeIds: ['financial-weekly-review'], activePracticeSkById: { 'financial-weekly-review': 'UPRACTICE#financial-weekly-review' }, subscriptionStatus: 'FREE' },
+      { activePracticeIds: ['financial-weekly-review'], subscriptionStatus: 'FREE' },
       { 'UPRACTICE#financial-weekly-review': { status: 'active' } },
     )
     const res = await POST(makeReq({ mode: 'makePracticeInactive', practiceId: 'financial-weekly-review' }))
@@ -231,7 +231,6 @@ describe('POST /api/practice — switchToPractice', () => {
     mockStore(
       {
         activePracticeIds: ['financial-weekly-review'],
-        activePracticeSkById: { 'financial-weekly-review': 'UPRACTICE#financial-weekly-review' },
         subscriptionStatus: 'FREE',
       },
       {
@@ -268,7 +267,6 @@ describe('POST /api/practice — switchToPractice', () => {
     mockStore(
       {
         activePracticeIds: ['financial-weekly-review'],
-        activePracticeSkById: { 'financial-weekly-review': 'UPRACTICE#financial-weekly-review' },
         subscriptionStatus: 'FREE',
       },
       {

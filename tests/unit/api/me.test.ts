@@ -51,7 +51,7 @@ beforeEach(() => {
 })
 
 describe('GET /api/me', () => {
-  it('returns existing profile with activeTrialCount=0 (trials removed in v2)', async () => {
+  it('returns existing profile without trial/focus/sk-by-id fields (all removed in v2)', async () => {
     getItemMock.mockResolvedValue(existingProfile)
 
     const res = await GET(new Request('http://localhost/api/me'))
@@ -60,7 +60,10 @@ describe('GET /api/me', () => {
     expect(res.status).toBe(200)
     expect(json.ok).toBe(true)
     expect(json.data.userId).toBe('usr-1')
-    expect(json.data.activeTrialCount).toBe(0)
+    expect(json.data.activeTrialCount).toBeUndefined()
+    expect(json.data.activePracticeSkById).toBeUndefined()
+    expect(json.data.todayFocusPracticeId).toBeUndefined()
+    expect(json.data.practiceCounters).toBeUndefined()
     expect(json.data.PK).toBeUndefined()
     expect(json.data.SK).toBeUndefined()
   })
@@ -83,7 +86,7 @@ describe('GET /api/me', () => {
     expect(res.status).toBe(200)
     expect(json.ok).toBe(true)
     expect(json.data.subscriptionStatus).toBe('FREE')
-    expect(json.data.activeTrialCount).toBe(0)
+    expect(json.data.activeTrialCount).toBeUndefined()
     expect(putItemIfNotExistsMock).toHaveBeenCalledOnce()
   })
 

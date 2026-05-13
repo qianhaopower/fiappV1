@@ -15,13 +15,13 @@ type ProfileItem = {
   createdAt: string;
   updatedAt: string;
   activePracticeIds?: string[];
-  activePracticeSkById?: Record<string, unknown>;
-  todayFocusPracticeId?: string | null;
   latestAssessmentId?: string | null;
   focusPillar?: string | null;
+  lowestPillarId?: string | null;
   returnCounters?: Record<string, unknown>;
-  practiceCounters?: Record<string, unknown>;
   milestonesAchieved?: string[];
+  timezone?: string;
+  dayResetTime?: number;
 };
 
 function stripKeys(item: ProfileItem) {
@@ -37,10 +37,6 @@ function jsonWithNoStore(body: unknown, status: number) {
   return res;
 }
 
-// activeTrialCount is fixed at 0 in v2 (trials removed). Returned only so legacy
-// clients don't break on the missing field; remove the field entirely in Cut 5.
-const ACTIVE_TRIAL_COUNT = 0;
-
 export async function GET(req: Request) {
   return withAuth(req, async (user) => {
     const client = createDynamoClient();
@@ -49,10 +45,7 @@ export async function GET(req: Request) {
     const existing = await client.getItem<ProfileItem>(profileKey);
 
     if (existing) {
-      return jsonWithNoStore(
-        { ok: true, data: { ...stripKeys(existing), activeTrialCount: ACTIVE_TRIAL_COUNT } },
-        200
-      );
+      return jsonWithNoStore({ ok: true, data: stripKeys(existing) }, 200);
     }
 
     // Profile missing — create default (idempotent via condition on PK)
@@ -64,12 +57,10 @@ export async function GET(req: Request) {
       createdAt: now,
       updatedAt: now,
       activePracticeIds: [],
-      activePracticeSkById: {},
-      todayFocusPracticeId: null,
       latestAssessmentId: null,
       focusPillar: null,
+      lowestPillarId: null,
       returnCounters: {},
-      practiceCounters: {},
       milestonesAchieved: [],
     };
 
@@ -85,17 +76,11 @@ export async function GET(req: Request) {
           500
         );
       }
-      return jsonWithNoStore(
-        { ok: true, data: { ...stripKeys(reread), activeTrialCount: ACTIVE_TRIAL_COUNT } },
-        200
-      );
+      return jsonWithNoStore({ ok: true, data: stripKeys(reread) }, 200);
     }
 
     trackEvent("totalUsers", "newUsers");
-    return jsonWithNoStore(
-      { ok: true, data: { ...stripKeys(newItem), activeTrialCount: ACTIVE_TRIAL_COUNT } },
-      200
-    );
+    return jsonWithNoStore({ ok: true, data: stripKeys(newItem) }, 200);
   });
 }
 
