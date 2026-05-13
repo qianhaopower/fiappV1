@@ -129,7 +129,7 @@ export default function ResultsPage() {
         const cap = (json as { cap?: number }).cap ?? 10
         setInlineError((p) => ({
           ...p,
-          [practice.id]: `You're at the ${cap}-practice limit. Make one inactive first.`,
+          [practice.id]: `You're at the ${cap}-practice limit. Pause one first.`,
         }))
         return
       }
@@ -274,12 +274,17 @@ export default function ResultsPage() {
                               )}
                               {status === 'inactive' && (
                                 <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-muted text-muted-foreground border border-border">
-                                  Inactive
+                                  Paused
                                 </span>
                               )}
                             </div>
                             <p className="font-semibold text-foreground">{practice.title}</p>
                             <p className="text-sm text-muted-foreground">{practice.description}</p>
+                            {status === 'inactive' && (
+                              <p className="text-xs text-muted-foreground">
+                                You started this before — currently paused. Resume anytime.
+                              </p>
+                            )}
                             {practice.rationale && (
                               <p className="text-xs text-muted-foreground border-l-2 border-border pl-3">
                                 {practice.rationale}
@@ -294,7 +299,7 @@ export default function ResultsPage() {
                             )}
                             {status === 'inactive' && (
                               <Button variant="outline" disabled={busy} onClick={() => handleStart(practice)}>
-                                {busy ? '…' : 'Bring this back'}
+                                {busy ? '…' : 'Resume'}
                               </Button>
                             )}
                             {status === 'active' && (
