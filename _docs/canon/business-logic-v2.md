@@ -71,8 +71,10 @@ Rules:
 ## Practice card CTA
 
 - No `UserPractice` → "Start this practice"
-- `UserPractice.status = "inactive"` → "Bring this back" (+ "You've completed this X times before")
-- `UserPractice.status = "active"` → "Active" badge + "View on Today"
+- `UserPractice.status = "inactive"` → **Paused** badge + "Resume" CTA. Always show a context line below the description: with prior history, `You've practiced this N times before — currently paused. Resume anytime.`; without history, `You started this before — currently paused. Resume anytime.`
+- `UserPractice.status = "active"` → **Active** badge + "View on Today" (link) + "Pause" (secondary action)
+
+**Why "Paused" not "Inactive":** `status: "inactive"` stays as the storage term. The user-facing label is **Paused** because "Inactive" reads as "this practice is unavailable" rather than "you've put it on hold."
 
 Same CTA rules everywhere: results screen, practice bank, recommendation cards.
 
@@ -154,7 +156,7 @@ When a free user at the 1-active cap taps "Start this practice" on a different p
 
 > **Switch to "[new practice title]"?**
 >
-> "[current practice title]" will move to your practice bank. You can bring it back anytime.
+> "[current practice title]" will be paused. You can resume it anytime.
 >
 > [ Switch ] [ Cancel ]
 
@@ -169,7 +171,7 @@ The dialog deliberately does **not** name the active/inactive mechanic — users
 | Mode | Operation | Notes |
 |---|---|---|
 | `startPractice` | start-or-reactivate | Handles the "no record" case and the "inactive record" case identically |
-| `reactivatePractice` | start-or-reactivate (alias) | Same server handler as `startPractice`; distinct name so the client can be explicit about user intent ("Bring this back") |
+| `reactivatePractice` | start-or-reactivate (alias) | Same server handler as `startPractice`; distinct name so the client can be explicit about user intent ("Resume") |
 | `makePracticeInactive` | flip to inactive | |
 | `switchToPractice` | atomic deactivate + activate | For the free-user 1-cap switch flow |
 
@@ -307,7 +309,7 @@ Flips an active practice to inactive. Removes from `activePracticeIds`. Preserve
 
 #### `mode: "reactivatePractice"`
 
-Alias for `startPractice` when a record exists with `status: "inactive"`. Provided as a separate mode for UX clarity (UI button "Bring this back"). Server may route both to the same handler.
+Alias for `startPractice` when a record exists with `status: "inactive"`. Provided as a separate mode for UX clarity (UI button "Resume"). Server may route both to the same handler.
 
 #### `mode: "switchToPractice"`
 
@@ -388,9 +390,11 @@ The app must not manage practice lifecycles like Jira tickets. Active = on Today
 
 ## UI copy
 
-Use: "Start this practice", "Bring this back", "Make inactive", "View on Today", "Active", "You've completed this X times before", "Welcome back".
+Use: "Start this practice", "Resume", "Pause", "View on Today", "Active", "Paused", "You've practiced this N times before — currently paused. Resume anytime.", "You started this before — currently paused. Resume anytime.", "Switch", "Cancel".
 
-Avoid in user-facing copy: "Trial", "Promote", "Discard", "Expire", "Replace", "Pause", "Resume" (as system term), "Focus" (as required system state).
+Avoid in user-facing copy: "Trial", "Promote", "Discard", "Expire", "Replace", "Focus" (as required system state), "Inactive" (storage term only — show as "Paused" in the UI), "Bring this back", "Make inactive", "Welcome back".
+
+**Revised 2026-05-13** — "Pause"/"Resume" were originally on the avoid list to keep distance from v1's pause-state machine, but in v2 they're just labels for the active↔inactive transition and read more naturally than "Bring this back" / "Make inactive."
 
 ---
 
