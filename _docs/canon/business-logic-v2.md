@@ -27,19 +27,26 @@
 
 `UserPractice` records only exist after a user starts a practice. "Suggested" is **not** a status.
 
+**Field mapping note:** `totalCompletions` is the conceptual name used throughout this spec. In storage it is backed by `PROFILE.returnCounters[practiceId]` — the spec deliberately keeps the storage name during transition (see "Open decisions"). Anywhere v2 says "preserve totalCompletions," read as "preserve the corresponding `returnCounters[practiceId]` value."
+
 ---
 
 ## Recommendation logic
 
 1. Calculate pillar scores.
 2. Identify lowest-scoring pillar.
-3. Within that pillar, sort questions by answer weakness.
+3. Within that pillar, rank questions by **answer weakness** (defined below).
 4. Recommend the practices mapped to those weakest questions.
 
+**Answer weakness definition** (answers are boolean yes/no per the API):
+- A `false` ("no") answer ranks **weaker** than a `true` ("yes") answer.
+- Within the lowest-scoring pillar, take the practices mapped to questions ranked: all `no` answers first, then `yes` answers, until 3 practices are picked.
+- If the lowest pillar has 3+ `no` answers, the suggestions are exactly those 3. If fewer than 3 `no` answers exist, the list is padded with `yes`-answer practices from the same pillar so the result is always 3.
+
 Tie-breakers (deterministic, never random):
-1. Lower answer score first.
-2. Question `order` within pillar.
-3. Practice `order` within pillar.
+1. Weaker answer first (`no` before `yes`).
+2. Lower question `order` within pillar.
+3. Lower practice `order` within pillar.
 
 Display: top 3 practices on the result screen, with a secondary link to "Browse all 35 practices."
 
@@ -98,11 +105,13 @@ Note: with assessment but 0 active practices, the default destination is **still
 
 | Route | Required state | 0-active behaviour |
 |---|---|---|
+| `/auth` | unauthenticated | N/A. Authed users who land here are redirected to the default route. |
+| `/onboarding` | authed, no assessment | N/A (pre-assessment). Intro screen that leads into `/assessment`. |
+| `/assessment` | authed | N/A. Always accessible (user can retake anytime). |
 | `/today` | authed + assessment | Empty state with "Browse practices" / "Take assessment" CTAs. **Never redirect.** |
 | `/practices` | authed + assessment | Always accessible. Practice bank: all 35 practices grouped by 7 pillars. |
 | `/results` | authed + assessment | Always accessible. Shows latest assessment summary + suggested practices. |
 | `/progress` | authed + assessment | Always accessible. Robust to 0 counters / 0 milestones. |
-| `/assessment` | authed | Always accessible (user can retake anytime). |
 
 ### Forbidden / server-enforced
 
@@ -137,11 +146,14 @@ Note: with assessment but 0 active practices, the default destination is **still
 
 ## API surface (target)
 
-`POST /api/practice` supports only:
-- `startPractice`
-- `makePracticeInactive`
-- `reactivatePractice` (a.k.a. `makePracticeActiveAgain`)
-- `switchToPractice` (free-user replacement flow)
+`POST /api/practice` supports 4 mode names backing 3 effective operations:
+
+| Mode | Operation | Notes |
+|---|---|---|
+| `startPractice` | start-or-reactivate | Handles the "no record" case and the "inactive record" case identically |
+| `reactivatePractice` | start-or-reactivate (alias) | Same server handler as `startPractice`; distinct name so the client can be explicit about user intent ("Bring this back") |
+| `makePracticeInactive` | flip to inactive | |
+| `switchToPractice` | atomic deactivate + activate | For the free-user 1-cap switch flow |
 
 Removed modes: `startTrial`, `promoteTrial`, `discardTrial`, `add`, `replace`, `pause`, `resume`, `setFocus`.
 
