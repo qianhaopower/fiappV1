@@ -1,100 +1,75 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { HelpTooltip } from '@/components/HelpTooltip';
 import { StandardPage } from '@/components/layout';
-import { Card, Button, EmptyState, Loading, ErrorState } from '@/components/ui';
+import { Card, Button, Loading, ErrorState } from '@/components/ui';
 import { pillarColors } from '@/lib/design/pillarColors';
-import { pillarLabels } from '@/lib/assessment/pillars';
+import { pillarLabels, pillarOrder } from '@/lib/assessment/pillars';
 import { practices } from '@/lib/practices/library';
 import type { Pillar } from '@/lib/assessment/pillars';
+import type { Practice } from '@/lib/practices/library';
 
 type EnrichedPractice = {
   id: string
   pillar: Pillar
   title: string
   description: string
-  addedAt: string
-  status: 'active' | 'paused'
-}
-
-type Trial = {
-  id: string
-  pillar: Pillar
-  title: string
-  description: string
-  trialSK: string
-  startedAt: string
-  expiresAt: string
-  status: 'trial' | 'expired'
-  daysRemaining: number
-  active: boolean
+  status: 'active' | 'inactive'
 }
 
 type ActiveData = {
   activePractices: EnrichedPractice[]
-  pausedPractices: EnrichedPractice[]
-  trials: Trial[]
-  subscriptionStatus: string
-  todayFocusPracticeId: string | null
+  inactivePractices: EnrichedPractice[]
+  subscriptionStatus: 'FREE' | 'PAID' | string
 }
 
-function PillarBadge({ pillar }: { pillar: Pillar }) {
-  return (
-    <span
-      className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-white"
-      style={{ backgroundColor: pillarColors[pillar] }}
-    >
-      {pillarLabels[pillar]}
-    </span>
-  );
+type MeData = {
+  ok: boolean
+  data: {
+    returnCounters?: Record<string, number> | string
+  }
 }
 
-function TrialBadge() {
-  return (
-    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-300">
-      Trying
-    </span>
-  );
-}
+type CardStatus = 'none' | 'active' | 'inactive'
 
-function PausedBadge() {
-  return (
-    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-muted text-muted-foreground border border-border">
-      Paused
-    </span>
-  );
-}
+type SwitchState = {
+  newPractice: Practice
+  currentActive: EnrichedPractice
+} | null
 
-function FocusBadge() {
-  return (
-    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-primary/10 text-primary border border-primary/30">
-      Today&apos;s focus
-    </span>
-  );
+function parseCounters(raw: Record<string, number> | string | undefined): Record<string, number> {
+  if (!raw) return {}
+  if (typeof raw === 'string') {
+    try { return JSON.parse(raw) as Record<string, number> } catch { return {} }
+  }
+  return raw
 }
 
 export default function PracticesPage() {
   const [data, setData] = useState<ActiveData | null>(null)
+  const [counters, setCounters] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({})
   const [inlineError, setInlineError] = useState<Record<string, string>>({})
-  const [inlineWarning, setInlineWarning] = useState<Record<string, string>>({})
-
-  // Replace flow state
-  const [replacingId, setReplacingId] = useState<string | null>(null)
-  const [replaceTarget, setReplaceTarget] = useState<string | null>(null)
-  const [replaceToken, setReplaceToken] = useState<string | null>(null)
+  const [switchState, setSwitchState] = useState<SwitchState>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
     setError(false)
     try {
-      const res = await fetch('/api/practices/active')
-      if (!res.ok) throw new Error('Failed to load')
-      setData(await res.json())
+      const [activeRes, meRes] = await Promise.all([
+        fetch('/api/practices/active'),
+        fetch('/api/me'),
+      ])
+      if (!activeRes.ok) throw new Error('Failed to load practices')
+      const activeData = (await activeRes.json()) as ActiveData
+      setData(activeData)
+      if (meRes.ok) {
+        const meJson = (await meRes.json()) as MeData
+        setCounters(parseCounters(meJson.data?.returnCounters))
+      }
     } catch {
       setError(true)
     } finally {
@@ -104,26 +79,61 @@ export default function PracticesPage() {
 
   useEffect(() => { load() }, [load])
 
+  const statusById = useMemo(() => {
+    const map = new Map<string, CardStatus>()
+    for (const p of data?.activePractices ?? []) map.set(p.id, 'active')
+    for (const p of data?.inactivePractices ?? []) map.set(p.id, 'inactive')
+    return map
+  }, [data])
+
   function setAction(id: string, busy: boolean) {
     setActionLoading((p) => ({ ...p, [id]: busy }))
   }
 
-  async function callApi(mode: string, practiceId: string, extra?: Record<string, string>) {
-    const res = await fetch('/api/practice', {
+  async function callPractice(body: Record<string, unknown>) {
+    return fetch('/api/practice', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode, practiceId, ...extra }),
+      body: JSON.stringify(body),
     })
-    return res
   }
 
-  async function handlePause(practiceId: string) {
+  async function handleStart(practice: Practice) {
+    setAction(practice.id, true)
+    setInlineError((p) => ({ ...p, [practice.id]: '' }))
+    try {
+      const res = await callPractice({ mode: 'startPractice', practiceId: practice.id })
+      const json = await res.json().catch(() => ({} as Record<string, unknown>))
+      if (res.ok) {
+        await load()
+        return
+      }
+      if (res.status === 409 && (json as { error?: string }).error === 'CAP_REACHED') {
+        const isFree = (data?.subscriptionStatus ?? 'FREE').toUpperCase() !== 'PAID'
+        if (isFree && data?.activePractices.length === 1) {
+          setSwitchState({ newPractice: practice, currentActive: data.activePractices[0] })
+          return
+        }
+        const cap = (json as { cap?: number }).cap ?? 10
+        setInlineError((p) => ({
+          ...p,
+          [practice.id]: `You're at the ${cap}-practice limit. Make one inactive first.`,
+        }))
+        return
+      }
+      setInlineError((p) => ({ ...p, [practice.id]: 'Could not start. Please try again.' }))
+    } finally {
+      setAction(practice.id, false)
+    }
+  }
+
+  async function handleMakeInactive(practiceId: string) {
     setAction(practiceId, true)
     setInlineError((p) => ({ ...p, [practiceId]: '' }))
     try {
-      const res = await callApi('pause', practiceId)
+      const res = await callPractice({ mode: 'makePracticeInactive', practiceId })
       if (!res.ok) {
-        setInlineError((p) => ({ ...p, [practiceId]: 'Could not pause. Try again.' }))
+        setInlineError((p) => ({ ...p, [practiceId]: 'Could not make inactive. Try again.' }))
         return
       }
       await load()
@@ -132,313 +142,182 @@ export default function PracticesPage() {
     }
   }
 
-  async function handleResume(practiceId: string) {
-    setAction(practiceId, true)
-    setInlineError((p) => ({ ...p, [practiceId]: '' }))
+  async function handleSwitchConfirm() {
+    if (!switchState) return
+    const { newPractice, currentActive } = switchState
+    setAction(newPractice.id, true)
+    setInlineError((p) => ({ ...p, [newPractice.id]: '' }))
     try {
-      const res = await callApi('resume', practiceId)
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        const msg = json.error === 'CAP_REACHED'
-          ? `Active practice limit reached (${json.cap}). Pause another first.`
-          : 'Could not resume. Try again.'
-        setInlineError((p) => ({ ...p, [practiceId]: msg }))
-        return
-      }
-      if (json.warning) {
-        setInlineWarning((p) => ({ ...p, [practiceId]: `${json.remaining} slot${json.remaining === 1 ? '' : 's'} remaining` }))
-      }
-      await load()
-    } finally {
-      setAction(practiceId, false)
-    }
-  }
-
-  async function handleSetFocus(practiceId: string) {
-    setAction(practiceId, true)
-    setInlineError((p) => ({ ...p, [practiceId]: '' }))
-    try {
-      const res = await callApi('setFocus', practiceId)
-      if (!res.ok) {
-        setInlineError((p) => ({ ...p, [practiceId]: 'Could not set focus. Try again.' }))
-        return
-      }
-      await load()
-    } finally {
-      setAction(practiceId, false)
-    }
-  }
-
-  async function handleTrialAction(mode: 'promoteTrial' | 'discardTrial', practiceId: string) {
-    setAction(practiceId, true)
-    setInlineError((p) => ({ ...p, [practiceId]: '' }))
-    try {
-      const res = await callApi(mode, practiceId)
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        const msg = json.error === 'CAP_REACHED'
-          ? `Active practice limit reached (${json.cap}).`
-          : json.error === 'TRIAL_EXPIRED'
-          ? 'This trial has expired.'
-          : 'Something went wrong. Try again.'
-        setInlineError((p) => ({ ...p, [practiceId]: msg }))
-        return
-      }
-      await load()
-    } finally {
-      setAction(practiceId, false)
-    }
-  }
-
-  // Replace: step 1 — select target, get confirmToken
-  async function handleReplaceSelect(fromId: string, toId: string) {
-    setAction(fromId, true)
-    setInlineError((p) => ({ ...p, [fromId]: '' }))
-    try {
-      const res = await fetch('/api/practice', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode: 'replace', practiceId: toId, replacePracticeId: fromId }),
-      })
-      const json = await res.json().catch(() => ({}))
-      if (res.status === 202 && json.confirmToken) {
-        setReplaceToken(json.confirmToken)
-        setReplaceTarget(toId)
-        // stay in replace mode to show confirm step
-      } else {
-        setInlineError((p) => ({ ...p, [fromId]: 'Could not initiate replace. Try again.' }))
-        setReplacingId(null)
-      }
-    } finally {
-      setAction(fromId, false)
-    }
-  }
-
-  // Replace: step 2 — confirm
-  async function handleReplaceConfirm(fromId: string) {
-    if (!replaceTarget || !replaceToken) return
-    setAction(fromId, true)
-    setInlineError((p) => ({ ...p, [fromId]: '' }))
-    try {
-      const res = await fetch('/api/practice', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mode: 'replace',
-          practiceId: replaceTarget,
-          replacePracticeId: fromId,
-          confirmToken: replaceToken,
-        }),
+      const res = await callPractice({
+        mode: 'switchToPractice',
+        practiceId: newPractice.id,
+        deactivatePracticeId: currentActive.id,
       })
       if (!res.ok) {
-        setInlineError((p) => ({ ...p, [fromId]: 'Replace failed. Try again.' }))
+        setInlineError((p) => ({ ...p, [newPractice.id]: 'Could not switch. Try again.' }))
         return
       }
-      setReplacingId(null)
-      setReplaceTarget(null)
-      setReplaceToken(null)
+      setSwitchState(null)
       await load()
     } finally {
-      setAction(fromId, false)
+      setAction(newPractice.id, false)
     }
   }
 
-  // Practices available to replace with (not already active or a trial)
-  const activeAndTrialIds = new Set([
-    ...(data?.activePractices.map((p) => p.id) ?? []),
-    ...(data?.trials.map((t) => t.id) ?? []),
-  ])
-  const replaceCandidates = practices.filter((p) => !activeAndTrialIds.has(p.id))
+  const practicesByPillar = useMemo(() => {
+    const map = new Map<Pillar, Practice[]>()
+    for (const pillar of pillarOrder) {
+      map.set(pillar, practices.filter((p) => p.pillar === pillar).sort((a, b) => a.order - b.order))
+    }
+    return map
+  }, [])
 
   return (
     <StandardPage
-      title="My Practices"
-      description="Active, paused, and trials."
+      title="Practice Bank"
+      description="All 35 practices, grouped by pillar."
       actions={
         <Button variant="outline" size="sm" asChild>
-          <Link href="/results">+ Add practice</Link>
+          <Link href="/today">Go to Today →</Link>
         </Button>
       }
     >
       <div className="space-y-10">
-        {loading && <Loading text="Loading your practices…" />}
+        {loading && <Loading text="Loading practices…" />}
         {!loading && error && <ErrorState message="Couldn't load practices." onRetry={load} />}
 
-        {!loading && !error && data && (() => {
-          const activeTrials = data.trials.filter((t) => t.active)
-          const expiredTrials = data.trials.filter((t) => !t.active)
-          const visibleCount = data.activePractices.length + activeTrials.length + data.pausedPractices.length
-          return (
-          <>
-            {visibleCount === 0 ? (
-              expiredTrials.length > 0 ? (
-                <EmptyState
-                  title={expiredTrials.length === 1 ? `Your trial of "${expiredTrials[0].title}" ended` : 'Your trials ended'}
-                  text="Ready to commit to something? Browse your results and pick a practice."
-                  action={<Button variant="outline" asChild><Link href="/results">Browse suggestions</Link></Button>}
-                />
-              ) : (
-                <EmptyState
-                  title="No practices yet"
-                  text="Pick practices from your results to start building your routine."
-                  action={<Button variant="outline" asChild><Link href="/results">Browse suggestions</Link></Button>}
-                />
-              )
-            ) : (
-              <div className="space-y-3">
-                {data.activePractices.map((p) => {
-                  const isFocus = data.todayFocusPracticeId === p.id
-                  const isReplacing = replacingId === p.id
-                  const confirmed = isReplacing && !!replaceToken
-                  return (
-                    <Card key={p.id} variant="interactive">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="space-y-2 min-w-0 flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <PillarBadge pillar={p.pillar} />
-                            {isFocus && <FocusBadge />}
-                          </div>
-                          <p className="font-semibold text-foreground">{p.title}</p>
-                          <p className="text-sm text-muted-foreground">{p.description}</p>
-                          {inlineError[p.id] && (
-                            <p className="text-xs text-destructive">{inlineError[p.id]}</p>
+        {!loading && !error && pillarOrder.map((pillar) => (
+          <section key={pillar} className="space-y-3">
+            <div className="flex items-center gap-2">
+              <span
+                className="h-3 w-3 rounded-full shrink-0"
+                style={{ backgroundColor: pillarColors[pillar] }}
+              />
+              <h2 className="text-base font-semibold text-foreground">
+                {pillarLabels[pillar]} Intelligence
+              </h2>
+            </div>
+            <div className="space-y-3">
+              {(practicesByPillar.get(pillar) ?? []).map((p) => {
+                const status: CardStatus = statusById.get(p.id) ?? 'none'
+                const completions = counters[p.id] ?? 0
+                const busy = !!actionLoading[p.id]
+                return (
+                  <Card key={p.id} variant="interactive">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="space-y-2 min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span
+                            className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-white"
+                            style={{ backgroundColor: pillarColors[p.pillar] }}
+                          >
+                            {pillarLabels[p.pillar]}
+                          </span>
+                          {status === 'active' && (
+                            <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-primary/10 text-primary border border-primary/30">
+                              Active
+                            </span>
                           )}
-                          {inlineWarning[p.id] && (
-                            <p className="text-xs text-amber-700">{inlineWarning[p.id]}</p>
-                          )}
-
-                          {isReplacing && !confirmed && (
-                            <div className="mt-3 space-y-2">
-                              <p className="text-xs font-medium text-muted-foreground">Pick a replacement:</p>
-                              <div className="flex flex-col gap-1 max-h-48 overflow-y-auto pr-1">
-                                {replaceCandidates.map((c) => (
-                                  <button
-                                    key={c.id}
-                                    className="text-left text-sm px-3 py-2 rounded-lg border border-border hover:bg-muted transition-colors"
-                                    onClick={() => handleReplaceSelect(p.id, c.id)}
-                                    disabled={!!actionLoading[p.id]}
-                                  >
-                                    <span className="font-medium">{c.title}</span>
-                                    <span className="inline-flex items-center gap-1 ml-1.5">
-                                      <span className="h-2 w-2 rounded-full shrink-0 inline-block" style={{ backgroundColor: pillarColors[c.pillar] }} />
-                                      <span className="text-muted-foreground text-xs">{pillarLabels[c.pillar]}</span>
-                                    </span>
-                                  </button>
-                                ))}
-                              </div>
-                              <Button size="sm" variant="ghost" onClick={() => { setReplacingId(null); setReplaceToken(null); setReplaceTarget(null) }}>
-                                Cancel
-                              </Button>
-                            </div>
-                          )}
-
-                          {isReplacing && confirmed && replaceTarget && (
-                            <div className="mt-3 p-3 rounded-lg bg-amber-50 border border-amber-200 space-y-2">
-                              <p className="text-sm font-medium text-amber-900">
-                                Replace with &ldquo;{practicesById(replaceTarget)}&rdquo;?
-                              </p>
-                              <div className="flex gap-2">
-                                <Button size="sm" variant="default" disabled={!!actionLoading[p.id]} onClick={() => handleReplaceConfirm(p.id)}>
-                                  {actionLoading[p.id] ? '…' : 'Confirm'}
-                                </Button>
-                                <Button size="sm" variant="ghost" onClick={() => { setReplacingId(null); setReplaceToken(null); setReplaceTarget(null) }}>
-                                  Cancel
-                                </Button>
-                              </div>
-                            </div>
+                          {status === 'inactive' && (
+                            <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-muted text-muted-foreground border border-border">
+                              Inactive
+                            </span>
                           )}
                         </div>
-
-                        {!isReplacing && (
-                          <div className="flex flex-col gap-2 shrink-0">
-                            {!isFocus && (
-                              <Button size="sm" variant="outline" disabled={!!actionLoading[p.id]} onClick={() => handleSetFocus(p.id)}>
-                                {actionLoading[p.id] ? '…' : 'Set focus'}
-                              </Button>
-                            )}
-                            <Button size="sm" variant="ghost" disabled={!!actionLoading[p.id]} onClick={() => handlePause(p.id)}>
-                              Pause
-                            </Button>
-                            <Button size="sm" variant="ghost" disabled={!!actionLoading[p.id]} onClick={() => { setReplacingId(p.id); setReplaceToken(null); setReplaceTarget(null) }}>
-                              Replace
-                            </Button>
-                          </div>
+                        <p className="font-semibold text-foreground">{p.title}</p>
+                        <p className="text-sm text-muted-foreground">{p.description}</p>
+                        {status === 'inactive' && completions > 0 && (
+                          <p className="text-xs text-muted-foreground">
+                            Welcome back — you&apos;ve completed this {completions} {completions === 1 ? 'time' : 'times'} before.
+                          </p>
+                        )}
+                        {inlineError[p.id] && (
+                          <p className="text-xs text-destructive">{inlineError[p.id]}</p>
                         )}
                       </div>
-                    </Card>
-                  )
-                })}
 
-                {activeTrials.length > 0 && (
-                  <div className="flex items-center gap-2 pt-2">
-                    <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Trying out</p>
-                    <HelpTooltip content="A trial lets you test a practice for 7 days before committing. Trials don't use your active practice slot. At the end, keep it or let it go." />
-                  </div>
-                )}
-                {activeTrials.map((t) => (
-                  <Card key={t.id} variant="interactive" className="flex items-start justify-between gap-4">
-                    <div className="space-y-2 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <PillarBadge pillar={t.pillar} />
-                        <TrialBadge />
-                      </div>
-                      <p className="font-semibold text-foreground">{t.title}</p>
-                      <p className="text-sm text-muted-foreground">{t.description}</p>
-                      {t.active && (
-                        <p className="text-xs text-amber-700 font-medium">
-                          {t.daysRemaining === 0 ? 'Expires today' : `${t.daysRemaining} day${t.daysRemaining === 1 ? '' : 's'} left to decide`}
-                        </p>
-                      )}
-                      {!t.active && <p className="text-xs text-muted-foreground">Trial expired</p>}
-                      {inlineError[t.id] && <p className="text-xs text-destructive">{inlineError[t.id]}</p>}
-                    </div>
-                    {t.active && (
                       <div className="flex flex-col gap-2 shrink-0">
-                        <Button size="sm" variant="default" disabled={!!actionLoading[t.id]} onClick={() => handleTrialAction('promoteTrial', t.id)}>
-                          {actionLoading[t.id] ? '…' : 'Keep it'}
-                        </Button>
-                        <Button size="sm" variant="ghost" disabled={!!actionLoading[t.id]} onClick={() => handleTrialAction('discardTrial', t.id)}>
-                          Not for me
-                        </Button>
+                        {status === 'none' && (
+                          <Button size="sm" variant="outline" disabled={busy} onClick={() => handleStart(p)}>
+                            {busy ? '…' : 'Start this practice'}
+                          </Button>
+                        )}
+                        {status === 'inactive' && (
+                          <Button size="sm" variant="outline" disabled={busy} onClick={() => handleStart(p)}>
+                            {busy ? '…' : 'Bring this back'}
+                          </Button>
+                        )}
+                        {status === 'active' && (
+                          <>
+                            <Button size="sm" asChild>
+                              <Link href="/today">View on Today</Link>
+                            </Button>
+                            <Button size="sm" variant="ghost" disabled={busy} onClick={() => handleMakeInactive(p.id)}>
+                              {busy ? '…' : 'Make inactive'}
+                            </Button>
+                          </>
+                        )}
                       </div>
-                    )}
-                  </Card>
-                ))}
-
-                {data.pausedPractices.map((p) => (
-                  <Card key={p.id} variant="interactive" className="flex items-start justify-between gap-4 opacity-70">
-                    <div className="space-y-2 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <PillarBadge pillar={p.pillar} />
-                        <PausedBadge />
-                      </div>
-                      <p className="font-semibold text-foreground">{p.title}</p>
-                      <p className="text-sm text-muted-foreground">{p.description}</p>
-                      {inlineError[p.id] && <p className="text-xs text-destructive">{inlineError[p.id]}</p>}
-                      {inlineWarning[p.id] && <p className="text-xs text-amber-700">{inlineWarning[p.id]}</p>}
                     </div>
-                    <Button size="sm" variant="outline" disabled={!!actionLoading[p.id]} onClick={() => handleResume(p.id)}>
-                      {actionLoading[p.id] ? '…' : 'Resume'}
-                    </Button>
                   </Card>
-                ))}
-              </div>
-            )}
-          </>
-          )
-        })()}
-
-        <div className="pt-2">
-          <Button asChild>
-            <Link href="/today">Go to Today →</Link>
-          </Button>
-        </div>
+                )
+              })}
+            </div>
+          </section>
+        ))}
       </div>
+
+      {switchState && (
+        <SwitchDialog
+          newPractice={switchState.newPractice}
+          currentActive={switchState.currentActive}
+          loading={!!actionLoading[switchState.newPractice.id]}
+          onConfirm={handleSwitchConfirm}
+          onCancel={() => setSwitchState(null)}
+        />
+      )}
     </StandardPage>
   );
 }
 
-// helper used in JSX
-function practicesById(id: string): string {
-  return practices.find((p) => p.id === id)?.title ?? id
+function SwitchDialog({
+  newPractice,
+  currentActive,
+  loading,
+  onConfirm,
+  onCancel,
+}: {
+  newPractice: Practice
+  currentActive: EnrichedPractice
+  loading: boolean
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 px-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onCancel()
+      }}
+    >
+      <div className="w-full max-w-md rounded-2xl bg-card border border-border shadow-xl p-6 space-y-4">
+        <p className="text-base font-semibold text-foreground">
+          Switch to &ldquo;{newPractice.title}&rdquo;?
+        </p>
+        <p className="text-sm text-muted-foreground">
+          &ldquo;{currentActive.title}&rdquo; will move to your practice bank. You can bring it back anytime.
+        </p>
+        <div className="flex gap-2 pt-2">
+          <Button disabled={loading} onClick={onConfirm}>
+            {loading ? '…' : 'Switch'}
+          </Button>
+          <Button variant="ghost" disabled={loading} onClick={onCancel}>
+            Cancel
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
 }
