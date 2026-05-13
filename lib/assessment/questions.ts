@@ -3,13 +3,15 @@ import { pillarOrder, type Pillar } from "@/lib/assessment/pillars";
 export type AssessmentQuestion = {
   id: string;
   pillar: Pillar;
+  order: number;
+  mappedPracticeId: string;
   text: string;
   suggestions?: string[];
 };
 
 /**
  * Real question text bank (5 per pillar).
- * IMPORTANT: The keys must match your Pillar values exactly (case-sensitive).
+ * Each question maps 1:1 to a Practice via mappedPracticeId (see lib/practices/library.ts).
  */
 export type Question = AssessmentQuestion;
 
@@ -17,6 +19,8 @@ export const QUESTIONS: Question[] = [
   {
     id: "financial-1",
     pillar: "financial",
+    order: 1,
+    mappedPracticeId: "financial-weekly-review",
     text: "I know roughly how much I spend each week.",
     suggestions: [
       "Check your bank app and estimate your last 7 days’ spending in 5 minutes.",
@@ -27,6 +31,8 @@ export const QUESTIONS: Question[] = [
   {
     id: "financial-2",
     pillar: "financial",
+    order: 2,
+    mappedPracticeId: "financial-bill-list",
     text: "I tracked or reviewed my spending at least once this week.",
     suggestions: [
       "Open your bank app and review your last 10 transactions.",
@@ -37,6 +43,8 @@ export const QUESTIONS: Question[] = [
   {
     id: "financial-3",
     pillar: "financial",
+    order: 3,
+    mappedPracticeId: "financial-24hr-rule",
     text: "I avoided at least one unnecessary purchase.",
     suggestions: [
       "Add a 24‑hour rule before non‑essential purchases.",
@@ -47,6 +55,8 @@ export const QUESTIONS: Question[] = [
   {
     id: "financial-4",
     pillar: "financial",
+    order: 4,
+    mappedPracticeId: "financial-save-small",
     text: "I feel in control of my short‑term finances.",
     suggestions: [
       "Write down all upcoming bills this month.",
@@ -57,6 +67,8 @@ export const QUESTIONS: Question[] = [
   {
     id: "financial-5",
     pillar: "financial",
+    order: 5,
+    mappedPracticeId: "financial-expense-buffer",
     text: "I have a simple plan for upcoming expenses.",
     suggestions: [
       "Write your next 3 known expenses.",
@@ -67,6 +79,8 @@ export const QUESTIONS: Question[] = [
   {
     id: "relationship-1",
     pillar: "relationship",
+    order: 1,
+    mappedPracticeId: "relationship-one-deeper-question",
     text: "I had at least one meaningful conversation this week.",
     suggestions: [
       "Call one person and ask how they’re really doing.",
@@ -77,6 +91,8 @@ export const QUESTIONS: Question[] = [
   {
     id: "relationship-2",
     pillar: "relationship",
+    order: 2,
+    mappedPracticeId: "relationship-device-free-meal",
     text: "I listened carefully without interrupting in at least one conversation.",
     suggestions: [
       "Practice waiting 2 seconds before replying.",
@@ -87,6 +103,8 @@ export const QUESTIONS: Question[] = [
   {
     id: "relationship-3",
     pillar: "relationship",
+    order: 3,
+    mappedPracticeId: "relationship-express-gratitude",
     text: "I expressed appreciation or gratitude to someone.",
     suggestions: [
       "Send one thank‑you message.",
@@ -97,6 +115,8 @@ export const QUESTIONS: Question[] = [
   {
     id: "relationship-4",
     pillar: "relationship",
+    order: 4,
+    mappedPracticeId: "relationship-pause-before-reply",
     text: "I handled a disagreement calmly and respectfully.",
     suggestions: [
       "Pause before replying when triggered.",
@@ -107,6 +127,8 @@ export const QUESTIONS: Question[] = [
   {
     id: "relationship-5",
     pillar: "relationship",
+    order: 5,
+    mappedPracticeId: "relationship-daily-checkin",
     text: "I felt emotionally connected to someone this week.",
     suggestions: [
       "Spend 20 minutes of undistracted time with someone.",
@@ -117,6 +139,8 @@ export const QUESTIONS: Question[] = [
   {
     id: "information-1",
     pillar: "information",
+    order: 1,
+    mappedPracticeId: "information-thinking-block",
     text: "I spent at least 30 minutes learning or thinking deeply about something important.",
     suggestions: [
       "Schedule a 30‑minute thinking or learning block.",
@@ -127,6 +151,8 @@ export const QUESTIONS: Question[] = [
   {
     id: "information-2",
     pillar: "information",
+    order: 2,
+    mappedPracticeId: "information-news-free-morning",
     text: "I avoided mindless scrolling for at least one intentional block of time.",
     suggestions: [
       "Delete one social app from your home screen.",
@@ -137,6 +163,8 @@ export const QUESTIONS: Question[] = [
   {
     id: "information-3",
     pillar: "information",
+    order: 3,
+    mappedPracticeId: "information-evening-review",
     text: "I wrote down or captured an idea, insight or lesson.",
     suggestions: [
       "Keep a simple notes file.",
@@ -147,6 +175,8 @@ export const QUESTIONS: Question[] = [
   {
     id: "information-4",
     pillar: "information",
+    order: 4,
+    mappedPracticeId: "information-single-tab",
     text: "I focused on one important task without multitasking.",
     suggestions: [
       "Try a 25‑minute Pomodoro.",
@@ -157,6 +187,8 @@ export const QUESTIONS: Question[] = [
   {
     id: "information-5",
     pillar: "information",
+    order: 5,
+    mappedPracticeId: "information-decision-pause",
     text: "I made at least one decision based on thinking, not impulse.",
     suggestions: [
       "Delay decisions by 10 minutes.",
@@ -167,6 +199,8 @@ export const QUESTIONS: Question[] = [
   {
     id: "emotional-1",
     pillar: "emotional",
+    order: 1,
+    mappedPracticeId: "emotional-name-feeling",
     text: "I noticed and named my emotions at least once.",
     suggestions: [
       "Ask yourself 3 times per day: \"What am I feeling?\"",
@@ -177,6 +211,8 @@ export const QUESTIONS: Question[] = [
   {
     id: "emotional-2",
     pillar: "emotional",
+    order: 2,
+    mappedPracticeId: "emotional-3-breath-reset",
     text: "I calmed myself effectively when stressed or upset.",
     suggestions: [
       "Do 5 slow breaths.",
@@ -187,6 +223,8 @@ export const QUESTIONS: Question[] = [
   {
     id: "emotional-3",
     pillar: "emotional",
+    order: 3,
+    mappedPracticeId: "emotional-trigger-note",
     text: "I did not overreact in a difficult moment.",
     suggestions: [
       "Pause before replying.",
@@ -197,6 +235,8 @@ export const QUESTIONS: Question[] = [
   {
     id: "emotional-4",
     pillar: "emotional",
+    order: 4,
+    mappedPracticeId: "emotional-journal-3-lines",
     text: "I understood why I felt the way I did at least once.",
     suggestions: [
       "Ask: \"What triggered this?\"",
@@ -207,6 +247,8 @@ export const QUESTIONS: Question[] = [
   {
     id: "emotional-5",
     pillar: "emotional",
+    order: 5,
+    mappedPracticeId: "emotional-calm-routine",
     text: "I felt emotionally stable most days.",
     suggestions: [
       "Improve sleep first.",
@@ -217,6 +259,8 @@ export const QUESTIONS: Question[] = [
   {
     id: "nutrition-1",
     pillar: "nutrition",
+    order: 1,
+    mappedPracticeId: "nutrition-vegetables-first",
     text: "I ate vegetables or fruit with most meals.",
     suggestions: [
       "Add frozen vegetables to meals.",
@@ -227,6 +271,8 @@ export const QUESTIONS: Question[] = [
   {
     id: "nutrition-2",
     pillar: "nutrition",
+    order: 2,
+    mappedPracticeId: "nutrition-no-processed-snack",
     text: "I avoided ultra‑processed food most days.",
     suggestions: [
       "Replace one snack with whole food.",
@@ -237,6 +283,8 @@ export const QUESTIONS: Question[] = [
   {
     id: "nutrition-3",
     pillar: "nutrition",
+    order: 3,
+    mappedPracticeId: "nutrition-half-plate-check",
     text: "I stopped eating when I was comfortably full.",
     suggestions: [
       "Eat slower.",
@@ -247,6 +295,8 @@ export const QUESTIONS: Question[] = [
   {
     id: "nutrition-4",
     pillar: "nutrition",
+    order: 4,
+    mappedPracticeId: "nutrition-water-first",
     text: "I drank enough water most days.",
     suggestions: [
       "Keep a bottle on your desk.",
@@ -257,6 +307,8 @@ export const QUESTIONS: Question[] = [
   {
     id: "nutrition-5",
     pillar: "nutrition",
+    order: 5,
+    mappedPracticeId: "nutrition-eat-without-screens",
     text: "I ate with awareness instead of distraction at least once per day.",
     suggestions: [
       "Eat one meal without screens.",
@@ -267,6 +319,8 @@ export const QUESTIONS: Question[] = [
   {
     id: "dynamic-1",
     pillar: "dynamic",
+    order: 1,
+    mappedPracticeId: "dynamic-10-min-walk",
     text: "I moved my body for at least 20 minutes on most days.",
     suggestions: [
       "Walk after meals.",
@@ -277,6 +331,8 @@ export const QUESTIONS: Question[] = [
   {
     id: "dynamic-2",
     pillar: "dynamic",
+    order: 2,
+    mappedPracticeId: "dynamic-daylight-block",
     text: "I spent some time outdoors or in daylight.",
     suggestions: [
       "Go for a morning sunlight walk.",
@@ -287,6 +343,8 @@ export const QUESTIONS: Question[] = [
   {
     id: "dynamic-3",
     pillar: "dynamic",
+    order: 3,
+    mappedPracticeId: "dynamic-one-challenge",
     text: "I did something physically or mentally challenging.",
     suggestions: [
       "Increase workout difficulty slightly.",
@@ -297,6 +355,8 @@ export const QUESTIONS: Question[] = [
   {
     id: "dynamic-4",
     pillar: "dynamic",
+    order: 4,
+    mappedPracticeId: "dynamic-active-choice",
     text: "I adapted my plan when something unexpected happened.",
     suggestions: [
       "Write a Plan B next time.",
@@ -307,6 +367,8 @@ export const QUESTIONS: Question[] = [
   {
     id: "dynamic-5",
     pillar: "dynamic",
+    order: 5,
+    mappedPracticeId: "dynamic-stretch-break",
     text: "I felt physically capable and energetic most days.",
     suggestions: [
       "Sleep more.",
@@ -317,6 +379,8 @@ export const QUESTIONS: Question[] = [
   {
     id: "sleep-1",
     pillar: "sleep",
+    order: 1,
+    mappedPracticeId: "sleep-consistent-bedtime",
     text: "I went to bed and woke up at roughly consistent times.",
     suggestions: [
       "Fix your wake‑up time first.",
@@ -327,6 +391,8 @@ export const QUESTIONS: Question[] = [
   {
     id: "sleep-2",
     pillar: "sleep",
+    order: 2,
+    mappedPracticeId: "sleep-wind-down-ritual",
     text: "I slept at least 7 hours on most nights.",
     suggestions: [
       "Go to bed 30 minutes earlier.",
@@ -337,6 +403,8 @@ export const QUESTIONS: Question[] = [
   {
     id: "sleep-3",
     pillar: "sleep",
+    order: 3,
+    mappedPracticeId: "sleep-screen-off",
     text: "I avoided screens right before sleep most nights.",
     suggestions: [
       "Charge your phone outside the bedroom.",
@@ -347,6 +415,8 @@ export const QUESTIONS: Question[] = [
   {
     id: "sleep-4",
     pillar: "sleep",
+    order: 4,
+    mappedPracticeId: "sleep-morning-light",
     text: "I woke up feeling reasonably refreshed most days.",
     suggestions: [
       "Increase sleep duration.",
@@ -357,6 +427,8 @@ export const QUESTIONS: Question[] = [
   {
     id: "sleep-5",
     pillar: "sleep",
+    order: 5,
+    mappedPracticeId: "sleep-bedroom-prep",
     text: "I did something to improve my sleep environment or routine.",
     suggestions: [
       "Darken the room.",
@@ -374,4 +446,8 @@ export const assessmentQuestionIds = new Set(
 
 export const assessmentQuestionsById = new Map(
   assessmentQuestions.map((q) => [q.id, q])
+);
+
+export const questionByPracticeId = new Map(
+  assessmentQuestions.map((q) => [q.mappedPracticeId, q])
 );
