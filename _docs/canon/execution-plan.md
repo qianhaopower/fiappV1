@@ -1,5 +1,12 @@
 # docs/canon/execution-plan.md
-# FIApp v1 — Canonical Execution Plan (LOCKED)
+# FIApp v1 — Canonical Execution Plan
+
+> **PARTIALLY SUPERSEDED 2026-05-13 by [business-logic-v2.md](business-logic-v2.md).**
+>
+> - **EPIC 5 — Trial Practices (Activation Engine)**: removed in v2. The trial concept is gone; reactivation of an inactive practice ("Bring this back") replaces it.
+> - **EPIC 9 — Routing & State Machine Hardening**: routing rules reworked in v2 — `/today` is always accessible, `todayFocusPracticeId` is no longer a routing input.
+>
+> Other epics (0 Foundations, 1 Identity, 2 Core Screens, 3 Assessment, 4 Practice Library, 6 Active Practice Management, 7 Daily Returns, 8 Counters & Milestones, 10 Production Readiness) are unaffected by v2 as objectives. Specific tickets within them that touched trial/pause/replace/focus state will be reworked in v2 Cuts 3-5.
 
 **Purpose:** Preserve build order, intent, and scope discipline.
 

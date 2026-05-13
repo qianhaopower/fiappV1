@@ -1,5 +1,16 @@
 # docs/canon/testing-checklist.md
-# FIApp v1 — Canonical Testing Checklist (Cannot Regress)
+# FIApp v1 — Canonical Testing Checklist
+
+> **PARTIALLY SUPERSEDED 2026-05-13 by [business-logic-v2.md](business-logic-v2.md).** The following sections enforce v1 invariants that are removed or changed in v2 and must be reworked in Cut 5 of the v2 refactor:
+>
+> - §1.3 Trial policy persistence — TRIAL items removed in v2.
+> - §4 Pause / Resume — replaced by `active`/`inactive` lifecycle in v2.
+> - §5 Trial lifecycle — entirely removed in v2.
+> - §6.3 "Trials count toward counters/milestones" — gone in v2.
+> - §8.2 "If no practices, Today redirects to Results" — direct conflict with v2's always-accessible /today.
+> - §9 regression red flags entries for pause logic and trial counting — gone in v2.
+>
+> Still valid: §0 setup baseline, §1.1-1.2 PROFILE / returns shape, §2 API contract tests (updated against v2 endpoints), §3 caps & warnings (with 5/7 warnings now optional in v2), §6.1-6.2 return delta counters, §7 progress endpoint.
 
 **Purpose:** Prevent design drift over ~160 hours of implementation.  
 **Rule:** Every “LOCKED invariant” in canon docs should be enforced by at least one automated test.  
