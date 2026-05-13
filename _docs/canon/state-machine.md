@@ -1,5 +1,7 @@
 # docs/canon/state-machine.md
-# FIApp v1 — Canonical Routing & State Machine (LOCKED)
+# FIApp v1 — Canonical Routing & State Machine
+
+> **SUPERSEDED 2026-05-13 by [business-logic-v2.md](business-logic-v2.md).** Trial / pause / replace / focus-guard rules are no longer authoritative. Kept for historical reference only; new work should follow v2.
 
 **Goal:** Deterministic user journey that enforces prerequisites (auth, assessment, practices) and prevents cap bypass.  
 **Key UX decision:** “Manage Active Practices” and “Daily practice selector” are merged into a single **Active Practices** screen.

@@ -48,10 +48,10 @@ describe('getSuggestions', () => {
     expect(unique.size).toBe(3)
   })
 
-  it('library has exactly 3 practices per pillar', () => {
+  it('library has exactly 5 practices per pillar', () => {
     for (const pillar of pillarOrder) {
       const count = practices.filter((p) => p.pillar === pillar).length
-      expect(count).toBe(3)
+      expect(count).toBe(5)
     }
   })
 })

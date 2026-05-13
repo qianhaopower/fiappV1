@@ -1,5 +1,7 @@
 # docs/canon/practice-caps-and-trials.md
-# FIApp v1 — Practice Caps, Warnings & Trials (LOCKED)
+# FIApp v1 — Practice Caps, Warnings & Trials
+
+> **SUPERSEDED 2026-05-13 by [business-logic-v2.md](business-logic-v2.md).** Trial mechanics are removed in v2. Cap values (free=1, paid=10) carry over but are restated in v2. Kept for historical reference only.
 
 **Status:** Canonical  
 **Purpose:** Define hard limits, warnings, and trial rules that protect users and system integrity.
