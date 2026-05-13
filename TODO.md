@@ -17,12 +17,11 @@ Done on `feat/practice-library-35-mapping` (4 commits, not yet pushed):
 - [x] Canon audit: supersede headers on state-machine / routing-table / practice-caps-and-trials / api-contract / db-schema / execution-plan / launch-checklist / testing-checklist; one-line edit in product-philosophy
 - [x] v2 internal consistency fixes (`totalCompletions` backing, answer-weakness definition, `/auth` + `/onboarding` in route table, 4-modes-3-ops framing)
 
-### Decisions deferred to Cut 3
+### Decisions for Cut 3 ✅ (answered 2026-05-13)
 
-These three "Open decisions" in v2 must be answered before Cut 3 begins. Defer answering until we start Cut 3:
-- [ ] **Q5** — Free-user switch flow exact UX wording ("Switch?" vs "Make X inactive to start Y?")
-- [ ] **Q6** — Streak behaviour across reactivation gaps (reset vs preserve)
-- [ ] **Q7** — Keep or drop the 5+/7+ Paid-plan soft warnings
+- [x] **Q5** — Free-user switch flow: direct switch dialog. Copy: *"Switch to "[new]"? "[old]" will move to your practice bank. You can bring it back anytime."* [Switch] [Cancel]
+- [x] **Q6** — Streak: pure rolling, derived from DailyReturn. Lifecycle-agnostic. Gap of missed days breaks the streak.
+- [x] **Q7** — Drop both 5+/7+ soft warnings. Hard cap at 10 only.
 
 ### Cut 2 — Recommendation rewrite ✅
 
@@ -34,7 +33,7 @@ Done on `feat/practice-library-35-mapping` (commit 5b5f8c0):
 - [x] Results page consumes the new suggestion data with no code change (Practice[] shape preserved, extra fields ignored)
 - [x] Tests updated: `tests/unit/practices/suggestions.test.ts` (10 tests), `tests/unit/api/practices.suggestions.get.test.ts` (6 tests), `tests/integration/api/suggestions.test.ts` (5 tests), `tests/unit/api/assessment.post.test.ts` + `tests/integration/api/assessment.test.ts` (assertions on new fields)
 
-### Cut 3 — Lifecycle simplification (blocked on Q5/Q6/Q7)
+### Cut 3 — Lifecycle simplification
 
 - [ ] Rewrite `app/api/practice/route.ts` to 4 modes (`startPractice`, `makePracticeInactive`, `reactivatePractice`, `switchToPractice`)
 - [ ] Stop creating `TRIAL#` items; ignore existing on read
