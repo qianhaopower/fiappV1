@@ -66,20 +66,33 @@ describe("POST /api/assessment", () => {
 
     const client = createDynamoClient();
 
-    // ASSESS# item written
-    const assessment = await client.getItem<{ focusPillar: string; totalScore: number }>({
+    // ASSESS# item written with v2 fields
+    const assessment = await client.getItem<{
+      focusPillar: string;
+      lowestPillarId: string;
+      totalScore: number;
+      suggestedPracticeIds: string[];
+    }>({
       PK: `USER#${userId}`,
       SK: `ASSESS#${assessmentId}`,
     });
     expect(assessment?.focusPillar).toBe(focusPillar);
+    expect(assessment?.lowestPillarId).toBe(focusPillar);
     expect(assessment?.totalScore).toBe(35); // all true
+    expect(assessment?.suggestedPracticeIds).toHaveLength(3);
+    expect(assessment?.suggestedPracticeIds).toEqual(json.suggestedPracticeIds);
 
-    // PROFILE updated
-    const profile = await client.getItem<{ latestAssessmentId: string; focusPillar: string }>({
+    // PROFILE updated with both legacy + v2 pillar fields
+    const profile = await client.getItem<{
+      latestAssessmentId: string;
+      focusPillar: string;
+      lowestPillarId: string;
+    }>({
       PK: `USER#${userId}`, SK: "PROFILE",
     });
     expect(profile?.latestAssessmentId).toBe(assessmentId);
     expect(profile?.focusPillar).toBe(focusPillar);
+    expect(profile?.lowestPillarId).toBe(focusPillar);
   });
 
   it("returns correct scoresByPillar — all NO gives 0 for every pillar", async () => {

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "crypto";
 import { GET } from "@/app/api/practices/suggestions/route";
 import { makeRawClient, makeTableNames, createTables, deleteTables } from "../tableUtils";
-import { seedProfile } from "../seeds";
+import { seedProfile, seedAssessment } from "../seeds";
 import type { withAuth as WithAuthType } from "@/utils/authServer";
 
 vi.mock("@/utils/metricsClient", () => ({ trackEvent: vi.fn(), trackPillarFocus: vi.fn() }));
@@ -35,22 +35,51 @@ function asUser(userId: string) {
 }
 
 describe("GET /api/practices/suggestions", () => {
-  it("returns 3 suggestions from focusPillar when set on PROFILE", async () => {
+  it("hydrates suggestions from the latest ASSESS suggestedPracticeIds", async () => {
     const userId = randomUUID();
-    await seedProfile(userId, { focusPillar: "sleep" });
+    const assessmentId = randomUUID();
+    const ids = [
+      "sleep-consistent-bedtime",
+      "sleep-wind-down-ritual",
+      "sleep-screen-off",
+    ];
+
+    await seedProfile(userId);
+    await seedAssessment(userId, assessmentId, {
+      focusPillar: "sleep",
+      lowestPillarId: "sleep",
+      suggestedPracticeIds: ids,
+    });
 
     asUser(userId);
     const res = await GET();
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json.suggestions).toHaveLength(3);
-    expect(json.suggestions.every((s: { pillar: string }) => s.pillar === "sleep")).toBe(true);
+    expect(json.suggestions.map((s: { id: string }) => s.id)).toEqual(ids);
+    expect(json.lowestPillarId).toBe("sleep");
     expect(json.focusPillar).toBe("sleep");
   });
 
-  it("returns 3 fallback suggestions when focusPillar is null", async () => {
+  it("falls back to pillar-based pick when ASSESS lacks suggestedPracticeIds (legacy)", async () => {
     const userId = randomUUID();
-    await seedProfile(userId, { focusPillar: null });
+    const assessmentId = randomUUID();
+    await seedProfile(userId);
+    await seedAssessment(userId, assessmentId, {
+      focusPillar: "sleep",
+      lowestPillarId: "sleep",
+      // no suggestedPracticeIds — simulates a legacy assessment
+    });
+
+    asUser(userId);
+    const res = await GET();
+    const json = await res.json();
+    expect(json.suggestions).toHaveLength(3);
+    expect(json.suggestions.every((s: { pillar: string }) => s.pillar === "sleep")).toBe(true);
+  });
+
+  it("returns fallback suggestions when no assessment exists", async () => {
+    const userId = randomUUID();
+    await seedProfile(userId);
 
     asUser(userId);
     const res = await GET();
@@ -59,7 +88,7 @@ describe("GET /api/practices/suggestions", () => {
     expect(json.focusPillar).toBeNull();
   });
 
-  it("returns 3 fallback suggestions when no PROFILE exists", async () => {
+  it("returns fallback suggestions when no PROFILE exists", async () => {
     const userId = randomUUID();
     asUser(userId);
     const res = await GET();
@@ -69,7 +98,17 @@ describe("GET /api/practices/suggestions", () => {
 
   it("each suggestion has required fields", async () => {
     const userId = randomUUID();
-    await seedProfile(userId, { focusPillar: "financial" });
+    const assessmentId = randomUUID();
+    await seedProfile(userId);
+    await seedAssessment(userId, assessmentId, {
+      focusPillar: "financial",
+      lowestPillarId: "financial",
+      suggestedPracticeIds: [
+        "financial-weekly-review",
+        "financial-bill-list",
+        "financial-24hr-rule",
+      ],
+    });
     asUser(userId);
     const res = await GET();
     const json = await res.json();
@@ -79,6 +118,7 @@ describe("GET /api/practices/suggestions", () => {
       expect(s).toHaveProperty("title");
       expect(s).toHaveProperty("description");
       expect(s).toHaveProperty("rationale");
+      expect(s).toHaveProperty("mappedQuestionId");
     }
   });
 });
