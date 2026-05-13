@@ -7,6 +7,7 @@ import {
   assessmentQuestionsById,
 } from "@/lib/assessment/questions";
 import { computeScores, pickFocusPillar } from "../../../lib/assessment/scoring";
+import { getSuggestedPractices } from "@/lib/practices/suggestions";
 import { withAuth } from "@/utils/authServer";
 import { trackEvent, trackPillarFocus } from "@/utils/metricsClient";
 
@@ -47,6 +48,10 @@ export async function POST(req: Request) {
     const createdAt = new Date().toISOString();
     const { scoresByPillar, totalScore } = computeScores(body.answers);
     const focusPillar = pickFocusPillar(scoresByPillar);
+    const lowestPillarId = focusPillar;
+    const suggestedPracticeIds = getSuggestedPractices(body.answers, lowestPillarId).map(
+      (p) => p.id,
+    );
 
     const client = createDynamoClient();
     const pk = `USER#${user.userId}`;
@@ -58,7 +63,9 @@ export async function POST(req: Request) {
       createdAt,
       scoresByPillar,
       focusPillar,
+      lowestPillarId,
       totalScore,
+      suggestedPracticeIds,
     });
 
     const answerWrites = assessmentQuestionsById;
@@ -76,10 +83,11 @@ export async function POST(req: Request) {
     await client.updateItem({
       Key: { PK: pk, SK: "PROFILE" },
       UpdateExpression:
-        "SET latestAssessmentId = :assessmentId, focusPillar = :focusPillar",
+        "SET latestAssessmentId = :assessmentId, focusPillar = :focusPillar, lowestPillarId = :lowestPillarId",
       ExpressionAttributeValues: {
         ":assessmentId": assessmentId,
         ":focusPillar": focusPillar,
+        ":lowestPillarId": lowestPillarId,
       },
     });
 
@@ -87,7 +95,7 @@ export async function POST(req: Request) {
     trackPillarFocus(focusPillar)
 
     return NextResponse.json(
-      { assessmentId, focusPillar, scoresByPillar },
+      { assessmentId, focusPillar, lowestPillarId, scoresByPillar, suggestedPracticeIds },
       { status: 200 }
     );
   });

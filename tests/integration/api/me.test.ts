@@ -3,7 +3,7 @@ import { randomUUID } from "crypto";
 import { GET, PATCH } from "@/app/api/me/route";
 import { createDynamoClient } from "@/utils/dynamoClient";
 import { makeRawClient, makeTableNames, createTables, deleteTables } from "../tableUtils";
-import { seedProfile, seedTrial } from "../seeds";
+import { seedProfile } from "../seeds";
 import type { withAuth as WithAuthType } from "@/utils/authServer";
 
 vi.mock("@/utils/metricsClient", () => ({ trackEvent: vi.fn(), trackPillarFocus: vi.fn() }));
@@ -67,31 +67,6 @@ describe("GET /api/me", () => {
 
     expect(j1.data.createdAt).toBe(j2.data.createdAt);
     expect(j1.data.userId).toBe(j2.data.userId);
-  });
-
-  it("returns activeTrialCount=1 when one active trial exists", async () => {
-    const userId = randomUUID();
-    await seedProfile(userId);
-    await seedTrial(userId, "sleep-consistent-bedtime");
-
-    asUser(userId);
-    const res = await GET(new Request("http://localhost/api/me"));
-    const json = await res.json();
-    expect(json.data.activeTrialCount).toBe(1);
-  });
-
-  it("returns activeTrialCount=0 for an expired trial", async () => {
-    const userId = randomUUID();
-    await seedProfile(userId);
-    // Seed trial that has already expired
-    await seedTrial(userId, "sleep-consistent-bedtime", {
-      expiresAt: new Date(Date.now() - 1000).toISOString(),
-    });
-
-    asUser(userId);
-    const res = await GET(new Request("http://localhost/api/me"));
-    const json = await res.json();
-    expect(json.data.activeTrialCount).toBe(0);
   });
 
   it("does not expose PK or SK in response", async () => {

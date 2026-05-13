@@ -5,7 +5,7 @@ import { createDynamoClient, createReturnsClient } from "@/utils/dynamoClient";
 import { makeReturnPK, makeReturnSK } from "@/lib/returns/returns";
 import { makeMilestoneSK } from "@/lib/milestones/milestones";
 import { makeRawClient, makeTableNames, createTables, deleteTables } from "../tableUtils";
-import { seedProfile, seedActivePractice, seedTrial } from "../seeds";
+import { seedProfile, seedActivePractice } from "../seeds";
 import type { withAuth as WithAuthType } from "@/utils/authServer";
 
 vi.mock("@/utils/metricsClient", () => ({ trackEvent: vi.fn(), trackPillarFocus: vi.fn() }));
@@ -166,20 +166,6 @@ describe("POST /api/return", () => {
     expect(items[0].didIt).toBe(false);
   });
 
-  it("trial practice returns update counters (trials count toward milestones)", async () => {
-    const userId = randomUUID();
-    await seedProfile(userId, { returnCounters: {} });
-    await seedTrial(userId, PRACTICE);
-
-    asUser(userId);
-    const res = await post({ practiceId: PRACTICE, didIt: true, date: TODAY });
-    expect(res.status).toBe(200);
-
-    const profile = await createDynamoClient().getItem<{ returnCounters: Record<string, number> }>({
-      PK: `USER#${userId}`, SK: "PROFILE",
-    });
-    expect(profile?.returnCounters?.[PRACTICE]).toBe(1);
-  });
 
   it("milestone triggered at threshold=1 and written to DynamoDB", async () => {
     const userId = randomUUID();
@@ -226,7 +212,7 @@ describe("POST /api/return", () => {
     expect(json2.newMilestones).toHaveLength(0); // putItemIfNotExists returns false → filtered out
   });
 
-  it("rejects return for non-active, non-trial practice", async () => {
+  it("rejects return for non-active practice (PRACTICE_NOT_ACTIVE)", async () => {
     const userId = randomUUID();
     await seedProfile(userId);
 
@@ -234,6 +220,6 @@ describe("POST /api/return", () => {
     const res = await post({ practiceId: PRACTICE, didIt: true, date: TODAY });
     expect(res.status).toBe(409);
     const json = await res.json();
-    expect(json.error).toBe("PRACTICE_NOT_ACTIVE_OR_TRIAL");
+    expect(json.error).toBe("PRACTICE_NOT_ACTIVE");
   });
 });

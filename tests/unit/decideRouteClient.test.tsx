@@ -39,13 +39,9 @@ describe("DecideRouteClient", () => {
     expect(replaceMock).not.toHaveBeenCalled();
   });
 
-  it("redirects to /assessment when no assessment", async () => {
+  it("redirects to /onboarding when no assessment", async () => {
     useProfileMock.mockReturnValue({
-      profile: {
-        latestAssessmentId: null,
-        activePracticeIds: ["p1"],
-        todayFocusPracticeId: "p1",
-      },
+      profile: { latestAssessmentId: null },
       loading: false,
       error: null,
       refetch: vi.fn(),
@@ -58,13 +54,11 @@ describe("DecideRouteClient", () => {
     });
   });
 
-  it("redirects to /results when no active practices", async () => {
+  it("redirects to /today when assessment exists (no active practices)", async () => {
+    // v2: /today is the default destination once an assessment exists; it renders
+    // an empty state for 0-active users instead of bouncing to /results.
     useProfileMock.mockReturnValue({
-      profile: {
-        latestAssessmentId: "a1",
-        activePracticeIds: [],
-        todayFocusPracticeId: "p1",
-      },
+      profile: { latestAssessmentId: "a1", activePracticeIds: [] },
       loading: false,
       error: null,
       refetch: vi.fn(),
@@ -73,36 +67,14 @@ describe("DecideRouteClient", () => {
     render(<DecideRouteClient />);
 
     await waitFor(() => {
-      expect(replaceMock).toHaveBeenCalledWith("/results");
+      expect(replaceMock).toHaveBeenCalledWith("/today");
     });
   });
 
-  it("redirects to /practices when no focus practice", async () => {
+  it("redirects to /today when assessment exists, regardless of todayFocusPracticeId", async () => {
+    // v2: todayFocusPracticeId is no longer a routing input.
     useProfileMock.mockReturnValue({
-      profile: {
-        latestAssessmentId: "a1",
-        activePracticeIds: ["p1"],
-        todayFocusPracticeId: null,
-      },
-      loading: false,
-      error: null,
-      refetch: vi.fn(),
-    });
-
-    render(<DecideRouteClient />);
-
-    await waitFor(() => {
-      expect(replaceMock).toHaveBeenCalledWith("/practices");
-    });
-  });
-
-  it("redirects to /today when focus practice exists", async () => {
-    useProfileMock.mockReturnValue({
-      profile: {
-        latestAssessmentId: "a1",
-        activePracticeIds: ["p1"],
-        todayFocusPracticeId: "p1",
-      },
+      profile: { latestAssessmentId: "a1", todayFocusPracticeId: null },
       loading: false,
       error: null,
       refetch: vi.fn(),

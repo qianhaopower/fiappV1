@@ -1,5 +1,5 @@
 import { createDynamoClient, createReturnsClient } from "@/utils/dynamoClient";
-import { makeUPracticeSK, makeTrialSK, TRIAL_DURATION_DAYS } from "@/lib/practices/trial";
+import { makeUPracticeSK } from "@/lib/practices/caps";
 import { makeMilestoneSK } from "@/lib/milestones/milestones";
 import { makeReturnPK, makeReturnSK } from "@/lib/returns/returns";
 import { practicesById } from "@/lib/practices/library";
@@ -7,11 +7,10 @@ import { practicesById } from "@/lib/practices/library";
 type ProfileOverrides = {
   subscriptionStatus?: string;
   activePracticeIds?: string[];
-  activePracticeSkById?: Record<string, string>;
   latestAssessmentId?: string | null;
   focusPillar?: string | null;
+  lowestPillarId?: string | null;
   returnCounters?: Record<string, number>;
-  todayFocusPracticeId?: string | null;
   timezone?: string;
   dayResetTime?: number;
 };
@@ -25,12 +24,10 @@ export async function seedProfile(userId: string, overrides: ProfileOverrides = 
     userId,
     subscriptionStatus: "FREE",
     activePracticeIds: [],
-    activePracticeSkById: {},
-    todayFocusPracticeId: null,
     latestAssessmentId: null,
     focusPillar: null,
+    lowestPillarId: null,
     returnCounters: {},
-    practiceCounters: {},
     milestonesAchieved: [],
     createdAt: now,
     updatedAt: now,
@@ -46,47 +43,25 @@ export async function seedActivePractice(userId: string, practiceId: string) {
   if (!practice) throw new Error(`Practice not found: ${practiceId}`);
   const now = new Date().toISOString();
 
-  const profile = await client.getItem<{
-    activePracticeIds?: string[];
-    activePracticeSkById?: Record<string, string>;
-  }>({ PK: pk, SK: "PROFILE" });
-
+  const profile = await client.getItem<{ activePracticeIds?: string[] }>({ PK: pk, SK: "PROFILE" });
   const ids = [...(profile?.activePracticeIds ?? []), practiceId];
-  const skById = { ...(profile?.activePracticeSkById ?? {}), [practiceId]: sk };
 
   await Promise.all([
-    client.putItem({ PK: pk, SK: sk, practiceId, pillar: practice.pillar, addedAt: now, status: "active" }),
+    client.putItem({
+      PK: pk,
+      SK: sk,
+      practiceId,
+      pillar: practice.pillar,
+      status: "active",
+      firstStartedAt: now,
+      lastActivatedAt: now,
+    }),
     client.updateItem({
       Key: { PK: pk, SK: "PROFILE" },
-      UpdateExpression: "SET activePracticeIds = :ids, activePracticeSkById = :skById",
-      ExpressionAttributeValues: { ":ids": ids, ":skById": skById },
+      UpdateExpression: "SET activePracticeIds = :ids",
+      ExpressionAttributeValues: { ":ids": ids },
     }),
   ]);
-}
-
-export async function seedTrial(
-  userId: string,
-  practiceId: string,
-  overrides: { status?: string; expiresAt?: string } = {}
-) {
-  const client = createDynamoClient();
-  const pk = `USER#${userId}`;
-  const startedAt = new Date().toISOString();
-  const expiresAt =
-    overrides.expiresAt ??
-    new Date(Date.now() + TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000).toISOString();
-  const practice = practicesById.get(practiceId);
-  if (!practice) throw new Error(`Practice not found: ${practiceId}`);
-
-  await client.putItem({
-    PK: pk,
-    SK: makeTrialSK(startedAt, practiceId),
-    practiceId,
-    pillar: practice.pillar,
-    startedAt,
-    status: overrides.status ?? "trial",
-    expiresAt,
-  });
 }
 
 export async function seedReturn(
@@ -128,11 +103,17 @@ export async function seedMilestone(
 export async function seedAssessment(
   userId: string,
   assessmentId: string,
-  overrides: { focusPillar?: string; scoresByPillar?: Record<string, number> } = {}
+  overrides: {
+    focusPillar?: string;
+    lowestPillarId?: string;
+    scoresByPillar?: Record<string, number>;
+    suggestedPracticeIds?: string[];
+  } = {}
 ) {
   const client = createDynamoClient();
   const pk = `USER#${userId}`;
   const focusPillar = overrides.focusPillar ?? "sleep";
+  const lowestPillarId = overrides.lowestPillarId ?? focusPillar;
   const scoresByPillar = overrides.scoresByPillar ?? {
     financial: 3, relationship: 3, information: 3,
     emotional: 3, nutrition: 3, dynamic: 3, sleep: 1,
@@ -143,14 +124,22 @@ export async function seedAssessment(
     SK: `ASSESS#${assessmentId}`,
     assessmentId,
     focusPillar,
+    lowestPillarId,
     scoresByPillar,
     totalScore: Object.values(scoresByPillar).reduce((a, b) => a + b, 0),
     createdAt: new Date().toISOString(),
+    ...(overrides.suggestedPracticeIds
+      ? { suggestedPracticeIds: overrides.suggestedPracticeIds }
+      : {}),
   });
 
   await client.updateItem({
     Key: { PK: pk, SK: "PROFILE" },
-    UpdateExpression: "SET latestAssessmentId = :id, focusPillar = :fp",
-    ExpressionAttributeValues: { ":id": assessmentId, ":fp": focusPillar },
+    UpdateExpression: "SET latestAssessmentId = :id, focusPillar = :fp, lowestPillarId = :lp",
+    ExpressionAttributeValues: {
+      ":id": assessmentId,
+      ":fp": focusPillar,
+      ":lp": lowestPillarId,
+    },
   });
 }

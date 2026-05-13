@@ -114,30 +114,21 @@ describe('POST /api/return', () => {
     expect(json.delta).toBe(1)
   })
 
-  // E5-T13: returns during trial count toward counters
-  it('E5-T13: counts return during active trial', async () => {
+  it('returns 409 PRACTICE_NOT_ACTIVE when practice is not in activePracticeIds (v2: trials removed)', async () => {
     mainGetItemMock.mockResolvedValue({ activePracticeIds: [], returnCounters: {} })
-    mainQueryMock.mockResolvedValue([{
-      practiceId: 'sleep-consistent-bedtime',
-      status: 'trial',
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      SK: 'TRIAL#x#sleep-consistent-bedtime',
-    }])
-    returnsGetItemMock.mockResolvedValue(undefined)
-
-    const res = await POST(makeReq({ practiceId: 'sleep-consistent-bedtime', didIt: true }))
-    expect(res.status).toBe(200)
-    expect((await res.json()).delta).toBe(1)
-    expect(mainUpdateItemMock).toHaveBeenCalledOnce()
-  })
-
-  it('returns 409 when practice is not active or trial', async () => {
-    mainGetItemMock.mockResolvedValue({ activePracticeIds: [], returnCounters: {} })
-    mainQueryMock.mockResolvedValue([])
 
     const res = await POST(makeReq({ practiceId: 'sleep-consistent-bedtime', didIt: true }))
     expect(res.status).toBe(409)
-    expect((await res.json()).error).toBe('PRACTICE_NOT_ACTIVE_OR_TRIAL')
+    expect((await res.json()).error).toBe('PRACTICE_NOT_ACTIVE')
+  })
+
+  it('does not query the TRIAL# partition any more', async () => {
+    mainGetItemMock.mockResolvedValue({ activePracticeIds: ['sleep-consistent-bedtime'], returnCounters: {} })
+    returnsGetItemMock.mockResolvedValue(undefined)
+
+    await POST(makeReq({ practiceId: 'sleep-consistent-bedtime', didIt: true }))
+
+    expect(mainQueryMock).not.toHaveBeenCalled()
   })
 
   it('returns 401 when unauthenticated', async () => {

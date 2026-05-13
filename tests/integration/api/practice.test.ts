@@ -3,7 +3,7 @@ import { randomUUID } from "crypto";
 import { POST } from "@/app/api/practice/route";
 import { createDynamoClient } from "@/utils/dynamoClient";
 import { makeRawClient, makeTableNames, createTables, deleteTables } from "../tableUtils";
-import { seedProfile, seedActivePractice, seedTrial } from "../seeds";
+import { seedProfile, seedActivePractice } from "../seeds";
 import type { withAuth as WithAuthType } from "@/utils/authServer";
 
 vi.mock("@/utils/metricsClient", () => ({ trackEvent: vi.fn(), trackPillarFocus: vi.fn() }));
@@ -45,15 +45,15 @@ function post(body: object) {
   );
 }
 
-// ── mode = add ───────────────────────────────────────────────────────────────
+// ── startPractice ────────────────────────────────────────────────────────────
 
-describe("mode=add", () => {
-  it("adds a practice for FREE user and writes UPRACTICE# item + updates PROFILE", async () => {
+describe("mode=startPractice", () => {
+  it("creates UPRACTICE# item with v2 fields and updates PROFILE.activePracticeIds", async () => {
     const userId = randomUUID();
     await seedProfile(userId);
 
     asUser(userId);
-    const res = await post({ mode: "add", practiceId: "financial-weekly-review" });
+    const res = await post({ mode: "startPractice", practiceId: "financial-weekly-review" });
     expect(res.status).toBe(201);
 
     const client = createDynamoClient();
@@ -62,31 +62,35 @@ describe("mode=add", () => {
     });
     expect(profile?.activePracticeIds).toContain("financial-weekly-review");
 
-    const upractice = await client.getItem<{ status: string }>({
+    const upractice = await client.getItem<{
+      status: string;
+      firstStartedAt: string;
+      lastActivatedAt: string;
+    }>({
       PK: `USER#${userId}`, SK: "UPRACTICE#financial-weekly-review",
     });
     expect(upractice?.status).toBe("active");
+    expect(upractice?.firstStartedAt).toBeDefined();
+    expect(upractice?.lastActivatedAt).toBeDefined();
   });
 
-  it("FREE user is blocked at cap=1", async () => {
+  it("FREE user is blocked at cap=1 with CAP_REACHED", async () => {
     const userId = randomUUID();
     await seedProfile(userId);
     await seedActivePractice(userId, "financial-weekly-review");
 
     asUser(userId);
-    const res = await post({ mode: "add", practiceId: "financial-24hr-rule" });
+    const res = await post({ mode: "startPractice", practiceId: "financial-24hr-rule" });
     expect(res.status).toBe(409);
-    const json = await res.json();
-    expect(json.error).toBe("CAP_REACHED");
+    expect((await res.json()).error).toBe("CAP_REACHED");
 
-    // PROFILE must not have changed
     const profile = await createDynamoClient().getItem<{ activePracticeIds: string[] }>({
       PK: `USER#${userId}`, SK: "PROFILE",
     });
     expect(profile?.activePracticeIds).toHaveLength(1);
   });
 
-  it("PAID user adds up to 10 practices", async () => {
+  it("PAID user can add up to 10 practices with no warnings", async () => {
     const userId = randomUUID();
     const practiceIds = [
       "financial-weekly-review", "financial-24hr-rule", "financial-save-small",
@@ -96,11 +100,12 @@ describe("mode=add", () => {
     ];
     await seedProfile(userId, { subscriptionStatus: "PAID" });
 
-    for (let i = 0; i < practiceIds.length; i++) {
+    for (const pid of practiceIds) {
       asUser(userId);
-      const res = await post({ mode: "add", practiceId: practiceIds[i] });
-      // warning is allowed at 5 and 7, but should still succeed
+      const res = await post({ mode: "startPractice", practiceId: pid });
       expect(res.status).toBe(201);
+      const json = await res.json();
+      expect(json.warning).toBeUndefined();
     }
 
     const profile = await createDynamoClient().getItem<{ activePracticeIds: string[] }>({
@@ -109,7 +114,7 @@ describe("mode=add", () => {
     expect(profile?.activePracticeIds).toHaveLength(10);
   });
 
-  it("PAID user blocked at cap=10", async () => {
+  it("PAID user blocked at 10 with CAP_REACHED", async () => {
     const userId = randomUUID();
     const practiceIds = [
       "financial-weekly-review", "financial-24hr-rule", "financial-save-small",
@@ -117,210 +122,134 @@ describe("mode=add", () => {
       "information-news-free-morning", "information-single-tab", "information-evening-review",
       "emotional-name-feeling",
     ];
-    await seedProfile(userId, {
-      subscriptionStatus: "PAID",
-      activePracticeIds: practiceIds,
+    await seedProfile(userId, { subscriptionStatus: "PAID", activePracticeIds: practiceIds });
+
+    asUser(userId);
+    const res = await post({ mode: "startPractice", practiceId: "emotional-3-breath-reset" });
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe("CAP_REACHED");
+  });
+
+  it("returns 200 alreadyActive when practice is already active (idempotent)", async () => {
+    const userId = randomUUID();
+    await seedProfile(userId);
+    await seedActivePractice(userId, "financial-weekly-review");
+
+    asUser(userId);
+    const res = await post({ mode: "startPractice", practiceId: "financial-weekly-review" });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.alreadyActive).toBe(true);
+  });
+
+  it("reactivates an inactive UPRACTICE — preserves firstStartedAt, sets lastActivatedAt", async () => {
+    const userId = randomUUID();
+    await seedProfile(userId);
+
+    // Start, then make inactive
+    asUser(userId);
+    await post({ mode: "startPractice", practiceId: "financial-weekly-review" });
+
+    const client = createDynamoClient();
+    const before = await client.getItem<{ firstStartedAt: string; lastActivatedAt: string }>({
+      PK: `USER#${userId}`, SK: "UPRACTICE#financial-weekly-review",
+    });
+    const originalFirst = before?.firstStartedAt;
+
+    asUser(userId);
+    await post({ mode: "makePracticeInactive", practiceId: "financial-weekly-review" });
+
+    // Sleep 5ms to ensure timestamp difference
+    await new Promise((r) => setTimeout(r, 10));
+
+    asUser(userId);
+    const res = await post({ mode: "startPractice", practiceId: "financial-weekly-review" });
+    expect(res.status).toBe(200);
+    expect((await res.json()).reactivated).toBe(true);
+
+    const after = await client.getItem<{
+      status: string;
+      firstStartedAt: string;
+      lastActivatedAt: string;
+    }>({
+      PK: `USER#${userId}`, SK: "UPRACTICE#financial-weekly-review",
+    });
+    expect(after?.status).toBe("active");
+    expect(after?.firstStartedAt).toBe(originalFirst);
+    expect(new Date(after!.lastActivatedAt).getTime()).toBeGreaterThan(
+      new Date(originalFirst!).getTime(),
+    );
+  });
+
+  it("reactivates a legacy 'paused' UPRACTICE (lenient read of legacy status)", async () => {
+    const userId = randomUUID();
+    await seedProfile(userId);
+
+    const client = createDynamoClient();
+    // Seed a legacy paused UPRACTICE directly (simulates pre-v2 data)
+    await client.putItem({
+      PK: `USER#${userId}`,
+      SK: "UPRACTICE#sleep-consistent-bedtime",
+      practiceId: "sleep-consistent-bedtime",
+      pillar: "sleep",
+      status: "paused",
+      addedAt: new Date().toISOString(),
     });
 
     asUser(userId);
-    const res = await post({ mode: "add", practiceId: "emotional-3-breath-reset" });
-    expect(res.status).toBe(409);
-    const json = await res.json();
-    expect(json.error).toBe("CAP_REACHED");
+    const res = await post({ mode: "startPractice", practiceId: "sleep-consistent-bedtime" });
+    expect(res.status).toBe(200);
+    expect((await res.json()).reactivated).toBe(true);
+
+    const after = await client.getItem<{ status: string }>({
+      PK: `USER#${userId}`, SK: "UPRACTICE#sleep-consistent-bedtime",
+    });
+    expect(after?.status).toBe("active");
   });
 
-  it("returns warning in response at count=5 (PAID) but add succeeds", async () => {
-    const userId = randomUUID();
-    // Seed 5 active practices so capCheck fires with activeCount=5 (>= PAID_WARN_LOW=5)
-    const existing = [
-      "financial-weekly-review", "financial-24hr-rule", "financial-save-small",
-      "relationship-daily-checkin", "relationship-device-free-meal",
-    ];
-    await seedProfile(userId, { subscriptionStatus: "PAID", activePracticeIds: existing });
-
-    asUser(userId);
-    const res = await post({ mode: "add", practiceId: "sleep-consistent-bedtime" });
-    expect(res.status).toBe(201);
-    const json = await res.json();
-    expect(json.warning).toBe("APPROACHING_CAP");
-  });
-
-  it("rejects unknown practiceId with 404", async () => {
+  it("returns 404 for unknown practiceId", async () => {
     const userId = randomUUID();
     await seedProfile(userId);
     asUser(userId);
-    const res = await post({ mode: "add", practiceId: "does-not-exist" });
+    const res = await post({ mode: "startPractice", practiceId: "does-not-exist" });
     expect(res.status).toBe(404);
   });
-
-  it("rejects already-active practice with 409", async () => {
-    const userId = randomUUID();
-    await seedProfile(userId);
-    await seedActivePractice(userId, "financial-weekly-review");
-    asUser(userId);
-    const res = await post({ mode: "add", practiceId: "financial-weekly-review" });
-    expect(res.status).toBe(409);
-    const json = await res.json();
-    expect(json.error).toBe("ALREADY_ACTIVE");
-  });
 });
 
-// ── mode = startTrial ────────────────────────────────────────────────────────
+// ── reactivatePractice (alias for startPractice) ─────────────────────────────
 
-describe("mode=startTrial", () => {
-  it("creates TRIAL# item without touching activePracticeIds", async () => {
+describe("mode=reactivatePractice (alias for startPractice)", () => {
+  it("reactivates an inactive UPRACTICE", async () => {
     const userId = randomUUID();
     await seedProfile(userId);
 
     asUser(userId);
-    const res = await post({ mode: "startTrial", practiceId: "sleep-consistent-bedtime" });
-    expect(res.status).toBe(201);
-
-    const client = createDynamoClient();
-    const profile = await client.getItem<{ activePracticeIds: string[] }>({
-      PK: `USER#${userId}`, SK: "PROFILE",
-    });
-    expect(profile?.activePracticeIds).toEqual([]);
-
-    const trials = await client.query<{ status: string; practiceId: string }>({
-      KeyConditionExpression: "PK = :pk AND begins_with(SK, :prefix)",
-      ExpressionAttributeValues: { ":pk": `USER#${userId}`, ":prefix": "TRIAL#" },
-    });
-    expect(trials).toHaveLength(1);
-    expect(trials[0].status).toBe("trial");
-    expect(trials[0].practiceId).toBe("sleep-consistent-bedtime");
-  });
-
-  it("succeeds even when PAID user is at cap=10", async () => {
-    const userId = randomUUID();
-    const ten = [
-      "financial-weekly-review", "financial-24hr-rule", "financial-save-small",
-      "relationship-daily-checkin", "relationship-device-free-meal", "relationship-express-gratitude",
-      "information-news-free-morning", "information-single-tab", "information-evening-review",
-      "emotional-name-feeling",
-    ];
-    await seedProfile(userId, { subscriptionStatus: "PAID", activePracticeIds: ten });
+    await post({ mode: "startPractice", practiceId: "financial-weekly-review" });
+    asUser(userId);
+    await post({ mode: "makePracticeInactive", practiceId: "financial-weekly-review" });
 
     asUser(userId);
-    const res = await post({ mode: "startTrial", practiceId: "sleep-consistent-bedtime" });
-    expect(res.status).toBe(201);
-  });
-
-  it("rejects when practice is already active (ALREADY_ACTIVE)", async () => {
-    const userId = randomUUID();
-    await seedProfile(userId);
-    await seedActivePractice(userId, "sleep-consistent-bedtime");
-    asUser(userId);
-    const res = await post({ mode: "startTrial", practiceId: "sleep-consistent-bedtime" });
-    expect(res.status).toBe(409);
-    const json = await res.json();
-    expect(json.error).toBe("ALREADY_ACTIVE");
-  });
-
-  it("rejects when already trialing (ALREADY_TRIALING)", async () => {
-    const userId = randomUUID();
-    await seedProfile(userId);
-    await seedTrial(userId, "sleep-consistent-bedtime");
-    asUser(userId);
-    const res = await post({ mode: "startTrial", practiceId: "sleep-consistent-bedtime" });
-    expect(res.status).toBe(409);
-    const json = await res.json();
-    expect(json.error).toBe("ALREADY_TRIALING");
-  });
-
-  it("rejects second trial when at MAX_CONCURRENT_TRIALS (TRIAL_LIMIT_REACHED)", async () => {
-    const userId = randomUUID();
-    await seedProfile(userId);
-    await seedTrial(userId, "sleep-consistent-bedtime");
-    asUser(userId);
-    const res = await post({ mode: "startTrial", practiceId: "sleep-screen-off" });
-    expect(res.status).toBe(409);
-    const json = await res.json();
-    expect(json.error).toBe("TRIAL_LIMIT_REACHED");
-  });
-});
-
-// ── mode = promoteTrial ──────────────────────────────────────────────────────
-
-describe("mode=promoteTrial", () => {
-  it("adds practice to activePracticeIds and marks trial promoted", async () => {
-    const userId = randomUUID();
-    await seedProfile(userId);
-    await seedTrial(userId, "sleep-consistent-bedtime");
-
-    asUser(userId);
-    const res = await post({ mode: "promoteTrial", practiceId: "sleep-consistent-bedtime" });
+    const res = await post({ mode: "reactivatePractice", practiceId: "financial-weekly-review" });
     expect(res.status).toBe(200);
+    expect((await res.json()).reactivated).toBe(true);
 
-    const client = createDynamoClient();
-    const profile = await client.getItem<{ activePracticeIds: string[] }>({
-      PK: `USER#${userId}`, SK: "PROFILE",
+    const after = await createDynamoClient().getItem<{ status: string }>({
+      PK: `USER#${userId}`, SK: "UPRACTICE#financial-weekly-review",
     });
-    expect(profile?.activePracticeIds).toContain("sleep-consistent-bedtime");
-
-    const trials = await client.query<{ status: string }>({
-      KeyConditionExpression: "PK = :pk AND begins_with(SK, :prefix)",
-      ExpressionAttributeValues: { ":pk": `USER#${userId}`, ":prefix": "TRIAL#" },
-    });
-    expect(trials[0].status).toBe("promoted");
-  });
-
-  it("is blocked when FREE user already has 1 active practice", async () => {
-    const userId = randomUUID();
-    await seedProfile(userId);
-    await seedActivePractice(userId, "financial-weekly-review");
-    await seedTrial(userId, "sleep-consistent-bedtime");
-
-    asUser(userId);
-    const res = await post({ mode: "promoteTrial", practiceId: "sleep-consistent-bedtime" });
-    expect(res.status).toBe(409);
-
-    // trial must still be status=trial (no mutation)
-    const client = createDynamoClient();
-    const trials = await client.query<{ status: string }>({
-      KeyConditionExpression: "PK = :pk AND begins_with(SK, :prefix)",
-      ExpressionAttributeValues: { ":pk": `USER#${userId}`, ":prefix": "TRIAL#" },
-    });
-    expect(trials[0].status).toBe("trial");
+    expect(after?.status).toBe("active");
   });
 });
 
-// ── mode = discardTrial ──────────────────────────────────────────────────────
+// ── makePracticeInactive ─────────────────────────────────────────────────────
 
-describe("mode=discardTrial", () => {
-  it("marks trial discarded without touching activePracticeIds", async () => {
-    const userId = randomUUID();
-    await seedProfile(userId);
-    await seedTrial(userId, "sleep-consistent-bedtime");
-
-    asUser(userId);
-    const res = await post({ mode: "discardTrial", practiceId: "sleep-consistent-bedtime" });
-    expect(res.status).toBe(200);
-
-    const client = createDynamoClient();
-    const profile = await client.getItem<{ activePracticeIds: string[] }>({
-      PK: `USER#${userId}`, SK: "PROFILE",
-    });
-    expect(profile?.activePracticeIds).toEqual([]);
-
-    const trials = await client.query<{ status: string }>({
-      KeyConditionExpression: "PK = :pk AND begins_with(SK, :prefix)",
-      ExpressionAttributeValues: { ":pk": `USER#${userId}`, ":prefix": "TRIAL#" },
-    });
-    expect(trials[0].status).toBe("discarded");
-  });
-});
-
-// ── mode = pause ─────────────────────────────────────────────────────────────
-
-describe("mode=pause", () => {
-  it("removes from activePracticeIds and sets UPRACTICE status=paused", async () => {
+describe("mode=makePracticeInactive", () => {
+  it("flips active to inactive — removes from activePracticeIds, sets lastInactivatedAt", async () => {
     const userId = randomUUID();
     await seedProfile(userId);
     await seedActivePractice(userId, "financial-weekly-review");
 
     asUser(userId);
-    const res = await post({ mode: "pause", practiceId: "financial-weekly-review" });
+    const res = await post({ mode: "makePracticeInactive", practiceId: "financial-weekly-review" });
     expect(res.status).toBe(200);
 
     const client = createDynamoClient();
@@ -329,141 +258,161 @@ describe("mode=pause", () => {
     });
     expect(profile?.activePracticeIds).not.toContain("financial-weekly-review");
 
-    const up = await client.getItem<{ status: string }>({
+    const upractice = await client.getItem<{ status: string; lastInactivatedAt: string }>({
       PK: `USER#${userId}`, SK: "UPRACTICE#financial-weekly-review",
     });
-    expect(up?.status).toBe("paused");
+    expect(upractice?.status).toBe("inactive");
+    expect(upractice?.lastInactivatedAt).toBeDefined();
   });
-});
 
-// ── mode = resume ─────────────────────────────────────────────────────────────
+  it("returns 409 PRACTICE_NOT_ACTIVE when no UPRACTICE exists", async () => {
+    const userId = randomUUID();
+    await seedProfile(userId);
 
-describe("mode=resume", () => {
-  it("adds back to activePracticeIds and sets UPRACTICE status=active", async () => {
+    asUser(userId);
+    const res = await post({ mode: "makePracticeInactive", practiceId: "financial-weekly-review" });
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe("PRACTICE_NOT_ACTIVE");
+  });
+
+  it("returns 409 when practice is already inactive", async () => {
     const userId = randomUUID();
     await seedProfile(userId);
     await seedActivePractice(userId, "financial-weekly-review");
 
-    // Pause it first
     asUser(userId);
-    await post({ mode: "pause", practiceId: "financial-weekly-review" });
+    await post({ mode: "makePracticeInactive", practiceId: "financial-weekly-review" });
+    asUser(userId);
+    const res = await post({ mode: "makePracticeInactive", practiceId: "financial-weekly-review" });
+    expect(res.status).toBe(409);
+  });
+});
+
+// ── switchToPractice ─────────────────────────────────────────────────────────
+
+describe("mode=switchToPractice (free-user 1-cap flow)", () => {
+  it("deactivates the old practice and activates the new", async () => {
+    const userId = randomUUID();
+    await seedProfile(userId);
+    await seedActivePractice(userId, "financial-weekly-review");
 
     asUser(userId);
-    const res = await post({ mode: "resume", practiceId: "financial-weekly-review" });
+    const res = await post({
+      mode: "switchToPractice",
+      practiceId: "sleep-consistent-bedtime",
+      deactivatePracticeId: "financial-weekly-review",
+    });
     expect(res.status).toBe(200);
 
     const client = createDynamoClient();
     const profile = await client.getItem<{ activePracticeIds: string[] }>({
       PK: `USER#${userId}`, SK: "PROFILE",
     });
-    expect(profile?.activePracticeIds).toContain("financial-weekly-review");
-
-    const up = await client.getItem<{ status: string }>({
-      PK: `USER#${userId}`, SK: "UPRACTICE#financial-weekly-review",
-    });
-    expect(up?.status).toBe("active");
-  });
-
-  it("blocked at cap during resume", async () => {
-    const userId = randomUUID();
-    await seedProfile(userId);
-    // Seed as paused (status in UPRACTICE but not in activePracticeIds)
-    const client = createDynamoClient();
-    await client.putItem({
-      PK: `USER#${userId}`, SK: "UPRACTICE#financial-weekly-review",
-      practiceId: "financial-weekly-review", pillar: "financial",
-      addedAt: new Date().toISOString(), status: "paused",
-    });
-    // Already has 1 active (FREE cap)
-    await seedActivePractice(userId, "financial-24hr-rule");
-
-    asUser(userId);
-    const res = await post({ mode: "resume", practiceId: "financial-weekly-review" });
-    expect(res.status).toBe(409);
-
-    const profile = await client.getItem<{ activePracticeIds: string[] }>({
-      PK: `USER#${userId}`, SK: "PROFILE",
-    });
-    expect(profile?.activePracticeIds).not.toContain("financial-weekly-review");
-  });
-});
-
-// ── mode = replace ────────────────────────────────────────────────────────────
-
-describe("mode=replace", () => {
-  it("first call returns confirmToken, second call executes swap", async () => {
-    const userId = randomUUID();
-    await seedProfile(userId);
-    await seedActivePractice(userId, "financial-weekly-review");
-
-    // First call — get confirm token
-    asUser(userId);
-    const r1 = await post({
-      mode: "replace",
-      practiceId: "financial-24hr-rule",
-      replacePracticeId: "financial-weekly-review",
-    });
-    expect(r1.status).toBe(202);
-    const { confirmToken } = await r1.json();
-    expect(typeof confirmToken).toBe("string");
-
-    // Second call — execute swap
-    asUser(userId);
-    const r2 = await post({
-      mode: "replace",
-      practiceId: "financial-24hr-rule",
-      replacePracticeId: "financial-weekly-review",
-      confirmToken,
-    });
-    expect(r2.status).toBe(200);
-
-    const client = createDynamoClient();
-    const profile = await client.getItem<{ activePracticeIds: string[] }>({
-      PK: `USER#${userId}`, SK: "PROFILE",
-    });
-    expect(profile?.activePracticeIds).toContain("financial-24hr-rule");
-    expect(profile?.activePracticeIds).not.toContain("financial-weekly-review");
+    expect(profile?.activePracticeIds).toEqual(["sleep-consistent-bedtime"]);
 
     const oldUp = await client.getItem<{ status: string }>({
       PK: `USER#${userId}`, SK: "UPRACTICE#financial-weekly-review",
     });
-    expect(oldUp?.status).toBe("replaced");
+    expect(oldUp?.status).toBe("inactive");
+
+    const newUp = await client.getItem<{ status: string }>({
+      PK: `USER#${userId}`, SK: "UPRACTICE#sleep-consistent-bedtime",
+    });
+    expect(newUp?.status).toBe("active");
   });
-});
 
-// ── mode = setFocus ───────────────────────────────────────────────────────────
+  it("reactivates an existing inactive practice on the activate side", async () => {
+    const userId = randomUUID();
+    await seedProfile(userId);
 
-describe("mode=setFocus", () => {
-  it("sets todayFocusPracticeId on PROFILE for an active practice", async () => {
+    // Start and inactivate sleep practice
+    asUser(userId);
+    await post({ mode: "startPractice", practiceId: "sleep-consistent-bedtime" });
+    asUser(userId);
+    await post({ mode: "makePracticeInactive", practiceId: "sleep-consistent-bedtime" });
+
+    const client = createDynamoClient();
+    const firstStarted = (
+      await client.getItem<{ firstStartedAt: string }>({
+        PK: `USER#${userId}`, SK: "UPRACTICE#sleep-consistent-bedtime",
+      })
+    )?.firstStartedAt;
+
+    // Now start a different practice and switch back to sleep
+    asUser(userId);
+    await post({ mode: "startPractice", practiceId: "financial-weekly-review" });
+
+    asUser(userId);
+    const res = await post({
+      mode: "switchToPractice",
+      practiceId: "sleep-consistent-bedtime",
+      deactivatePracticeId: "financial-weekly-review",
+    });
+    expect(res.status).toBe(200);
+
+    const after = await client.getItem<{ status: string; firstStartedAt: string }>({
+      PK: `USER#${userId}`, SK: "UPRACTICE#sleep-consistent-bedtime",
+    });
+    expect(after?.status).toBe("active");
+    expect(after?.firstStartedAt).toBe(firstStarted);
+  });
+
+  it("returns 400 when practiceId === deactivatePracticeId", async () => {
     const userId = randomUUID();
     await seedProfile(userId);
     await seedActivePractice(userId, "financial-weekly-review");
 
     asUser(userId);
-    const res = await post({ mode: "setFocus", practiceId: "financial-weekly-review" });
-    expect(res.status).toBe(200);
-
-    const profile = await createDynamoClient().getItem<{ todayFocusPracticeId: string }>({
-      PK: `USER#${userId}`, SK: "PROFILE",
+    const res = await post({
+      mode: "switchToPractice",
+      practiceId: "financial-weekly-review",
+      deactivatePracticeId: "financial-weekly-review",
     });
-    expect(profile?.todayFocusPracticeId).toBe("financial-weekly-review");
+    expect(res.status).toBe(400);
   });
 
-  it("accepts an active trial as focus practice", async () => {
+  it("returns 409 when the practice to deactivate is not active", async () => {
     const userId = randomUUID();
     await seedProfile(userId);
-    await seedTrial(userId, "sleep-consistent-bedtime");
 
     asUser(userId);
-    const res = await post({ mode: "setFocus", practiceId: "sleep-consistent-bedtime" });
-    expect(res.status).toBe(200);
-  });
-
-  it("rejects a non-active, non-trial practice", async () => {
-    const userId = randomUUID();
-    await seedProfile(userId);
-    asUser(userId);
-    const res = await post({ mode: "setFocus", practiceId: "financial-weekly-review" });
+    const res = await post({
+      mode: "switchToPractice",
+      practiceId: "sleep-consistent-bedtime",
+      deactivatePracticeId: "financial-weekly-review",
+    });
     expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe("DEACTIVATE_PRACTICE_NOT_ACTIVE");
+  });
+
+  it("returns 409 when target is already active", async () => {
+    const userId = randomUUID();
+    await seedProfile(userId, { subscriptionStatus: "PAID" });
+    await seedActivePractice(userId, "financial-weekly-review");
+    await seedActivePractice(userId, "sleep-consistent-bedtime");
+
+    asUser(userId);
+    const res = await post({
+      mode: "switchToPractice",
+      practiceId: "sleep-consistent-bedtime",
+      deactivatePracticeId: "financial-weekly-review",
+    });
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe("PRACTICE_ALREADY_ACTIVE");
+  });
+});
+
+// ── auth & validation ────────────────────────────────────────────────────────
+
+describe("mode validation", () => {
+  it("rejects removed v1 modes (startTrial / promoteTrial / pause / replace / setFocus) with 400", async () => {
+    const userId = randomUUID();
+    await seedProfile(userId);
+
+    for (const mode of ["startTrial", "promoteTrial", "discardTrial", "add", "replace", "pause", "resume", "setFocus"]) {
+      asUser(userId);
+      const res = await post({ mode, practiceId: "financial-weekly-review" });
+      expect(res.status).toBe(400);
+    }
   });
 });

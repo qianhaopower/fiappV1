@@ -4,14 +4,12 @@ import { POST } from '@/app/api/practice/route'
 const getItemMock = vi.fn()
 const putItemMock = vi.fn()
 const updateItemMock = vi.fn()
-const queryMock = vi.fn()
 
 vi.mock('@/utils/dynamoClient', () => ({
   createDynamoClient: () => ({
     getItem: getItemMock,
     putItem: putItemMock,
     updateItem: updateItemMock,
-    query: queryMock,
   }),
 }))
 
@@ -40,185 +38,340 @@ function makeReq(body: object) {
   })
 }
 
-function futureIso(days = 7) {
-  return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString()
-}
-
-function pastIso(days = 1) {
-  return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
-}
-
-describe('POST /api/practice — startTrial', () => {
-  beforeEach(() => {
-    getCurrentUserMock.mockResolvedValue({ userId: 'u1', username: 'user' })
-    getItemMock.mockReset()
-    putItemMock.mockReset()
-    updateItemMock.mockReset()
-    queryMock.mockReset()
+function mockStore(
+  profile: Record<string, unknown> | null,
+  uprBySK: Record<string, Record<string, unknown> | null> = {},
+) {
+  getItemMock.mockImplementation(async ({ SK }: { SK: string }) => {
+    if (SK === 'PROFILE') return profile
+    if (SK.startsWith('UPRACTICE#')) return uprBySK[SK] ?? null
+    return null
   })
+}
 
-  it('creates a trial and returns 201', async () => {
-    getItemMock.mockResolvedValue({ activePracticeIds: [], subscriptionStatus: 'FREE' })
-    queryMock.mockResolvedValue([])
-    putItemMock.mockResolvedValue(undefined)
+beforeEach(() => {
+  getCurrentUserMock.mockResolvedValue({ userId: 'u1', username: 'user' })
+  getItemMock.mockReset()
+  putItemMock.mockReset()
+  updateItemMock.mockReset()
+})
 
-    const res = await POST(makeReq({ mode: 'startTrial', practiceId: 'sleep-consistent-bedtime' }))
+// ── startPractice (and reactivatePractice alias) ─────────────────────────────
+
+describe('POST /api/practice — startPractice', () => {
+  it('creates a new UPRACTICE and returns 201', async () => {
+    mockStore({ activePracticeIds: [], subscriptionStatus: 'FREE' })
+    const res = await POST(makeReq({ mode: 'startPractice', practiceId: 'sleep-consistent-bedtime' }))
     expect(res.status).toBe(201)
     const json = await res.json()
-    expect(json.trial.practiceId).toBe('sleep-consistent-bedtime')
-    expect(json.trial.status).toBe('trial')
+    expect(json.practiceId).toBe('sleep-consistent-bedtime')
+    expect(json.status).toBe('active')
+
+    const putArgs = putItemMock.mock.calls[0][0]
+    expect(putArgs.SK).toBe('UPRACTICE#sleep-consistent-bedtime')
+    expect(putArgs.status).toBe('active')
+    expect(putArgs.firstStartedAt).toBeDefined()
+    expect(putArgs.lastActivatedAt).toBeDefined()
+
+    const profileUpdate = updateItemMock.mock.calls[0][0]
+    expect(profileUpdate.ExpressionAttributeValues[':ids']).toEqual([
+      'sleep-consistent-bedtime',
+    ])
+  })
+
+  it('reactivates an inactive UPRACTICE (200, preserves firstStartedAt)', async () => {
+    mockStore(
+      { activePracticeIds: [], subscriptionStatus: 'FREE' },
+      {
+        'UPRACTICE#sleep-consistent-bedtime': {
+          status: 'inactive',
+          firstStartedAt: '2025-01-01T00:00:00.000Z',
+          practiceId: 'sleep-consistent-bedtime',
+        },
+      },
+    )
+    const res = await POST(makeReq({ mode: 'startPractice', practiceId: 'sleep-consistent-bedtime' }))
+    expect(res.status).toBe(200)
+    const json = await res.json()
+    expect(json.reactivated).toBe(true)
+
+    expect(putItemMock).not.toHaveBeenCalled() // no new record
+    const statusUpdate = updateItemMock.mock.calls.find(
+      (c) => c[0].Key.SK === 'UPRACTICE#sleep-consistent-bedtime',
+    )
+    expect(statusUpdate[0].ExpressionAttributeValues[':status']).toBe('active')
+    expect(statusUpdate[0].ExpressionAttributeValues[':now']).toBeDefined()
+  })
+
+  it('reactivates a legacy "paused" UPRACTICE (lenient read)', async () => {
+    mockStore(
+      { activePracticeIds: [], subscriptionStatus: 'FREE' },
+      {
+        'UPRACTICE#sleep-consistent-bedtime': { status: 'paused' },
+      },
+    )
+    const res = await POST(makeReq({ mode: 'startPractice', practiceId: 'sleep-consistent-bedtime' }))
+    expect(res.status).toBe(200)
+    expect((await res.json()).reactivated).toBe(true)
+  })
+
+  it('reactivates a legacy "replaced" UPRACTICE (lenient read)', async () => {
+    mockStore(
+      { activePracticeIds: [], subscriptionStatus: 'FREE' },
+      {
+        'UPRACTICE#sleep-consistent-bedtime': { status: 'replaced' },
+      },
+    )
+    const res = await POST(makeReq({ mode: 'startPractice', practiceId: 'sleep-consistent-bedtime' }))
+    expect(res.status).toBe(200)
+  })
+
+  it('already-active returns 200 alreadyActive (no-op, no writes)', async () => {
+    mockStore(
+      { activePracticeIds: ['sleep-consistent-bedtime'], subscriptionStatus: 'FREE' },
+      {
+        'UPRACTICE#sleep-consistent-bedtime': { status: 'active' },
+      },
+    )
+    const res = await POST(makeReq({ mode: 'startPractice', practiceId: 'sleep-consistent-bedtime' }))
+    expect(res.status).toBe(200)
+    const json = await res.json()
+    expect(json.alreadyActive).toBe(true)
+    expect(putItemMock).not.toHaveBeenCalled()
+    expect(updateItemMock).not.toHaveBeenCalled()
+  })
+
+  it('FREE user at cap is blocked with 409 CAP_REACHED', async () => {
+    mockStore({ activePracticeIds: ['financial-weekly-review'], subscriptionStatus: 'FREE' })
+    const res = await POST(makeReq({ mode: 'startPractice', practiceId: 'sleep-consistent-bedtime' }))
+    expect(res.status).toBe(409)
+    expect((await res.json()).error).toBe('CAP_REACHED')
+    expect(putItemMock).not.toHaveBeenCalled()
+    expect(updateItemMock).not.toHaveBeenCalled()
+  })
+
+  it('PAID user blocked at 10 (no soft warnings)', async () => {
+    const ten = Array.from({ length: 10 }, (_, i) => `practice-${i}`)
+    mockStore({ activePracticeIds: ten, subscriptionStatus: 'PAID' })
+    const res = await POST(makeReq({ mode: 'startPractice', practiceId: 'sleep-consistent-bedtime' }))
+    expect(res.status).toBe(409)
+    expect((await res.json()).error).toBe('CAP_REACHED')
+  })
+
+  it('PAID user at 5 active gets no warning (warnings dropped in v2)', async () => {
+    const five = Array.from({ length: 5 }, (_, i) => `practice-${i}`)
+    mockStore({ activePracticeIds: five, subscriptionStatus: 'PAID' })
+    const res = await POST(makeReq({ mode: 'startPractice', practiceId: 'sleep-consistent-bedtime' }))
+    expect(res.status).toBe(201)
+    const json = await res.json()
+    expect(json.warning).toBeUndefined()
   })
 
   it('returns 404 for unknown practiceId', async () => {
-    const res = await POST(makeReq({ mode: 'startTrial', practiceId: 'nonexistent-id' }))
+    mockStore({ activePracticeIds: [], subscriptionStatus: 'FREE' })
+    const res = await POST(makeReq({ mode: 'startPractice', practiceId: 'nonexistent-id' }))
     expect(res.status).toBe(404)
   })
 
-  it('returns 409 ALREADY_ACTIVE if practice is already active', async () => {
-    getItemMock.mockResolvedValue({ activePracticeIds: ['sleep-consistent-bedtime'], subscriptionStatus: 'FREE' })
-    queryMock.mockResolvedValue([])
+  it('reactivatePractice mode is an alias for startPractice', async () => {
+    mockStore(
+      { activePracticeIds: [], subscriptionStatus: 'FREE' },
+      { 'UPRACTICE#sleep-consistent-bedtime': { status: 'inactive' } },
+    )
+    const res = await POST(makeReq({ mode: 'reactivatePractice', practiceId: 'sleep-consistent-bedtime' }))
+    expect(res.status).toBe(200)
+    expect((await res.json()).reactivated).toBe(true)
+  })
+})
 
-    const res = await POST(makeReq({ mode: 'startTrial', practiceId: 'sleep-consistent-bedtime' }))
-    expect(res.status).toBe(409)
-    expect((await res.json()).error).toBe('ALREADY_ACTIVE')
+// ── makePracticeInactive ─────────────────────────────────────────────────────
+
+describe('POST /api/practice — makePracticeInactive', () => {
+  it('flips active to inactive (200)', async () => {
+    mockStore(
+      { activePracticeIds: ['financial-weekly-review'], subscriptionStatus: 'FREE' },
+      { 'UPRACTICE#financial-weekly-review': { status: 'active' } },
+    )
+    const res = await POST(makeReq({ mode: 'makePracticeInactive', practiceId: 'financial-weekly-review' }))
+    expect(res.status).toBe(200)
+
+    const statusUpdate = updateItemMock.mock.calls.find(
+      (c) => c[0].Key.SK === 'UPRACTICE#financial-weekly-review',
+    )
+    expect(statusUpdate[0].ExpressionAttributeValues[':status']).toBe('inactive')
+    expect(statusUpdate[0].ExpressionAttributeValues[':now']).toBeDefined()
+
+    const profileUpdate = updateItemMock.mock.calls.find(
+      (c) => c[0].Key.SK === 'PROFILE',
+    )
+    expect(profileUpdate[0].ExpressionAttributeValues[':ids']).toEqual([])
   })
 
-  it('returns 409 ALREADY_TRIALING if active trial exists for the practice', async () => {
-    getItemMock.mockResolvedValue({ activePracticeIds: [], subscriptionStatus: 'FREE' })
-    queryMock.mockResolvedValue([
+  it('returns 409 PRACTICE_NOT_ACTIVE when no UPRACTICE exists', async () => {
+    mockStore({ activePracticeIds: [], subscriptionStatus: 'FREE' })
+    const res = await POST(makeReq({ mode: 'makePracticeInactive', practiceId: 'financial-weekly-review' }))
+    expect(res.status).toBe(409)
+    expect((await res.json()).error).toBe('PRACTICE_NOT_ACTIVE')
+  })
+
+  it('returns 409 PRACTICE_NOT_ACTIVE when UPRACTICE exists but is already inactive', async () => {
+    mockStore(
+      { activePracticeIds: [], subscriptionStatus: 'FREE' },
+      { 'UPRACTICE#financial-weekly-review': { status: 'inactive' } },
+    )
+    const res = await POST(makeReq({ mode: 'makePracticeInactive', practiceId: 'financial-weekly-review' }))
+    expect(res.status).toBe(409)
+  })
+})
+
+// ── switchToPractice ─────────────────────────────────────────────────────────
+
+describe('POST /api/practice — switchToPractice', () => {
+  it('deactivates the old practice and activates the new (200)', async () => {
+    mockStore(
       {
+        activePracticeIds: ['financial-weekly-review'],
+        subscriptionStatus: 'FREE',
+      },
+      {
+        'UPRACTICE#financial-weekly-review': { status: 'active' },
+        'UPRACTICE#sleep-consistent-bedtime': null,
+      },
+    )
+    const res = await POST(
+      makeReq({
+        mode: 'switchToPractice',
         practiceId: 'sleep-consistent-bedtime',
-        status: 'trial',
-        expiresAt: futureIso(),
-        SK: 'TRIAL#x#sleep-consistent-bedtime',
-      },
-    ])
+        deactivatePracticeId: 'financial-weekly-review',
+      }),
+    )
+    expect(res.status).toBe(200)
+    const json = await res.json()
+    expect(json.practiceId).toBe('sleep-consistent-bedtime')
+    expect(json.deactivated).toBe('financial-weekly-review')
 
-    const res = await POST(makeReq({ mode: 'startTrial', practiceId: 'sleep-consistent-bedtime' }))
-    expect(res.status).toBe(409)
-    expect((await res.json()).error).toBe('ALREADY_TRIALING')
+    // Old was set to inactive
+    const inactiveUpdate = updateItemMock.mock.calls.find(
+      (c) => c[0].Key.SK === 'UPRACTICE#financial-weekly-review',
+    )
+    expect(inactiveUpdate[0].ExpressionAttributeValues[':status']).toBe('inactive')
+
+    // New was created with status=active
+    const newPut = putItemMock.mock.calls.find(
+      (c) => c[0].SK === 'UPRACTICE#sleep-consistent-bedtime',
+    )
+    expect(newPut[0].status).toBe('active')
   })
 
-  it('returns 409 TRIAL_LIMIT_REACHED when at max concurrent trials', async () => {
-    getItemMock.mockResolvedValue({ activePracticeIds: [], subscriptionStatus: 'FREE' })
-    queryMock.mockResolvedValue([
+  it('reactivates an existing inactive practice on the activate side', async () => {
+    mockStore(
       {
-        practiceId: 'sleep-screen-off',
-        status: 'trial',
-        expiresAt: futureIso(),
-        SK: 'TRIAL#x#sleep-screen-off',
+        activePracticeIds: ['financial-weekly-review'],
+        subscriptionStatus: 'FREE',
       },
-    ])
-
-    const res = await POST(makeReq({ mode: 'startTrial', practiceId: 'sleep-consistent-bedtime' }))
-    expect(res.status).toBe(409)
-    expect((await res.json()).error).toBe('TRIAL_LIMIT_REACHED')
-  })
-
-  // E5-T12: trial does NOT affect active cap
-  it('E5-T12: FREE user at active cap can still start a trial', async () => {
-    // User has 1 active practice (FREE cap = 1)
-    getItemMock.mockResolvedValue({ activePracticeIds: ['financial-weekly-review'], subscriptionStatus: 'FREE' })
-    queryMock.mockResolvedValue([])
-    putItemMock.mockResolvedValue(undefined)
-
-    const res = await POST(makeReq({ mode: 'startTrial', practiceId: 'sleep-consistent-bedtime' }))
-    // startTrial doesn't check the active cap — it's only checked on promote
-    expect(res.status).toBe(201)
-    // activePracticeIds is NOT modified
-    expect(updateItemMock).not.toHaveBeenCalled()
-  })
-})
-
-describe('POST /api/practice — promoteTrial', () => {
-  beforeEach(() => {
-    getCurrentUserMock.mockResolvedValue({ userId: 'u1', username: 'user' })
-    getItemMock.mockReset()
-    putItemMock.mockReset()
-    updateItemMock.mockReset()
-    queryMock.mockReset()
-  })
-
-  it('promotes a valid trial and returns 200', async () => {
-    getItemMock.mockResolvedValue({ activePracticeIds: [], activePracticeSkById: {}, subscriptionStatus: 'FREE' })
-    queryMock.mockResolvedValue([
-      { practiceId: 'sleep-consistent-bedtime', status: 'trial', expiresAt: futureIso(), SK: 'TRIAL#x#sleep-consistent-bedtime' },
-    ])
-    putItemMock.mockResolvedValue(undefined)
-    updateItemMock.mockResolvedValue(undefined)
-
-    const res = await POST(makeReq({ mode: 'promoteTrial', practiceId: 'sleep-consistent-bedtime' }))
+      {
+        'UPRACTICE#financial-weekly-review': { status: 'active' },
+        'UPRACTICE#sleep-consistent-bedtime': {
+          status: 'inactive',
+          firstStartedAt: '2025-01-01T00:00:00.000Z',
+        },
+      },
+    )
+    const res = await POST(
+      makeReq({
+        mode: 'switchToPractice',
+        practiceId: 'sleep-consistent-bedtime',
+        deactivatePracticeId: 'financial-weekly-review',
+      }),
+    )
     expect(res.status).toBe(200)
+    // No putItem for the reactivated one — only updateItem
+    const newPut = putItemMock.mock.calls.find(
+      (c) => c[0].SK === 'UPRACTICE#sleep-consistent-bedtime',
+    )
+    expect(newPut).toBeUndefined()
   })
 
-  it('returns 409 CAP_REACHED for FREE user at cap', async () => {
-    getItemMock.mockResolvedValue({
-      activePracticeIds: ['financial-weekly-review'],
-      activePracticeSkById: {},
-      subscriptionStatus: 'FREE',
-    })
-    queryMock.mockResolvedValue([
-      { practiceId: 'sleep-consistent-bedtime', status: 'trial', expiresAt: futureIso(), SK: 'TRIAL#x#sleep-consistent-bedtime' },
-    ])
+  it('returns 400 if practiceId === deactivatePracticeId', async () => {
+    mockStore({ activePracticeIds: ['financial-weekly-review'], subscriptionStatus: 'FREE' })
+    const res = await POST(
+      makeReq({
+        mode: 'switchToPractice',
+        practiceId: 'financial-weekly-review',
+        deactivatePracticeId: 'financial-weekly-review',
+      }),
+    )
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toBe('SAME_PRACTICE')
+  })
 
-    const res = await POST(makeReq({ mode: 'promoteTrial', practiceId: 'sleep-consistent-bedtime' }))
+  it('returns 400 when deactivatePracticeId is missing', async () => {
+    const res = await POST(
+      makeReq({ mode: 'switchToPractice', practiceId: 'sleep-consistent-bedtime' }),
+    )
+    expect(res.status).toBe(400)
+  })
+
+  it('returns 409 DEACTIVATE_PRACTICE_NOT_ACTIVE when the named practice is not active', async () => {
+    mockStore(
+      { activePracticeIds: [], subscriptionStatus: 'FREE' },
+      { 'UPRACTICE#financial-weekly-review': { status: 'inactive' } },
+    )
+    const res = await POST(
+      makeReq({
+        mode: 'switchToPractice',
+        practiceId: 'sleep-consistent-bedtime',
+        deactivatePracticeId: 'financial-weekly-review',
+      }),
+    )
     expect(res.status).toBe(409)
-    expect((await res.json()).error).toBe('CAP_REACHED')
-    // trial state is NOT mutated when blocked
-    expect(updateItemMock).not.toHaveBeenCalled()
+    expect((await res.json()).error).toBe('DEACTIVATE_PRACTICE_NOT_ACTIVE')
   })
 
-  it('returns 409 TRIAL_EXPIRED for an expired trial', async () => {
-    getItemMock.mockResolvedValue({ activePracticeIds: [], activePracticeSkById: {}, subscriptionStatus: 'FREE' })
-    queryMock.mockResolvedValue([
-      { practiceId: 'sleep-consistent-bedtime', status: 'trial', expiresAt: pastIso(), SK: 'TRIAL#x#sleep-consistent-bedtime' },
-    ])
-
-    const res = await POST(makeReq({ mode: 'promoteTrial', practiceId: 'sleep-consistent-bedtime' }))
+  it('returns 409 PRACTICE_ALREADY_ACTIVE when target is already active', async () => {
+    mockStore(
+      {
+        activePracticeIds: ['financial-weekly-review', 'sleep-consistent-bedtime'],
+        subscriptionStatus: 'PAID',
+      },
+      {
+        'UPRACTICE#financial-weekly-review': { status: 'active' },
+        'UPRACTICE#sleep-consistent-bedtime': { status: 'active' },
+      },
+    )
+    const res = await POST(
+      makeReq({
+        mode: 'switchToPractice',
+        practiceId: 'sleep-consistent-bedtime',
+        deactivatePracticeId: 'financial-weekly-review',
+      }),
+    )
     expect(res.status).toBe(409)
-    expect((await res.json()).error).toBe('TRIAL_EXPIRED')
-  })
-
-  it('returns 404 TRIAL_NOT_FOUND when no active trial exists', async () => {
-    getItemMock.mockResolvedValue({ activePracticeIds: [], activePracticeSkById: {}, subscriptionStatus: 'FREE' })
-    queryMock.mockResolvedValue([])
-
-    const res = await POST(makeReq({ mode: 'promoteTrial', practiceId: 'sleep-consistent-bedtime' }))
-    expect(res.status).toBe(404)
+    expect((await res.json()).error).toBe('PRACTICE_ALREADY_ACTIVE')
   })
 })
 
-describe('POST /api/practice — discardTrial', () => {
-  beforeEach(() => {
-    getCurrentUserMock.mockResolvedValue({ userId: 'u1', username: 'user' })
-    queryMock.mockReset()
-    updateItemMock.mockReset()
-  })
+// ── auth & validation ────────────────────────────────────────────────────────
 
-  it('discards a trial and returns 200', async () => {
-    queryMock.mockResolvedValue([
-      { practiceId: 'sleep-consistent-bedtime', status: 'trial', expiresAt: futureIso(), SK: 'TRIAL#x#sleep-consistent-bedtime' },
-    ])
-    updateItemMock.mockResolvedValue(undefined)
-
-    const res = await POST(makeReq({ mode: 'discardTrial', practiceId: 'sleep-consistent-bedtime' }))
-    expect(res.status).toBe(200)
-    expect(updateItemMock).toHaveBeenCalledOnce()
-    const call = updateItemMock.mock.calls[0][0]
-    expect(call.ExpressionAttributeValues[':status']).toBe('discarded')
-  })
-
-  it('returns 404 when no active trial to discard', async () => {
-    queryMock.mockResolvedValue([])
-    const res = await POST(makeReq({ mode: 'discardTrial', practiceId: 'sleep-consistent-bedtime' }))
-    expect(res.status).toBe(404)
-  })
-})
-
-describe('POST /api/practice — auth', () => {
+describe('POST /api/practice — auth & validation', () => {
   it('returns 401 when unauthenticated', async () => {
     getCurrentUserMock.mockRejectedValue(new Error('Unauthorized'))
-    const res = await POST(makeReq({ mode: 'startTrial', practiceId: 'sleep-consistent-bedtime' }))
+    const res = await POST(makeReq({ mode: 'startPractice', practiceId: 'sleep-consistent-bedtime' }))
     expect(res.status).toBe(401)
+  })
+
+  it('returns 400 for missing mode', async () => {
+    const res = await POST(makeReq({ practiceId: 'sleep-consistent-bedtime' }))
+    expect(res.status).toBe(400)
+  })
+
+  it('returns 400 for missing practiceId', async () => {
+    const res = await POST(makeReq({ mode: 'startPractice' }))
+    expect(res.status).toBe(400)
+  })
+
+  it('returns 400 for unknown mode', async () => {
+    const res = await POST(makeReq({ mode: 'startTrial', practiceId: 'sleep-consistent-bedtime' }))
+    expect(res.status).toBe(400)
   })
 })
