@@ -226,11 +226,13 @@ test.describe("/results", () => {
   test("loads without error", async ({ page }) => {
     await page.goto("/results");
     await expect(page).toHaveURL(/\/results/);
-    await page.waitForTimeout(2000);
+    // /results may be hit immediately after a fresh assessment submission,
+    // so let the network settle before checking content.
+    await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => {});
     const content = page
       .getByText(/No insights yet/i)
       .or(page.getByText(/Focus Pillar/i));
-    await expect(content.first()).toBeVisible({ timeout: 10_000 });
+    await expect(content.first()).toBeVisible({ timeout: 20_000 });
   });
 
   test("shows v2 Start this practice CTA (not v1 Try this practice)", async ({ page }) => {
@@ -279,10 +281,13 @@ test.describe("/results", () => {
 
   test("radar chart renders when assessment exists", async ({ page }) => {
     await page.goto("/results");
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => {});
     const hasFocus = await page.getByText(/Focus Pillar/i).isVisible().catch(() => false);
     if (!hasFocus) { test.skip(); return; }
-    await expect(page.locator("svg").first()).toBeVisible({ timeout: 10_000 });
+    // The Focus Pillar card uses a HelpTooltip whose 18×18 icon SVG comes
+    // earlier in the DOM than the radar chart. PillarRadarChart is a
+    // hand-rolled SVG with viewBox "0 0 500 420" — match by that signature.
+    await expect(page.locator('svg[viewBox="0 0 500 420"]')).toBeVisible({ timeout: 10_000 });
   });
 });
 
