@@ -62,13 +62,22 @@ describe("POST /api/assessment", () => {
     expect(res.status).toBe(200);
     expect(json).toHaveProperty("assessmentId", "assessment-123");
     expect(json).toHaveProperty("focusPillar");
+    expect(json).toHaveProperty("lowestPillarId", json.focusPillar);
     expect(json).toHaveProperty("scoresByPillar");
+    expect(json.suggestedPracticeIds).toHaveLength(3);
+    expect(json.suggestedPracticeIds.every((id: string) => typeof id === "string")).toBe(true);
 
     expect(putItemMock).toHaveBeenCalledTimes(36);
     expect(updateItemMock).toHaveBeenCalledTimes(1);
 
-    const firstCall = putItemMock.mock.calls[0][0];
-    expect(firstCall.SK).toBe("ASSESS#assessment-123");
+    const assessCall = putItemMock.mock.calls[0][0];
+    expect(assessCall.SK).toBe("ASSESS#assessment-123");
+    expect(assessCall.lowestPillarId).toBe(json.focusPillar);
+    expect(assessCall.suggestedPracticeIds).toEqual(json.suggestedPracticeIds);
+
+    const profileUpdate = updateItemMock.mock.calls[0][0];
+    expect(profileUpdate.UpdateExpression).toContain("lowestPillarId");
+    expect(profileUpdate.ExpressionAttributeValues[":lowestPillarId"]).toBe(json.focusPillar);
   });
 
   it("returns 400 for missing answers", async () => {

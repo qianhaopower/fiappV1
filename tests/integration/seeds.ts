@@ -128,11 +128,17 @@ export async function seedMilestone(
 export async function seedAssessment(
   userId: string,
   assessmentId: string,
-  overrides: { focusPillar?: string; scoresByPillar?: Record<string, number> } = {}
+  overrides: {
+    focusPillar?: string;
+    lowestPillarId?: string;
+    scoresByPillar?: Record<string, number>;
+    suggestedPracticeIds?: string[];
+  } = {}
 ) {
   const client = createDynamoClient();
   const pk = `USER#${userId}`;
   const focusPillar = overrides.focusPillar ?? "sleep";
+  const lowestPillarId = overrides.lowestPillarId ?? focusPillar;
   const scoresByPillar = overrides.scoresByPillar ?? {
     financial: 3, relationship: 3, information: 3,
     emotional: 3, nutrition: 3, dynamic: 3, sleep: 1,
@@ -143,14 +149,22 @@ export async function seedAssessment(
     SK: `ASSESS#${assessmentId}`,
     assessmentId,
     focusPillar,
+    lowestPillarId,
     scoresByPillar,
     totalScore: Object.values(scoresByPillar).reduce((a, b) => a + b, 0),
     createdAt: new Date().toISOString(),
+    ...(overrides.suggestedPracticeIds
+      ? { suggestedPracticeIds: overrides.suggestedPracticeIds }
+      : {}),
   });
 
   await client.updateItem({
     Key: { PK: pk, SK: "PROFILE" },
-    UpdateExpression: "SET latestAssessmentId = :id, focusPillar = :fp",
-    ExpressionAttributeValues: { ":id": assessmentId, ":fp": focusPillar },
+    UpdateExpression: "SET latestAssessmentId = :id, focusPillar = :fp, lowestPillarId = :lp",
+    ExpressionAttributeValues: {
+      ":id": assessmentId,
+      ":fp": focusPillar,
+      ":lp": lowestPillarId,
+    },
   });
 }

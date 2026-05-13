@@ -14,7 +14,9 @@ type AssessmentItem = {
   createdAt: string;
   scoresByPillar: Record<string, number>;
   focusPillar: string;
+  lowestPillarId?: string;
   totalScore?: number;
+  suggestedPracticeIds?: string[];
 };
 
 export async function GET() {
