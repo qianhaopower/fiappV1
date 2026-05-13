@@ -309,7 +309,7 @@ function SwitchDialog({
           Switch to &ldquo;{newPractice.title}&rdquo;?
         </p>
         <p className="text-sm text-muted-foreground">
-          &ldquo;{currentActive.title}&rdquo; will move to your practice bank. You can bring it back anytime.
+          &ldquo;{currentActive.title}&rdquo; will be paused. You can resume it anytime.
         </p>
         <div className="flex gap-2 pt-2">
           <Button disabled={loading} onClick={onConfirm}>
