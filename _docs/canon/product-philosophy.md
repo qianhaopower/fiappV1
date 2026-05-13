@@ -43,7 +43,7 @@ The app is intentionally designed to:
 This is why:
 - active practice caps exist
 - warnings are progressive
-- trial practices are time-limited
+- practices can be made inactive and brought back later without losing history, so the active list stays small
 
 Mental sustainability is more important than theoretical completeness.
 

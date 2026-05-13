@@ -1,5 +1,7 @@
 # FIApp v1 — Manual Launch Checklist
 
+> **PARTIALLY SUPERSEDED 2026-05-13 by [business-logic-v2.md](business-logic-v2.md).** This checklist will need full revision once v2 UI ships (Cuts 3-4 of the v2 refactor). Specifically: §3 "Try this practice → starts trial", all of §4 (Set focus / Pause / Resume / Replace / Trial promote+discard), §5 Today (focus chip, Trying-out section, trial logging, "no focus → redirect" hint), and §9 "Free user can replace…" are all replaced by the v2 active/inactive lifecycle and the always-accessible /today empty state. Sections 0-2, 6-8, 10-12 remain valid.
+
 Run this end-to-end before any public launch or major release. Use a real device (phone + desktop). Automated tests cover rules; this covers the human experience.
 
 **Sign in as a real test user with a populated account before starting sections 2–8.**
