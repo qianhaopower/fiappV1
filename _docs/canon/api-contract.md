@@ -1,5 +1,7 @@
 # docs/canon/api-contract.md
-# FIApp v1 — Canonical API Contract (LOCKED)
+# FIApp v1 — Canonical API Contract
+
+> **SUPERSEDED 2026-05-13 by [business-logic-v2.md](business-logic-v2.md).** See the "API contract (v2)" section of that file. Notable changes: `POST /api/practice` collapses from 8 modes to 4 (`startPractice`, `makePracticeInactive`, `reactivatePractice`, `switchToPractice`); all trial endpoints are removed; `setFocus` and `replace` are removed; `pause/resume` are renamed to `makePracticeInactive/reactivatePractice` with simpler semantics; `GET /api/practices/suggestions` uses deterministic weakest-answer-mapped logic instead of focus-pillar heuristics. Kept for historical reference only.
 
 **Backend:** Next.js Route Handlers on AWS Amplify  
 **DB:** DynamoDB (FIAPP_MAIN, FIAPP_RETURNS)  
