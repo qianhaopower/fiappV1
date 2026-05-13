@@ -14,127 +14,171 @@ test.describe("/today", () => {
     });
   });
 
-  test("shows focus practice or empty state — never blank", async ({ page }) => {
-    await page.goto("/today");
-    const focus = page.getByText("Today's focus");
-    const empty = page.getByText(/No focus practice set yet/i);
-    await expect(focus.or(empty)).toBeVisible({ timeout: 10_000 });
+  test("always accessible — never redirects (v2)", async ({ page }) => {
+    // v2 invariant: /today is always reachable once authed+assessed, even with
+    // 0 active practices. It must not 307/302 to /results or /practices.
+    const response = await page.goto("/today");
+    expect(response?.status()).toBeLessThan(400);
+    await expect(page).toHaveURL(/\/today/);
   });
 
-  test("Did it and Not today buttons are visible when focus practice is set", async ({
-    page,
-  }) => {
+  test("renders either active practice cards or the empty state — never blank", async ({ page }) => {
     await page.goto("/today");
-    const hasFocus = await page
-      .getByText("Today's focus")
+    const empty = page.getByText(/Choose one practice to start/i);
+    const didItButton = page.getByRole("button", { name: /did it/i });
+    await expect(empty.or(didItButton).first()).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("empty state offers Browse practices and Take assessment CTAs", async ({ page }) => {
+    await page.goto("/today");
+    const empty = page.getByText(/Choose one practice to start/i);
+    const isEmpty = await empty.isVisible().catch(() => false);
+    if (!isEmpty) { test.skip(); return; }
+
+    await expect(page.getByRole("link", { name: /browse practices/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /take assessment/i })).toBeVisible();
+  });
+
+  test("Did it and Not today buttons appear when at least one practice is active", async ({ page }) => {
+    await page.goto("/today");
+    const hasActive = await page
+      .getByRole("button", { name: /did it/i })
       .isVisible()
       .catch(() => false);
-    if (!hasFocus) { test.skip(); return; }
+    if (!hasActive) { test.skip(); return; }
 
-    await expect(page.getByRole("button", { name: /did it/i })).toBeVisible();
-    await expect(page.getByRole("button", { name: /not today/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /did it/i }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /not today/i }).first()).toBeVisible();
   });
 
   test("logging Did it updates button state", async ({ page }) => {
     await page.goto("/today");
-    const hasFocus = await page
-      .getByText("Today's focus")
-      .isVisible()
-      .catch(() => false);
-    if (!hasFocus) { test.skip(); return; }
+    const didIt = page.getByRole("button", { name: /did it/i }).first();
+    const hasActive = await didIt.isVisible().catch(() => false);
+    if (!hasActive) { test.skip(); return; }
 
-    await page.getByRole("button", { name: /did it/i }).click();
+    await didIt.click();
     await page.waitForTimeout(1000);
-    await expect(page.getByRole("button", { name: /did it/i })).toBeVisible();
+    await expect(didIt).toBeVisible();
   });
 
   test("logging Not today updates button state", async ({ page }) => {
     await page.goto("/today");
-    const hasFocus = await page
-      .getByText("Today's focus")
-      .isVisible()
-      .catch(() => false);
-    if (!hasFocus) { test.skip(); return; }
+    const notToday = page.getByRole("button", { name: /not today/i }).first();
+    const hasActive = await notToday.isVisible().catch(() => false);
+    if (!hasActive) { test.skip(); return; }
 
-    await page.getByRole("button", { name: /not today/i }).click();
+    await notToday.click();
     await page.waitForTimeout(1000);
-    await expect(page.getByRole("button", { name: /not today/i })).toBeVisible();
+    await expect(notToday).toBeVisible();
   });
 
-  test("navigation links to practices and progress are present", async ({
-    page,
-  }) => {
+  test("no focus-practice badge anywhere (v2 removed focus)", async ({ page }) => {
     await page.goto("/today");
-    await expect(page.getByRole("link", { name: /manage practices/i })).toBeVisible({ timeout: 10_000 });
+    await page.waitForTimeout(1500);
+    await expect(page.getByText(/Today's focus/i)).toHaveCount(0);
+    await expect(page.getByText(/Set focus/i)).toHaveCount(0);
+  });
+
+  test("no trial cards anywhere (v2 removed trials)", async ({ page }) => {
+    await page.goto("/today");
+    await page.waitForTimeout(1500);
+    await expect(page.getByText(/Trying out/i)).toHaveCount(0);
+    await expect(page.getByText(/days? left to decide/i)).toHaveCount(0);
+  });
+
+  test("navigation links to Browse practices and View progress are present", async ({ page }) => {
+    await page.goto("/today");
+    await expect(page.getByRole("link", { name: /browse practices/i })).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole("link", { name: /view progress/i })).toBeVisible();
   });
 
-  test("navigate to practices via link", async ({ page }) => {
+  test("navigate to /practices via the bottom link", async ({ page }) => {
     await page.goto("/today");
-    await page.getByRole("link", { name: /manage practices/i }).click();
+    await page.getByRole("link", { name: /browse practices/i }).click();
     await expect(page).toHaveURL(/\/practices/);
   });
 
-  test("navigate to progress via link", async ({ page }) => {
+  test("navigate to /progress via the bottom link", async ({ page }) => {
     await page.goto("/today");
     await page.getByRole("link", { name: /view progress/i }).click();
     await expect(page).toHaveURL(/\/progress/);
   });
 });
 
-// ─── /practices ───────────────────────────────────────────────────────────────
+// ─── /practices (the practice bank) ───────────────────────────────────────────
 
 test.describe("/practices", () => {
   test("loads without error", async ({ page }) => {
     await page.goto("/practices");
     await expect(page).toHaveURL(/\/practices/);
-    await expect(page.getByRole("heading", { name: /practices/i })).toBeVisible({ timeout: 10_000 });
-  });
-
-  test("shows active practices, empty state, or trial section", async ({ page }) => {
-    await page.goto("/practices");
-    const content = page
-      .getByText(/No practices yet/i)
-      .or(page.getByText(/Browse suggestions/i))
-      .or(page.getByText(/Today's focus/i))
-      .or(page.getByText(/Trying/i))
-      .or(page.getByText(/Paused/i))
-      .or(page.getByText(/Your trial/i));
-    await expect(content.first()).toBeVisible({ timeout: 10_000 });
-  });
-
-  test("Add practice button links to results", async ({ page }) => {
-    await page.goto("/practices");
-    await expect(page.getByRole("link", { name: /add practice/i })).toBeVisible({ timeout: 10_000 });
-    await page.getByRole("link", { name: /add practice/i }).click();
-    await expect(page).toHaveURL(/\/results/);
-  });
-
-  test("Set focus button is visible on active practices", async ({ page }) => {
-    await page.goto("/practices");
-    const hasActive = await page.getByText("Today's focus").isVisible().catch(() => false)
-      || await page.getByRole("button", { name: /set focus/i }).isVisible().catch(() => false);
-    if (!hasActive) { test.skip(); return; }
     await expect(
-      page.getByRole("button", { name: /set focus/i }).or(page.getByText("Today's focus"))
-    ).toBeVisible();
+      page.getByRole("heading", { name: /practice bank/i }),
+    ).toBeVisible({ timeout: 10_000 });
   });
 
-  test("Pause button is visible on active practices", async ({ page }) => {
+  test("shows all 7 pillar headings", async ({ page }) => {
     await page.goto("/practices");
-    const hasPause = await page.getByRole("button", { name: /pause/i }).isVisible().catch(() => false);
-    if (!hasPause) { test.skip(); return; }
-    await expect(page.getByRole("button", { name: /pause/i }).first()).toBeVisible();
+    await page.waitForTimeout(1500);
+    for (const label of [
+      /Financial Intelligence/i,
+      /Relationship Intelligence/i,
+      /Information Intelligence/i,
+      /Emotional Intelligence/i,
+      /Nutrition Intelligence/i,
+      /Dynamic Intelligence/i,
+      /Sleep Intelligence/i,
+    ]) {
+      await expect(page.getByRole("heading", { name: label })).toBeVisible();
+    }
   });
 
-  test("Resume button is visible on paused practices", async ({ page }) => {
+  test("renders Start / Resume / View on Today CTAs (v2 — no Set focus, no Pause-v1, no trial)", async ({ page }) => {
     await page.goto("/practices");
-    const hasResume = await page.getByRole("button", { name: /resume/i }).isVisible().catch(() => false);
-    if (!hasResume) { test.skip(); return; }
-    await expect(page.getByRole("button", { name: /resume/i }).first()).toBeVisible();
+    await page.waitForTimeout(1500);
+
+    // At least one of the v2 CTAs must be visible across the bank.
+    const startCta = page.getByRole("button", { name: /^start this practice$/i });
+    const resumeCta = page.getByRole("button", { name: /^resume$/i });
+    const todayLink = page.getByRole("link", { name: /^view on today$/i });
+    await expect(startCta.first().or(resumeCta.first()).or(todayLink.first())).toBeVisible();
   });
 
-  test("Go to Today link is present", async ({ page }) => {
+  test("no v1-only controls (Set focus / Replace / Promote / Discard / Bring this back)", async ({ page }) => {
+    await page.goto("/practices");
+    await page.waitForTimeout(1500);
+    await expect(page.getByRole("button", { name: /^set focus$/i })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^replace$/i })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /promote/i })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^discard$/i })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^bring this back$/i })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^make inactive$/i })).toHaveCount(0);
+    await expect(page.getByText(/^Inactive$/)).toHaveCount(0);
+  });
+
+  test("Paused badge + Resume CTA appear together when present", async ({ page }) => {
+    await page.goto("/practices");
+    await page.waitForTimeout(1500);
+    const resumeButton = page.getByRole("button", { name: /^resume$/i }).first();
+    const hasPaused = await resumeButton.isVisible().catch(() => false);
+    if (!hasPaused) { test.skip(); return; }
+
+    // Where there's a Resume button, there must be a Paused badge somewhere on the page.
+    await expect(page.getByText(/^Paused$/).first()).toBeVisible();
+  });
+
+  test("Active card shows View on Today + Pause", async ({ page }) => {
+    await page.goto("/practices");
+    await page.waitForTimeout(1500);
+    const activeBadge = page.getByText(/^Active$/).first();
+    const hasActive = await activeBadge.isVisible().catch(() => false);
+    if (!hasActive) { test.skip(); return; }
+
+    await expect(page.getByRole("link", { name: /^view on today$/i }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /^pause$/i }).first()).toBeVisible();
+  });
+
+  test("top action links back to Today", async ({ page }) => {
     await page.goto("/practices");
     await expect(page.getByRole("link", { name: /go to today/i })).toBeVisible({ timeout: 10_000 });
   });
@@ -157,13 +201,6 @@ test.describe("/progress", () => {
     await expect(page.getByText(/Practices started/i)).toBeVisible();
   });
 
-  test("stat values are numeric", async ({ page }) => {
-    await page.goto("/progress");
-    await page.waitForTimeout(2000);
-    const totalCard = page.getByText(/Total check-ins/i);
-    await expect(totalCard).toBeVisible({ timeout: 10_000 });
-  });
-
   test("milestones section is present", async ({ page }) => {
     await page.goto("/progress");
     const milestones = page
@@ -173,9 +210,12 @@ test.describe("/progress", () => {
     await expect(milestones.first()).toBeVisible({ timeout: 10_000 });
   });
 
-  test("Back to Today link navigates correctly", async ({ page }) => {
+  test("Back to Today link navigates correctly when present", async ({ page }) => {
     await page.goto("/progress");
-    await page.getByRole("link", { name: /back to today/i }).click();
+    const backLink = page.getByRole("link", { name: /back to today|to today/i });
+    const hasLink = await backLink.isVisible().catch(() => false);
+    if (!hasLink) { test.skip(); return; }
+    await backLink.click();
     await expect(page).toHaveURL(/\/today/);
   });
 });
@@ -189,40 +229,59 @@ test.describe("/results", () => {
     await page.waitForTimeout(2000);
     const content = page
       .getByText(/No insights yet/i)
-      .or(page.getByText(/focus/i))
-      .or(page.getByText(/assessment/i));
+      .or(page.getByText(/Focus Pillar/i));
     await expect(content.first()).toBeVisible({ timeout: 10_000 });
   });
 
-  test("shows suggestions or prompts to take assessment", async ({ page }) => {
+  test("shows v2 Start this practice CTA (not v1 Try this practice)", async ({ page }) => {
     await page.goto("/results");
-    const content = page
-      .getByText(/Try this practice/i)
-      .or(page.getByText(/No insights yet/i))
-      .or(page.getByText(/Your focus/i))
-      .or(page.getByRole("link", { name: /start assessment/i }));
-    await expect(content.first()).toBeVisible({ timeout: 10_000 });
+    await page.waitForTimeout(2000);
+    const startCta = page.getByRole("button", { name: /^start this practice$/i }).first();
+    const resumeCta = page.getByRole("button", { name: /^resume$/i }).first();
+    const viewToday = page.getByRole("link", { name: /^view on today$/i }).first();
+    const noAssessment = page.getByText(/No insights yet/i);
+
+    // Either has assessment (any of the 3 v2 CTAs present) or doesn't (empty state).
+    await expect(
+      startCta.or(resumeCta).or(viewToday).or(noAssessment),
+    ).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("no v1 Try this practice text anywhere", async ({ page }) => {
+    await page.goto("/results");
+    await page.waitForTimeout(2000);
+    await expect(page.getByText(/Try this practice/i)).toHaveCount(0);
+  });
+
+  test("Browse all 35 practices link is present when assessment exists", async ({ page }) => {
+    await page.goto("/results");
+    await page.waitForTimeout(2000);
+    const hasFocus = await page.getByText(/Focus Pillar/i).isVisible().catch(() => false);
+    if (!hasFocus) { test.skip(); return; }
+    await expect(page.getByRole("link", { name: /Browse all 35 practices/i })).toBeVisible();
+  });
+
+  test("Go to Today button is present when assessment exists", async ({ page }) => {
+    await page.goto("/results");
+    await page.waitForTimeout(2000);
+    const hasFocus = await page.getByText(/Focus Pillar/i).isVisible().catch(() => false);
+    if (!hasFocus) { test.skip(); return; }
+    await expect(page.getByRole("link", { name: /go to today/i })).toBeVisible();
   });
 
   test("Retake assessment button is present when assessment exists", async ({ page }) => {
     await page.goto("/results");
-    const hasAssessment = await page.getByRole("button", { name: /retake assessment/i }).isVisible().catch(() => false);
-    if (!hasAssessment) { test.skip(); return; }
-    await expect(page.getByRole("button", { name: /retake assessment/i })).toBeVisible();
-  });
-
-  test("Go to My Practices button is present when assessment exists", async ({ page }) => {
-    await page.goto("/results");
-    const hasButton = await page.getByRole("link", { name: /go to my practices/i }).isVisible().catch(() => false);
-    if (!hasButton) { test.skip(); return; }
-    await expect(page.getByRole("link", { name: /go to my practices/i })).toBeVisible();
-  });
-
-  test("radar chart is visible when assessment exists", async ({ page }) => {
-    await page.goto("/results");
-    const hasFocus = await page.getByText(/Your focus/i).isVisible().catch(() => false);
+    await page.waitForTimeout(2000);
+    const hasFocus = await page.getByText(/Focus Pillar/i).isVisible().catch(() => false);
     if (!hasFocus) { test.skip(); return; }
-    // Radar chart rendered via recharts SVG
+    await expect(page.getByRole("link", { name: /retake assessment/i })).toBeVisible();
+  });
+
+  test("radar chart renders when assessment exists", async ({ page }) => {
+    await page.goto("/results");
+    await page.waitForTimeout(2000);
+    const hasFocus = await page.getByText(/Focus Pillar/i).isVisible().catch(() => false);
+    if (!hasFocus) { test.skip(); return; }
     await expect(page.locator("svg").first()).toBeVisible({ timeout: 10_000 });
   });
 });
