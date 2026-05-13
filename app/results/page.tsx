@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { HelpTooltip } from '@/components/HelpTooltip';
@@ -19,81 +19,151 @@ type ScoresByPillar = Record<Pillar, number>;
 type AssessmentData = {
   scoresByPillar: ScoresByPillar
   focusPillar: Pillar
+  lowestPillarId?: Pillar
 }
 
 type SuggestionsData = {
   suggestions: Practice[]
   focusPillar: Pillar | null
+  lowestPillarId?: Pillar | null
 }
+
+type EnrichedPractice = {
+  id: string
+  pillar: Pillar
+  title: string
+  description: string
+  status: 'active' | 'inactive'
+}
+
+type ActiveData = {
+  activePractices: EnrichedPractice[]
+  inactivePractices: EnrichedPractice[]
+  subscriptionStatus: 'FREE' | 'PAID' | string
+}
+
+type CardStatus = 'none' | 'active' | 'inactive'
+
+type SwitchState = {
+  newPractice: Practice
+  currentActive: EnrichedPractice
+} | null
 
 export default function ResultsPage() {
   const router = useRouter()
   const [assessment, setAssessment] = useState<AssessmentData | null>(null)
   const [suggestions, setSuggestions] = useState<Practice[] | null>(null)
+  const [active, setActive] = useState<ActiveData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
-  const [trialLoading, setTrialLoading] = useState<Record<string, boolean>>({})
-  const [trialError, setTrialError] = useState<Record<string, string>>({})
+  const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({})
+  const [inlineError, setInlineError] = useState<Record<string, string>>({})
+  const [switchState, setSwitchState] = useState<SwitchState>(null)
 
-  const handleTryThis = useCallback(async (practiceId: string) => {
-    setTrialLoading((prev) => ({ ...prev, [practiceId]: true }))
-    setTrialError((prev) => ({ ...prev, [practiceId]: '' }))
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(false)
     try {
-      const res = await fetch('/api/practice', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode: 'startTrial', practiceId }),
-      })
-      if (res.ok || res.status === 409) {
-        const data = await res.json()
-        if (res.ok || data.error === 'ALREADY_TRIALING' || data.error === 'ALREADY_ACTIVE') {
-          router.push('/practices')
-          return
-        }
-        const msg = data.error === 'TRIAL_LIMIT_REACHED'
-          ? 'You already have an active trial. Promote or discard it first.'
-          : 'Could not start trial. Please try again.'
-        setTrialError((prev) => ({ ...prev, [practiceId]: msg }))
-      } else {
-        setTrialError((prev) => ({ ...prev, [practiceId]: 'Could not start trial. Please try again.' }))
+      const [assessRes, sugRes, activeRes] = await Promise.all([
+        fetch('/api/assessment/latest'),
+        fetch('/api/practices/suggestions'),
+        fetch('/api/practices/active'),
+      ])
+
+      if (assessRes.ok) {
+        const data = await assessRes.json() as AssessmentData
+        setAssessment(data)
+      }
+      if (!sugRes.ok) throw new Error('Failed to load suggestions')
+      const sugData = await sugRes.json() as SuggestionsData
+      setSuggestions(sugData.suggestions)
+
+      if (activeRes.ok) {
+        setActive(await activeRes.json() as ActiveData)
       }
     } catch {
-      setTrialError((prev) => ({ ...prev, [practiceId]: 'Could not start trial. Please try again.' }))
+      setError(true)
     } finally {
-      setTrialLoading((prev) => ({ ...prev, [practiceId]: false }))
+      setLoading(false)
     }
-  }, [router])
-
-  useEffect(() => {
-    async function load() {
-      setLoading(true)
-      setError(false)
-      try {
-        const [assessRes, sugRes] = await Promise.all([
-          fetch('/api/assessment/latest'),
-          fetch('/api/practices/suggestions'),
-        ])
-
-        if (assessRes.ok) {
-          const data = await assessRes.json() as AssessmentData
-          setAssessment(data)
-        }
-        // 404 = no assessment yet — assessment stays null
-
-        if (!sugRes.ok) throw new Error('Failed to load suggestions')
-        const sugData = await sugRes.json() as SuggestionsData
-        setSuggestions(sugData.suggestions)
-      } catch {
-        setError(true)
-      } finally {
-        setLoading(false)
-      }
-    }
-    load()
   }, [])
 
+  useEffect(() => { load() }, [load])
+
+  const statusById = useMemo(() => {
+    const map = new Map<string, CardStatus>()
+    for (const p of active?.activePractices ?? []) map.set(p.id, 'active')
+    for (const p of active?.inactivePractices ?? []) map.set(p.id, 'inactive')
+    return map
+  }, [active])
+
+  function setAction(id: string, busy: boolean) {
+    setActionLoading((p) => ({ ...p, [id]: busy }))
+  }
+
+  async function callPractice(body: Record<string, unknown>) {
+    return fetch('/api/practice', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+  }
+
+  async function handleStart(practice: Practice) {
+    setAction(practice.id, true)
+    setInlineError((p) => ({ ...p, [practice.id]: '' }))
+    try {
+      const res = await callPractice({ mode: 'startPractice', practiceId: practice.id })
+      const json = await res.json().catch(() => ({} as Record<string, unknown>))
+      if (res.ok) {
+        await load()
+        router.push('/today')
+        return
+      }
+      if (res.status === 409 && (json as { error?: string }).error === 'CAP_REACHED') {
+        const isFree = (active?.subscriptionStatus ?? 'FREE').toUpperCase() !== 'PAID'
+        if (isFree && active?.activePractices.length === 1) {
+          setSwitchState({ newPractice: practice, currentActive: active.activePractices[0] })
+          return
+        }
+        const cap = (json as { cap?: number }).cap ?? 10
+        setInlineError((p) => ({
+          ...p,
+          [practice.id]: `You're at the ${cap}-practice limit. Make one inactive first.`,
+        }))
+        return
+      }
+      setInlineError((p) => ({ ...p, [practice.id]: 'Could not start. Please try again.' }))
+    } finally {
+      setAction(practice.id, false)
+    }
+  }
+
+  async function handleSwitchConfirm() {
+    if (!switchState) return
+    const { newPractice, currentActive } = switchState
+    setAction(newPractice.id, true)
+    setInlineError((p) => ({ ...p, [newPractice.id]: '' }))
+    try {
+      const res = await callPractice({
+        mode: 'switchToPractice',
+        practiceId: newPractice.id,
+        deactivatePracticeId: currentActive.id,
+      })
+      if (!res.ok) {
+        setInlineError((p) => ({ ...p, [newPractice.id]: 'Could not switch. Try again.' }))
+        return
+      }
+      setSwitchState(null)
+      await load()
+      router.push('/today')
+    } finally {
+      setAction(newPractice.id, false)
+    }
+  }
+
   const scores = assessment?.scoresByPillar
-  const focusPillar = assessment?.focusPillar
+  const focusPillar = assessment?.lowestPillarId ?? assessment?.focusPillar
 
   return (
     <StandardPage
@@ -115,7 +185,6 @@ export default function ResultsPage() {
 
         {assessment && (
           <>
-            {/* Focus pillar highlight */}
             <Card className="border-primary/30 bg-primary/5">
               <div className="flex items-center gap-2 mb-2">
                 <p className="text-xs uppercase tracking-[0.2em] text-primary">Focus Pillar</p>
@@ -135,7 +204,6 @@ export default function ResultsPage() {
               </p>
             </Card>
 
-            {/* Radar chart */}
             <Card>
               <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-4">
                 Pillar Strengths
@@ -143,7 +211,6 @@ export default function ResultsPage() {
               <PillarRadarChart scores={scores!} focusPillar={focusPillar!} />
             </Card>
 
-            {/* All pillar scores */}
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">All Pillars</p>
@@ -178,7 +245,7 @@ export default function ResultsPage() {
                 })}
               </div>
             </div>
-            {/* Suggested practices */}
+
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-4">
                 Suggested Practices
@@ -186,49 +253,80 @@ export default function ResultsPage() {
               {!suggestions && <Loading text="Finding the right practices for you…" />}
               {suggestions && (
                 <div className="space-y-4">
-                  {suggestions.map((practice) => (
-                    <Card key={practice.id} variant="interactive">
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <span
-                            className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-white"
-                            style={{ backgroundColor: pillarColors[practice.pillar] }}
-                          >
-                            {pillarLabels[practice.pillar]}
-                          </span>
-                          <p className="font-semibold text-foreground">{practice.title}</p>
-                          <p className="text-sm text-muted-foreground">{practice.description}</p>
-                          {practice.rationale && (
-                            <p className="text-xs text-muted-foreground border-l-2 border-border pl-3">
-                              {practice.rationale}
-                            </p>
-                          )}
+                  {suggestions.map((practice) => {
+                    const status: CardStatus = statusById.get(practice.id) ?? 'none'
+                    const busy = !!actionLoading[practice.id]
+                    return (
+                      <Card key={practice.id} variant="interactive">
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span
+                                className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-white"
+                                style={{ backgroundColor: pillarColors[practice.pillar] }}
+                              >
+                                {pillarLabels[practice.pillar]}
+                              </span>
+                              {status === 'active' && (
+                                <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-primary/10 text-primary border border-primary/30">
+                                  Active
+                                </span>
+                              )}
+                              {status === 'inactive' && (
+                                <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-muted text-muted-foreground border border-border">
+                                  Inactive
+                                </span>
+                              )}
+                            </div>
+                            <p className="font-semibold text-foreground">{practice.title}</p>
+                            <p className="text-sm text-muted-foreground">{practice.description}</p>
+                            {practice.rationale && (
+                              <p className="text-xs text-muted-foreground border-l-2 border-border pl-3">
+                                {practice.rationale}
+                              </p>
+                            )}
+                          </div>
+                          <div>
+                            {status === 'none' && (
+                              <Button variant="outline" disabled={busy} onClick={() => handleStart(practice)}>
+                                {busy ? '…' : 'Start this practice'}
+                              </Button>
+                            )}
+                            {status === 'inactive' && (
+                              <Button variant="outline" disabled={busy} onClick={() => handleStart(practice)}>
+                                {busy ? '…' : 'Bring this back'}
+                              </Button>
+                            )}
+                            {status === 'active' && (
+                              <Button asChild>
+                                <Link href="/today">View on Today</Link>
+                              </Button>
+                            )}
+                            {inlineError[practice.id] && (
+                              <p className="text-xs text-destructive mt-1">
+                                {inlineError[practice.id]}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                        <div>
-                          <Button
-                            variant="outline"
-                            disabled={!!trialLoading[practice.id]}
-                            onClick={() => handleTryThis(practice.id)}
-                          >
-                            {trialLoading[practice.id] ? '…' : 'Try this practice'}
-                          </Button>
-                          {trialError[practice.id] && (
-                            <p className="text-xs text-destructive mt-1">
-                              {trialError[practice.id]}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
+                      </Card>
+                    )
+                  })}
                 </div>
               )}
+              <div className="pt-3">
+                <Link
+                  href="/practices"
+                  className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-2"
+                >
+                  Browse all 35 practices →
+                </Link>
+              </div>
             </div>
 
-            {/* CTA */}
             <div className="pt-2 space-y-3">
               <Button asChild size="lg" className="w-full sm:w-auto">
-                <Link href="/practices">Go to My Practices →</Link>
+                <Link href="/today">Go to Today →</Link>
               </Button>
               <div>
                 <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
@@ -243,6 +341,58 @@ export default function ResultsPage() {
           </>
         )}
       </div>
+
+      {switchState && (
+        <SwitchDialog
+          newPracticeTitle={switchState.newPractice.title}
+          currentActiveTitle={switchState.currentActive.title}
+          loading={!!actionLoading[switchState.newPractice.id]}
+          onConfirm={handleSwitchConfirm}
+          onCancel={() => setSwitchState(null)}
+        />
+      )}
     </StandardPage>
   );
+}
+
+function SwitchDialog({
+  newPracticeTitle,
+  currentActiveTitle,
+  loading,
+  onConfirm,
+  onCancel,
+}: {
+  newPracticeTitle: string
+  currentActiveTitle: string
+  loading: boolean
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 px-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onCancel()
+      }}
+    >
+      <div className="w-full max-w-md rounded-2xl bg-card border border-border shadow-xl p-6 space-y-4">
+        <p className="text-base font-semibold text-foreground">
+          Switch to &ldquo;{newPracticeTitle}&rdquo;?
+        </p>
+        <p className="text-sm text-muted-foreground">
+          &ldquo;{currentActiveTitle}&rdquo; will move to your practice bank. You can bring it back anytime.
+        </p>
+        <div className="flex gap-2 pt-2">
+          <Button disabled={loading} onClick={onConfirm}>
+            {loading ? '…' : 'Switch'}
+          </Button>
+          <Button variant="ghost" disabled={loading} onClick={onCancel}>
+            Cancel
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
 }
