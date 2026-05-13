@@ -1,19 +1,18 @@
 # docs/canon/db-schema.md
 # FIApp v1 — DynamoDB Canonical Schema
 
-> **PARTIALLY SUPERSEDED 2026-05-13 by [business-logic-v2.md](business-logic-v2.md)** (see its "Storage notes (DynamoDB)" section).
+> **PARTIALLY SUPERSEDED.** v2 shipped to production 2026-05-13 (PR #375). The active spec is [business-logic-v2.md](business-logic-v2.md) (see its "Storage notes (DynamoDB)" section).
 >
-> Still authoritative in v2: table layout (FIAPP_MAIN + FIAPP_RETURNS), PROFILE/ASSESS/ANS/MILESTONE item shapes (with v2 additions), key access patterns.
+> Still authoritative below: table layout (FIAPP_MAIN + FIAPP_RETURNS), ASSESS/ANS/MILESTONE item shapes, key access patterns.
 >
-> Superseded by v2:
-> - **UPRACTICE status enum** is `"active" | "inactive"` only — the `"paused" | "ended"` values and the "must support pause/resume" invariant are gone.
-> - **UPRACTICE SK** uses `UPRACTICE#<practiceId>` (no `<startedAt>` prefix) — one record per `userId + practiceId`.
-> - **TRIAL items** (§1.2.F) — entire item type is removed; v2 does not create them. The "trials don't count toward caps, do count toward counters" policy (§3.2, §5) is gone.
-> - **PROFILE.`todayFocusPracticeId`** — kept as a field but demoted to display-only; not a routing input in v2.
-> - **PROFILE.`focusPillar`** — clients should prefer `lowestPillarId` (v2 naming).
-> - **PROFILE.`practiceCounters`** — never written in practice; treat as deprecated.
-> - **ASSESS** items in v2 also store `pillarScores`, `lowestPillarId`, and `suggestedPracticeIds`.
-> - **Cap warnings** — 5/7 thresholds are optional in v2 (not mandatory); 1 / 10 hard caps remain.
+> What changed in v2:
+> - **UPRACTICE status enum** is now `"active" | "inactive"` only. Legacy `"paused"`/`"replaced"` values are read leniently (treated as inactive) but never written.
+> - **UPRACTICE SK** is `UPRACTICE#<practiceId>` — one record per `userId + practiceId`. The v1 `UPRACTICE#<startedAt>#<practiceId>` form was never actually shipped to prod.
+> - **TRIAL items** are gone — v2 doesn't write them, reads ignore any legacy ones.
+> - **PROFILE** no longer carries `activePracticeSkById`, `practiceCounters`, `activeTrialCount`, or `todayFocusPracticeId`. `/api/me` doesn't return them either. Reads tolerate legacy items that still have them.
+> - **PROFILE** adds `lowestPillarId` (preferred) alongside legacy `focusPillar`.
+> - **ASSESS** items now store `pillarScores`, `lowestPillarId`, `suggestedPracticeIds[]`.
+> - **Cap warnings** at 5+/7+ active are gone. Hard caps remain (Free=1, Paid=10).
 
 **Status:** Partially canonical (see supersede note above)
 **Tables:** 2 (FIAPP_MAIN + FIAPP_RETURNS)  

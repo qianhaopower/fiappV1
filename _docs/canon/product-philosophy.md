@@ -41,9 +41,8 @@ The app is intentionally designed to:
 - prefer depth over breadth
 
 This is why:
-- active practice caps exist
-- warnings are progressive
-- practices can be made inactive and brought back later without losing history, so the active list stays small
+- active practice caps exist (Free=1, Paid=10)
+- practices can be paused and resumed later without losing history, so the active list stays small
 
 Mental sustainability is more important than theoretical completeness.
 
