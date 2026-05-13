@@ -5,8 +5,6 @@ export const MAX_CONCURRENT_TRIALS = 1
 
 export const FREE_CAP = 1
 export const PAID_CAP = 10
-export const PAID_WARN_HIGH = 7
-export const PAID_WARN_LOW = 5
 
 export type TrialStatus = 'trial' | 'promoted' | 'expired' | 'discarded'
 
@@ -32,7 +30,7 @@ export type ProfileData = {
 }
 
 export type CapCheckResult =
-  | { allowed: true; warning?: 'APPROACHING_CAP'; remaining?: number }
+  | { allowed: true }
   | { allowed: false; reason: 'CAP_REACHED'; cap: number }
 
 export function isTrialActive(trial: TrialItem): boolean {
@@ -53,17 +51,8 @@ export function checkActiveCap(
   activeCount: number
 ): CapCheckResult {
   const hasPlusPlan = subscriptionStatus?.toUpperCase() === 'PAID'
-
-  if (!hasPlusPlan) {
-    if (activeCount >= FREE_CAP) return { allowed: false, reason: 'CAP_REACHED', cap: FREE_CAP }
-    return { allowed: true }
-  }
-
-  if (activeCount >= PAID_CAP) return { allowed: false, reason: 'CAP_REACHED', cap: PAID_CAP }
-  if (activeCount >= PAID_WARN_HIGH)
-    return { allowed: true, warning: 'APPROACHING_CAP', remaining: PAID_CAP - activeCount }
-  if (activeCount >= PAID_WARN_LOW)
-    return { allowed: true, warning: 'APPROACHING_CAP', remaining: PAID_CAP - activeCount }
+  const cap = hasPlusPlan ? PAID_CAP : FREE_CAP
+  if (activeCount >= cap) return { allowed: false, reason: 'CAP_REACHED', cap }
   return { allowed: true }
 }
 

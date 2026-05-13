@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import { createDynamoClient } from "@/utils/dynamoClient";
 import { withAuth } from "@/utils/authServer";
 import { trackEvent } from "@/utils/metricsClient";
-import { isTrialActive, type TrialItem } from "@/lib/practices/trial";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,37 +37,20 @@ function jsonWithNoStore(body: unknown, status: number) {
   return res;
 }
 
-async function getActiveTrialCount(userId: string): Promise<number> {
-  const client = createDynamoClient();
-  const trials = await client.query<TrialItem>({
-    KeyConditionExpression: "PK = :pk AND begins_with(SK, :prefix)",
-    ExpressionAttributeValues: { ":pk": `USER#${userId}`, ":prefix": "TRIAL#" },
-  });
-  return trials.filter(isTrialActive).length;
-}
-
-async function getActiveTrialCountOrDefault(userId: string): Promise<number> {
-  try {
-    return await getActiveTrialCount(userId);
-  } catch (error) {
-    console.error("[GET /api/me] failed to read active trials:", error);
-    return 0;
-  }
-}
+// activeTrialCount is fixed at 0 in v2 (trials removed). Returned only so legacy
+// clients don't break on the missing field; remove the field entirely in Cut 5.
+const ACTIVE_TRIAL_COUNT = 0;
 
 export async function GET(req: Request) {
   return withAuth(req, async (user) => {
     const client = createDynamoClient();
     const profileKey = { PK: `USER#${user.userId}`, SK: "PROFILE" };
 
-    const [existing, activeTrialCount] = await Promise.all([
-      client.getItem<ProfileItem>(profileKey),
-      getActiveTrialCountOrDefault(user.userId),
-    ]);
+    const existing = await client.getItem<ProfileItem>(profileKey);
 
     if (existing) {
       return jsonWithNoStore(
-        { ok: true, data: { ...stripKeys(existing), activeTrialCount } },
+        { ok: true, data: { ...stripKeys(existing), activeTrialCount: ACTIVE_TRIAL_COUNT } },
         200
       );
     }
@@ -103,11 +85,17 @@ export async function GET(req: Request) {
           500
         );
       }
-      return jsonWithNoStore({ ok: true, data: { ...stripKeys(reread), activeTrialCount } }, 200);
+      return jsonWithNoStore(
+        { ok: true, data: { ...stripKeys(reread), activeTrialCount: ACTIVE_TRIAL_COUNT } },
+        200
+      );
     }
 
     trackEvent("totalUsers", "newUsers");
-    return jsonWithNoStore({ ok: true, data: { ...stripKeys(newItem), activeTrialCount } }, 200);
+    return jsonWithNoStore(
+      { ok: true, data: { ...stripKeys(newItem), activeTrialCount: ACTIVE_TRIAL_COUNT } },
+      200
+    );
   });
 }
 

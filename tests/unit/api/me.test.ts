@@ -51,7 +51,7 @@ beforeEach(() => {
 })
 
 describe('GET /api/me', () => {
-  it('returns existing profile with activeTrialCount=0 when no trials', async () => {
+  it('returns existing profile with activeTrialCount=0 (trials removed in v2)', async () => {
     getItemMock.mockResolvedValue(existingProfile)
 
     const res = await GET(new Request('http://localhost/api/me'))
@@ -65,49 +65,12 @@ describe('GET /api/me', () => {
     expect(json.data.SK).toBeUndefined()
   })
 
-  it('counts active trials correctly', async () => {
+  it('does not query the TRIAL# partition any more', async () => {
     getItemMock.mockResolvedValue(existingProfile)
-    queryMock.mockResolvedValue([{
-      practiceId: 'sleep-consistent-bedtime',
-      status: 'trial',
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      SK: 'TRIAL#x#sleep-consistent-bedtime',
-    }])
 
-    const res = await GET(new Request('http://localhost/api/me'))
-    const json = await res.json()
+    await GET(new Request('http://localhost/api/me'))
 
-    expect(res.status).toBe(200)
-    expect(json.data.activeTrialCount).toBe(1)
-  })
-
-  it('does not count expired trials', async () => {
-    getItemMock.mockResolvedValue(existingProfile)
-    queryMock.mockResolvedValue([{
-      practiceId: 'sleep-consistent-bedtime',
-      status: 'trial',
-      expiresAt: new Date(Date.now() - 1000).toISOString(),
-      SK: 'TRIAL#x#sleep-consistent-bedtime',
-    }])
-
-    const res = await GET(new Request('http://localhost/api/me'))
-    const json = await res.json()
-
-    expect(res.status).toBe(200)
-    expect(json.data.activeTrialCount).toBe(0)
-  })
-
-  it('returns activeTrialCount=0 when trial query fails', async () => {
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
-    getItemMock.mockResolvedValue(existingProfile)
-    queryMock.mockRejectedValue(new Error('DynamoDB error'))
-
-    const res = await GET(new Request('http://localhost/api/me'))
-    const json = await res.json()
-
-    expect(res.status).toBe(200)
-    expect(json.data.activeTrialCount).toBe(0)
-    consoleError.mockRestore()
+    expect(queryMock).not.toHaveBeenCalled()
   })
 
   it('creates profile when missing and returns it', async () => {

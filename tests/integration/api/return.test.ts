@@ -166,19 +166,15 @@ describe("POST /api/return", () => {
     expect(items[0].didIt).toBe(false);
   });
 
-  it("trial practice returns update counters (trials count toward milestones)", async () => {
+  it("legacy TRIAL# items can no longer be logged against — return is rejected", async () => {
     const userId = randomUUID();
     await seedProfile(userId, { returnCounters: {} });
     await seedTrial(userId, PRACTICE);
 
     asUser(userId);
     const res = await post({ practiceId: PRACTICE, didIt: true, date: TODAY });
-    expect(res.status).toBe(200);
-
-    const profile = await createDynamoClient().getItem<{ returnCounters: Record<string, number> }>({
-      PK: `USER#${userId}`, SK: "PROFILE",
-    });
-    expect(profile?.returnCounters?.[PRACTICE]).toBe(1);
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe("PRACTICE_NOT_ACTIVE");
   });
 
   it("milestone triggered at threshold=1 and written to DynamoDB", async () => {
@@ -226,7 +222,7 @@ describe("POST /api/return", () => {
     expect(json2.newMilestones).toHaveLength(0); // putItemIfNotExists returns false → filtered out
   });
 
-  it("rejects return for non-active, non-trial practice", async () => {
+  it("rejects return for non-active practice (PRACTICE_NOT_ACTIVE)", async () => {
     const userId = randomUUID();
     await seedProfile(userId);
 
@@ -234,6 +230,6 @@ describe("POST /api/return", () => {
     const res = await post({ practiceId: PRACTICE, didIt: true, date: TODAY });
     expect(res.status).toBe(409);
     const json = await res.json();
-    expect(json.error).toBe("PRACTICE_NOT_ACTIVE_OR_TRIAL");
+    expect(json.error).toBe("PRACTICE_NOT_ACTIVE");
   });
 });

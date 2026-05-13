@@ -3,7 +3,7 @@ import { createDynamoClient, createReturnsClient } from '@/utils/dynamoClient'
 import { withAuth, rateLimitedResponse } from '@/utils/authServer'
 import { checkRateLimit } from '@/utils/rateLimiter'
 import { practicesById } from '@/lib/practices/library'
-import { isTrialActive, type TrialItem, type ProfileData } from '@/lib/practices/trial'
+import { type ProfileData } from '@/lib/practices/trial'
 import {
   returnDayForUser,
   makeReturnPK,
@@ -55,14 +55,7 @@ export async function POST(req: Request) {
     const mainClient = createDynamoClient()
     const returnsClient = createReturnsClient()
 
-    // Validate practice is active or active trial
-    const [profile, trials] = await Promise.all([
-      mainClient.getItem<ProfileData>({ PK: pk, SK: 'PROFILE' }),
-      mainClient.query<TrialItem>({
-        KeyConditionExpression: 'PK = :pk AND begins_with(SK, :prefix)',
-        ExpressionAttributeValues: { ':pk': pk, ':prefix': 'TRIAL#' },
-      }),
-    ])
+    const profile = await mainClient.getItem<ProfileData>({ PK: pk, SK: 'PROFILE' })
 
     const returnDate = date ?? returnDayForUser({
       timezone: profile?.timezone ?? 'UTC',
@@ -70,11 +63,8 @@ export async function POST(req: Request) {
     })
 
     const activePracticeIds = profile?.activePracticeIds ?? []
-    const isActive = activePracticeIds.includes(practiceId)
-    const hasActiveTrial = trials.some((t) => t.practiceId === practiceId && isTrialActive(t))
-
-    if (!isActive && !hasActiveTrial) {
-      return NextResponse.json({ error: 'PRACTICE_NOT_ACTIVE_OR_TRIAL' }, { status: 409 })
+    if (!activePracticeIds.includes(practiceId)) {
+      return NextResponse.json({ error: 'PRACTICE_NOT_ACTIVE' }, { status: 409 })
     }
 
     // Read existing return for idempotency

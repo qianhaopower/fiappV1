@@ -69,24 +69,10 @@ describe("GET /api/me", () => {
     expect(j1.data.userId).toBe(j2.data.userId);
   });
 
-  it("returns activeTrialCount=1 when one active trial exists", async () => {
+  it("returns activeTrialCount=0 even when legacy TRIAL# items exist in storage (v2 ignores them)", async () => {
     const userId = randomUUID();
     await seedProfile(userId);
     await seedTrial(userId, "sleep-consistent-bedtime");
-
-    asUser(userId);
-    const res = await GET(new Request("http://localhost/api/me"));
-    const json = await res.json();
-    expect(json.data.activeTrialCount).toBe(1);
-  });
-
-  it("returns activeTrialCount=0 for an expired trial", async () => {
-    const userId = randomUUID();
-    await seedProfile(userId);
-    // Seed trial that has already expired
-    await seedTrial(userId, "sleep-consistent-bedtime", {
-      expiresAt: new Date(Date.now() - 1000).toISOString(),
-    });
 
     asUser(userId);
     const res = await GET(new Request("http://localhost/api/me"));
