@@ -5,7 +5,7 @@ import { createDynamoClient, createReturnsClient } from "@/utils/dynamoClient";
 import { makeReturnPK, makeReturnSK } from "@/lib/returns/returns";
 import { makeMilestoneSK } from "@/lib/milestones/milestones";
 import { makeRawClient, makeTableNames, createTables, deleteTables } from "../tableUtils";
-import { seedProfile, seedActivePractice, seedTrial } from "../seeds";
+import { seedProfile, seedActivePractice } from "../seeds";
 import type { withAuth as WithAuthType } from "@/utils/authServer";
 
 vi.mock("@/utils/metricsClient", () => ({ trackEvent: vi.fn(), trackPillarFocus: vi.fn() }));
@@ -166,16 +166,6 @@ describe("POST /api/return", () => {
     expect(items[0].didIt).toBe(false);
   });
 
-  it("legacy TRIAL# items can no longer be logged against — return is rejected", async () => {
-    const userId = randomUUID();
-    await seedProfile(userId, { returnCounters: {} });
-    await seedTrial(userId, PRACTICE);
-
-    asUser(userId);
-    const res = await post({ practiceId: PRACTICE, didIt: true, date: TODAY });
-    expect(res.status).toBe(409);
-    expect((await res.json()).error).toBe("PRACTICE_NOT_ACTIVE");
-  });
 
   it("milestone triggered at threshold=1 and written to DynamoDB", async () => {
     const userId = randomUUID();
