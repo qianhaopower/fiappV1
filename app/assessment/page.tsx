@@ -136,6 +136,9 @@ export default function AssessmentPage() {
                   <span>You can retake it any time from your account</span>
                 </li>
               </ul>
+              <p className="rounded-lg bg-muted/30 px-3 py-2.5 text-xs text-muted-foreground leading-relaxed">
+                After this, you&apos;ll get a focus pillar, try one small practice from it, and check in daily.
+              </p>
               <Button className="w-full" onClick={() => setIntroAccepted(true)}>
                 Start assessment →
               </Button>
