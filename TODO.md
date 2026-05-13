@@ -24,15 +24,15 @@ These three "Open decisions" in v2 must be answered before Cut 3 begins. Defer a
 - [ ] **Q6** — Streak behaviour across reactivation gaps (reset vs preserve)
 - [ ] **Q7** — Keep or drop the 5+/7+ Paid-plan soft warnings
 
-### Cut 2 — Recommendation rewrite
+### Cut 2 — Recommendation rewrite ✅
 
-- [ ] Rewrite `lib/practices/suggestions.ts` to weakest-answer mapped logic (per v2 §Recommendation logic)
-- [ ] Update `app/api/practices/suggestions/route.ts` to consume the new logic
-- [ ] Update `app/api/assessment/route.ts` to compute and persist `lowestPillarId` + `suggestedPracticeIds` on `ASSESS#<id>` write
-- [ ] Update `app/api/assessment/latest/route.ts` to return the new fields
-- [ ] Update `app/results/page.tsx` to render the new suggestion shape (top 3 from lowest pillar)
-- [ ] Update tests: `tests/unit/practices/suggestions.test.ts`, `tests/unit/api/practices.suggestions.get.test.ts`, `tests/integration/api/suggestions.test.ts`
-- [ ] PR to `staging`
+Done on `feat/practice-library-35-mapping` (commit 5b5f8c0):
+- [x] Rewrite `lib/practices/suggestions.ts` to weakest-answer mapped logic
+- [x] Update `app/api/practices/suggestions/route.ts` to hydrate from latest ASSESS (with legacy fallback)
+- [x] Update `app/api/assessment/route.ts` to compute and persist `lowestPillarId` + `suggestedPracticeIds`
+- [x] Update `app/api/assessment/latest/route.ts` type to include the new fields
+- [x] Results page consumes the new suggestion data with no code change (Practice[] shape preserved, extra fields ignored)
+- [x] Tests updated: `tests/unit/practices/suggestions.test.ts` (10 tests), `tests/unit/api/practices.suggestions.get.test.ts` (6 tests), `tests/integration/api/suggestions.test.ts` (5 tests), `tests/unit/api/assessment.post.test.ts` + `tests/integration/api/assessment.test.ts` (assertions on new fields)
 
 ### Cut 3 — Lifecycle simplification (blocked on Q5/Q6/Q7)
 
