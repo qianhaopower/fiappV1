@@ -53,14 +53,15 @@ UI phase done (commit 9228f33):
 - [x] `/results`: "Try this practice" → v2 CTA logic (Start / Bring this back / View on Today); switch dialog
 - [x] Switch dialog with Q5 copy in both /practices and /results
 
-### Cut 4 — Routing
+### Cut 4 — Routing ✅
 
-- [ ] Strip `todayFocusPracticeId` branch from `lib/decideRoute.ts`
-- [ ] Verify `/today` empty-state UI for 0-active users (build if missing)
-- [ ] Remove "Set as today's focus" CTAs and any related state
-- [ ] Decide: keep `todayFocusPracticeId` as display preference, or delete entirely
-- [ ] Update `tests/unit/decideRoute.test.ts`, `tests/unit/decideRouteClient.test.tsx`
-- [ ] PR to `staging`
+Done on `feat/v2-routing-strip-focus` (commit pending):
+- [x] Strip `todayFocusPracticeId` branch from `lib/decideRoute.ts` (now 2 branches: `/onboarding` if no assessment, otherwise `/today`)
+- [x] `/today` empty-state UI verified — already built in Cut 3 UI
+- [x] "Set as today's focus" CTAs — already removed in Cut 3 UI
+- [x] `todayFocusPracticeId` kept as a stored PROFILE field for display-only use; routing no longer reads it. Final delete deferred to Cut 5.
+- [x] `tests/unit/decideRoute.test.ts` rewritten for the 2-branch logic
+- [x] `tests/unit/decideRouteClient.test.tsx` rewritten — covers /onboarding, /today (with and without focus), /auth paths
 
 ### Cut 5 — Cleanup
 
