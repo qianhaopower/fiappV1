@@ -71,10 +71,12 @@ Rules:
 ## Practice card CTA
 
 - No `UserPractice` → "Start this practice"
-- `UserPractice.status = "inactive"` → "Bring this back" (+ "You've completed this X times before")
-- `UserPractice.status = "active"` → "Active" badge + "View on Today"
+- `UserPractice.status = "inactive"` → **Paused** badge + "Resume" CTA. If `totalCompletions > 0`, also show "You've practiced this N times. Resume anytime." as the helper line; if 0, omit the helper.
+- `UserPractice.status = "active"` → **Active** badge + "View on Today" (link) + "Pause" (secondary action)
 
 Same CTA rules everywhere: results screen, practice bank, recommendation cards.
+
+**Why "Paused" not "Inactive":** `status: "inactive"` is the storage term and stays unchanged in the API/DB. The user-facing label is **Paused** because "Inactive" reads as "this practice is unavailable" rather than "you've put it on hold." Underlying semantics — off Today, history kept, resumable — are identical to the v1 "paused" concept, just without v1's separate state machinery.
 
 ---
 
@@ -154,7 +156,7 @@ When a free user at the 1-active cap taps "Start this practice" on a different p
 
 > **Switch to "[new practice title]"?**
 >
-> "[current practice title]" will move to your practice bank. You can bring it back anytime.
+> "[current practice title]" will be paused. You can resume it anytime.
 >
 > [ Switch ] [ Cancel ]
 
@@ -388,9 +390,11 @@ The app must not manage practice lifecycles like Jira tickets. Active = on Today
 
 ## UI copy
 
-Use: "Start this practice", "Bring this back", "Make inactive", "View on Today", "Active", "You've completed this X times before", "Welcome back".
+Use: "Start this practice", "Resume", "Pause", "View on Today", "Active", "Paused", "You've practiced this N times. Resume anytime.", "Switch", "Cancel".
 
-Avoid in user-facing copy: "Trial", "Promote", "Discard", "Expire", "Replace", "Pause", "Resume" (as system term), "Focus" (as required system state).
+Avoid in user-facing copy: "Trial", "Promote", "Discard", "Expire", "Replace", "Focus" (as required system state), "Inactive" (storage term only — show as "Paused" in the UI).
+
+**Revised 2026-05-13** — "Pause" and "Resume" were originally on the avoid list to keep distance from v1's pause-state machine, but in v2 they're just labels for the active/inactive transition and read more naturally to users than "Bring this back" / "Make inactive."
 
 ---
 

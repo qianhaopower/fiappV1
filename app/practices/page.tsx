@@ -117,7 +117,7 @@ export default function PracticesPage() {
         const cap = (json as { cap?: number }).cap ?? 10
         setInlineError((p) => ({
           ...p,
-          [practice.id]: `You're at the ${cap}-practice limit. Make one inactive first.`,
+          [practice.id]: `You're at the ${cap}-practice limit. Pause one first.`,
         }))
         return
       }
@@ -133,7 +133,7 @@ export default function PracticesPage() {
     try {
       const res = await callPractice({ mode: 'makePracticeInactive', practiceId })
       if (!res.ok) {
-        setInlineError((p) => ({ ...p, [practiceId]: 'Could not make inactive. Try again.' }))
+        setInlineError((p) => ({ ...p, [practiceId]: 'Could not pause. Try again.' }))
         return
       }
       await load()
@@ -220,15 +220,17 @@ export default function PracticesPage() {
                           )}
                           {status === 'inactive' && (
                             <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-muted text-muted-foreground border border-border">
-                              Inactive
+                              Paused
                             </span>
                           )}
                         </div>
                         <p className="font-semibold text-foreground">{p.title}</p>
                         <p className="text-sm text-muted-foreground">{p.description}</p>
-                        {status === 'inactive' && completions > 0 && (
+                        {status === 'inactive' && (
                           <p className="text-xs text-muted-foreground">
-                            Welcome back — you&apos;ve completed this {completions} {completions === 1 ? 'time' : 'times'} before.
+                            {completions > 0
+                              ? `You've practiced this ${completions} ${completions === 1 ? 'time' : 'times'} before — currently paused. Resume anytime.`
+                              : "You started this before — currently paused. Resume anytime."}
                           </p>
                         )}
                         {inlineError[p.id] && (
@@ -244,7 +246,7 @@ export default function PracticesPage() {
                         )}
                         {status === 'inactive' && (
                           <Button size="sm" variant="outline" disabled={busy} onClick={() => handleStart(p)}>
-                            {busy ? '…' : 'Bring this back'}
+                            {busy ? '…' : 'Resume'}
                           </Button>
                         )}
                         {status === 'active' && (
@@ -253,7 +255,7 @@ export default function PracticesPage() {
                               <Link href="/today">View on Today</Link>
                             </Button>
                             <Button size="sm" variant="ghost" disabled={busy} onClick={() => handleMakeInactive(p.id)}>
-                              {busy ? '…' : 'Make inactive'}
+                              {busy ? '…' : 'Pause'}
                             </Button>
                           </>
                         )}
@@ -307,7 +309,7 @@ function SwitchDialog({
           Switch to &ldquo;{newPractice.title}&rdquo;?
         </p>
         <p className="text-sm text-muted-foreground">
-          &ldquo;{currentActive.title}&rdquo; will move to your practice bank. You can bring it back anytime.
+          &ldquo;{currentActive.title}&rdquo; will be paused. You can resume it anytime.
         </p>
         <div className="flex gap-2 pt-2">
           <Button disabled={loading} onClick={onConfirm}>
