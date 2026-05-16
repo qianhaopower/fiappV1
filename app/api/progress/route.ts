@@ -15,7 +15,9 @@ import {
   TOTAL_MILESTONES,
   PRACTICE_MILESTONES,
   makeMilestoneSK,
+  getMilestoneDef,
 } from '@/lib/milestones/milestones'
+import { practicesById } from '@/lib/practices/library'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -86,8 +88,9 @@ export async function GET(req: Request) {
     const achievedSKs = new Set(milestones.map((m) => m.SK))
 
     type NextMilestone = {
-      type: string; threshold: number; practiceId?: string
+      type: string; threshold: number; practiceId?: string; practiceTitle?: string
       title: string; description: string; progress: number; remaining: number
+      icon: string; tier: string
     }
     const nextMilestones: NextMilestone[] = []
 
@@ -98,20 +101,26 @@ export async function GET(req: Request) {
           type: 'total', threshold: def.threshold,
           title: def.title, description: def.description,
           progress: totalReturns, remaining: def.threshold - totalReturns,
+          icon: def.icon, tier: def.tier,
         })
         break
       }
     }
 
-    // Next practice milestone per active practice
+    // Next practice milestone per active practice — only surface practices the
+    // user has at least one check-in on, so the section doesn't get padded with
+    // visually-identical 0/7 cards for every untouched active practice.
     for (const practiceId of activePracticeIds) {
       const practiceCount = counters[practiceId] ?? 0
+      if (practiceCount === 0) continue
       for (const def of PRACTICE_MILESTONES) {
         if (!achievedSKs.has(makeMilestoneSK('practice', def.threshold, practiceId))) {
           nextMilestones.push({
             type: 'practice', threshold: def.threshold, practiceId,
+            practiceTitle: practicesById.get(practiceId)?.title,
             title: def.title, description: def.description,
             progress: practiceCount, remaining: def.threshold - practiceCount,
+            icon: def.icon, tier: def.tier,
           })
           break
         }
@@ -125,15 +134,20 @@ export async function GET(req: Request) {
       currentStreak,
       longestStreak,
       nextMilestones,
-      milestones: milestones.map((m) => ({
-        sk: m.SK,
-        type: m.type,
-        threshold: m.threshold,
-        practiceId: m.practiceId,
-        title: m.title,
-        description: m.description,
-        achievedAt: m.achievedAt,
-      })),
+      milestones: milestones.map((m) => {
+        const def = getMilestoneDef(m.type, m.threshold)
+        return {
+          sk: m.SK,
+          type: m.type,
+          threshold: m.threshold,
+          practiceId: m.practiceId,
+          title: m.title,
+          description: m.description,
+          achievedAt: m.achievedAt,
+          icon: def?.icon,
+          tier: def?.tier,
+        }
+      }),
     })
   })
 }
