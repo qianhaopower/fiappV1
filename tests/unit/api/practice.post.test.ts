@@ -4,12 +4,14 @@ import { POST } from '@/app/api/practice/route'
 const getItemMock = vi.fn()
 const putItemMock = vi.fn()
 const updateItemMock = vi.fn()
+const queryMock = vi.fn()
 
 vi.mock('@/utils/dynamoClient', () => ({
   createDynamoClient: () => ({
     getItem: getItemMock,
     putItem: putItemMock,
     updateItem: updateItemMock,
+    query: queryMock,
   }),
 }))
 
@@ -44,8 +46,16 @@ function mockStore(
 ) {
   getItemMock.mockImplementation(async ({ SK }: { SK: string }) => {
     if (SK === 'PROFILE') return profile
-    if (SK.startsWith('UPRACTICE#')) return uprBySK[SK] ?? null
     return null
+  })
+  queryMock.mockImplementation(async () => {
+    return Object.entries(uprBySK)
+      .filter(([, v]) => v !== null)
+      .map(([sk, v]) => ({
+        SK: sk,
+        practiceId: (v as Record<string, unknown>)?.practiceId ?? sk.replace('UPRACTICE#', ''),
+        ...(v as Record<string, unknown>),
+      }))
   })
 }
 
@@ -54,6 +64,7 @@ beforeEach(() => {
   getItemMock.mockReset()
   putItemMock.mockReset()
   updateItemMock.mockReset()
+  queryMock.mockReset()
 })
 
 // ── startPractice (and reactivatePractice alias) ─────────────────────────────
@@ -142,7 +153,10 @@ describe('POST /api/practice — startPractice', () => {
   })
 
   it('FREE user at cap is blocked with 409 CAP_REACHED', async () => {
-    mockStore({ activePracticeIds: ['financial-label-decision'], subscriptionStatus: 'FREE' })
+    mockStore(
+      { activePracticeIds: ['financial-label-decision'], subscriptionStatus: 'FREE' },
+      { 'UPRACTICE#financial-label-decision': { status: 'active' } },
+    )
     const res = await POST(makeReq({ mode: 'startPractice', practiceId: 'sleep-consistent-bedtime' }))
     expect(res.status).toBe(409)
     expect((await res.json()).error).toBe('CAP_REACHED')
@@ -152,7 +166,9 @@ describe('POST /api/practice — startPractice', () => {
 
   it('PAID user blocked at 10 (no soft warnings)', async () => {
     const ten = Array.from({ length: 10 }, (_, i) => `practice-${i}`)
-    mockStore({ activePracticeIds: ten, subscriptionStatus: 'PAID' })
+    const uprBySK: Record<string, Record<string, unknown>> = {}
+    for (const id of ten) uprBySK[`UPRACTICE#${id}`] = { status: 'active' }
+    mockStore({ activePracticeIds: ten, subscriptionStatus: 'PAID' }, uprBySK)
     const res = await POST(makeReq({ mode: 'startPractice', practiceId: 'sleep-consistent-bedtime' }))
     expect(res.status).toBe(409)
     expect((await res.json()).error).toBe('CAP_REACHED')
@@ -160,11 +176,33 @@ describe('POST /api/practice — startPractice', () => {
 
   it('PAID user at 5 active gets no warning (warnings dropped in v2)', async () => {
     const five = Array.from({ length: 5 }, (_, i) => `practice-${i}`)
-    mockStore({ activePracticeIds: five, subscriptionStatus: 'PAID' })
+    const uprBySK: Record<string, Record<string, unknown>> = {}
+    for (const id of five) uprBySK[`UPRACTICE#${id}`] = { status: 'active' }
+    mockStore({ activePracticeIds: five, subscriptionStatus: 'PAID' }, uprBySK)
     const res = await POST(makeReq({ mode: 'startPractice', practiceId: 'sleep-consistent-bedtime' }))
     expect(res.status).toBe(201)
     const json = await res.json()
     expect(json.warning).toBeUndefined()
+  })
+
+  // Regression: PROFILE.activePracticeIds can drift from UPRACTICE.status if a prior
+  // parallel write failed. The cap check must use UPRACTICE as the source of truth so
+  // a stale PROFILE doesn't lock the user out when the UI correctly shows "no active practice."
+  it('allows starting when PROFILE.activePracticeIds is stale (no UPRACTICE is active)', async () => {
+    mockStore(
+      // PROFILE wrongly claims a practice is active, but the UPRACTICE for it is inactive.
+      { activePracticeIds: ['financial-label-decision'], subscriptionStatus: 'FREE' },
+      { 'UPRACTICE#financial-label-decision': { status: 'inactive' } },
+    )
+    const res = await POST(makeReq({ mode: 'startPractice', practiceId: 'sleep-consistent-bedtime' }))
+    expect(res.status).toBe(201)
+    // PROFILE.activePracticeIds is reconciled from UPRACTICE truth on the write.
+    const profileUpdate = updateItemMock.mock.calls.find(
+      (c) => c[0].Key.SK === 'PROFILE',
+    )
+    expect(profileUpdate[0].ExpressionAttributeValues[':ids']).toEqual([
+      'sleep-consistent-bedtime',
+    ])
   })
 
   it('returns 404 for unknown practiceId', async () => {
