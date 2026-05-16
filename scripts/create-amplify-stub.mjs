@@ -52,4 +52,21 @@ const stub = {
 };
 
 writeFileSync(target, JSON.stringify(stub, null, 2));
-console.log("Wrote stub amplify_outputs.json");
+
+const banner = [
+  "",
+  "========================================================================",
+  "  WROTE STUB amplify_outputs.json",
+  "",
+  "  Placeholder values for CI / build only. Local dev will NOT work with",
+  "  these — auth will fail with:",
+  "    \"User pool client stubclient does not exist\"",
+  "",
+  "  If you intended to run locally, restore the real file:",
+  "    npm run restore:amplify",
+  "  Or re-download from AWS Amplify Console (staging branch artifacts),",
+  "  then: npm run backup:amplify",
+  "========================================================================",
+  "",
+].join("\n");
+console.warn(banner);
