@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { HelpTooltip } from '@/components/HelpTooltip';
 import { NarrowFormPage } from '@/components/layout';
 import { Card, Button, Loading, ErrorState } from '@/components/ui';
+import { MilestoneBadge } from '@/components/MilestoneBadge';
 import { pillarColors } from '@/lib/design/pillarColors';
 import { pillarLabels } from '@/lib/assessment/pillars';
 import type { Pillar } from '@/lib/assessment/pillars';
@@ -157,9 +158,15 @@ export default function TodayPage() {
             <div className="space-y-2">
               <p className="text-sm font-semibold text-primary">Milestone unlocked!</p>
               {newMilestones.map((m) => (
-                <div key={`${m.type}-${m.threshold}-${m.practiceId ?? 'total'}`}>
-                  <p className="text-sm font-medium text-foreground">{m.title}</p>
-                  <p className="text-xs text-muted-foreground">{m.description}</p>
+                <div
+                  key={`${m.type}-${m.threshold}-${m.practiceId ?? 'total'}`}
+                  className="flex items-start gap-3"
+                >
+                  <MilestoneBadge icon={m.icon} tier={m.tier} achieved size="sm" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{m.title}</p>
+                    <p className="text-xs text-muted-foreground">{m.description}</p>
+                  </div>
                 </div>
               ))}
               <button

@@ -19,20 +19,20 @@ const faqs = [
     a: "Each pillar has 5 yes/no questions. Your score (e.g. 3/5) reflects how many you answered Yes to based on the last 7–14 days. It's a snapshot of your current habits — not a permanent label, not a grade. A 2/5 just means there's room to grow in that area right now.",
   },
   {
-    q: "Why is one pillar highlighted as my focus?",
-    a: "Your focus pillar is your lowest-scoring area. Research on behaviour change shows that improving your weakest area tends to have the biggest positive ripple effect on everything else. It's not that the other pillars don't matter — it's that starting where you have the most room to grow gives you the fastest return.",
+    q: "Why is one pillar highlighted on my results?",
+    a: "Your results highlight your lowest-scoring pillar, and the 3 suggested practices come from that pillar. Research on behaviour change shows that working on your weakest area tends to have the biggest positive ripple effect on everything else. It's not that the other pillars don't matter — it's that starting where you have the most room to grow gives you the fastest return.",
   },
   {
     q: "My score seems low — does that mean I'm failing?",
     a: "No. A low score means you have room to grow, not that something is wrong with you. The assessment measures recent habits at a single point in time. Most people score low in at least one or two areas — that's normal and expected. The score is a starting point, not a verdict.",
   },
   {
-    q: "What's the difference between a trial and an active practice?",
-    a: "A trial is a 7-day test run. It doesn't count toward your active practice limit, so you can try something without committing a slot. You check in daily just like an active practice. After 7 days, you decide: promote it to active, or discard it. Trials are a low-pressure way to see if a practice actually fits your life.",
+    q: "What's the difference between an active and a paused practice?",
+    a: "An active practice is one you're showing up for on Today. Pausing it takes it off Today but keeps all your history — your total completions and daily logs stay intact, and you can resume it anytime. Pausing is the right move when something isn't fitting your life right now; there's no penalty, and nothing is deleted.",
   },
   {
     q: "How often should I retake the assessment?",
-    a: "Every 4–6 weeks is a good rhythm. Retaking too soon won't show meaningful change — habits take time to shift. After a few weeks of consistent daily check-ins, retaking gives you a more honest picture of whether things have moved. You can retake any time from the Insights page.",
+    a: "Every 4–6 weeks is a good rhythm. Retaking too soon won't show meaningful change — habits take time to shift. After a few weeks of consistent daily check-ins, retaking gives you a more honest picture of whether things have moved. You can retake any time from your Account page.",
   },
   {
     q: "Why can I only have one active practice on the free plan?",

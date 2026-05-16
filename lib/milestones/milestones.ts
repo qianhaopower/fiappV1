@@ -1,10 +1,14 @@
 export type MilestoneType = 'total' | 'practice'
+export type MilestoneTier = 'bronze' | 'silver' | 'gold'
+export type MilestoneIcon = 'sprout' | 'calendar' | 'flame' | 'trophy' | 'medal'
 
 export type MilestoneDef = {
   type: MilestoneType
   threshold: number
   title: string
   description: string
+  icon: MilestoneIcon
+  tier: MilestoneTier
 }
 
 export type MilestoneItem = {
@@ -20,18 +24,20 @@ export type MilestoneItem = {
 
 export type NewMilestone = Pick<MilestoneItem, 'type' | 'threshold' | 'title' | 'description'> & {
   practiceId?: string
+  icon: MilestoneIcon
+  tier: MilestoneTier
 }
 
 export const TOTAL_MILESTONES: MilestoneDef[] = [
-  { type: 'total', threshold: 1,   title: 'First check-in',  description: 'Logged your very first practice.' },
-  { type: 'total', threshold: 7,   title: 'One week in',     description: 'Seven check-ins logged.' },
-  { type: 'total', threshold: 30,  title: 'Monthly habit',   description: '30 check-ins across your practices.' },
-  { type: 'total', threshold: 100, title: 'Century',         description: '100 total check-ins. Remarkable.' },
+  { type: 'total', threshold: 1,   title: 'First check-in',  description: 'Logged your very first practice.',     icon: 'sprout',   tier: 'bronze' },
+  { type: 'total', threshold: 7,   title: 'One week in',     description: 'Seven check-ins logged.',              icon: 'calendar', tier: 'bronze' },
+  { type: 'total', threshold: 30,  title: 'Monthly habit',   description: '30 check-ins across your practices.',  icon: 'flame',    tier: 'silver' },
+  { type: 'total', threshold: 100, title: 'Century',         description: '100 total check-ins. Remarkable.',     icon: 'trophy',   tier: 'gold' },
 ]
 
 export const PRACTICE_MILESTONES: MilestoneDef[] = [
-  { type: 'practice', threshold: 7,  title: '7-day practice',  description: '7 check-ins for a single practice.' },
-  { type: 'practice', threshold: 30, title: 'Practice master', description: '30 check-ins for a single practice.' },
+  { type: 'practice', threshold: 7,  title: '7-day practice',  description: '7 check-ins for a single practice.',  icon: 'calendar', tier: 'bronze' },
+  { type: 'practice', threshold: 30, title: 'Practice master', description: '30 check-ins for a single practice.', icon: 'medal',    tier: 'silver' },
 ]
 
 export const ALL_MILESTONE_DEFS = [...TOTAL_MILESTONES, ...PRACTICE_MILESTONES]
