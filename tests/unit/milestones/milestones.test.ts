@@ -30,7 +30,7 @@ describe('checkNewMilestones', () => {
   })
 
   it('does not re-trigger total milestone at 7 when total was already 8', () => {
-    const counters = { 'sleep-consistent-bedtime': 5, 'sleep-screen-off': 4 }
+    const counters = { 'sleep-consistent-bedtime': 5, 'sleep-dim-before-bed': 4 }
     // total=9, delta=1, oldTotal=8 — doesn't cross 7
     const hits = checkNewMilestones(counters, 'sleep-consistent-bedtime', 1)
     expect(hits).not.toContainEqual({ type: 'total', threshold: 7 })
@@ -61,10 +61,10 @@ describe('checkNewMilestones', () => {
   })
 
   it('does not trigger practice milestone for a different practice', () => {
-    const counters = { 'sleep-consistent-bedtime': 5, 'sleep-screen-off': 7 }
+    const counters = { 'sleep-consistent-bedtime': 5, 'sleep-dim-before-bed': 7 }
     // logging sleep-consistent-bedtime, oldCount=4, newCount=5
     const hits = checkNewMilestones(counters, 'sleep-consistent-bedtime', 1)
-    expect(hits).not.toContainEqual({ type: 'practice', threshold: 7, practiceId: 'sleep-screen-off' })
+    expect(hits).not.toContainEqual({ type: 'practice', threshold: 7, practiceId: 'sleep-dim-before-bed' })
   })
 
   it('can trigger both total and practice milestones simultaneously', () => {
@@ -75,7 +75,7 @@ describe('checkNewMilestones', () => {
   })
 
   it('triggers total milestone using combined counters across practices', () => {
-    const counters = { 'sleep-consistent-bedtime': 4, 'sleep-screen-off': 3 }
+    const counters = { 'sleep-consistent-bedtime': 4, 'sleep-dim-before-bed': 3 }
     // total=7, delta=1, oldTotal=6 → crosses 7
     const hits = checkNewMilestones(counters, 'sleep-consistent-bedtime', 1)
     expect(hits).toContainEqual({ type: 'total', threshold: 7 })

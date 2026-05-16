@@ -6,6 +6,10 @@ work across local / staging / production, plus the lessons learned from the
 deleted. Read this before making changes to anything in `amplify/` or before
 deleting AWS resources directly.
 
+**For a short "how do I get `npm run dev` running on a fresh checkout" recipe,
+see [local-dev.md](./local-dev.md).** This doc is the deep reference; that one
+is the quickstart.
+
 ---
 
 ## 1. The mental model
@@ -189,6 +193,15 @@ FIAPP_AWS_REGION=ap-southeast-2
 
 Since the file is no longer tracked, you need to generate or copy it
 locally. **Do not commit it.**
+
+> Quickstart recipe lives in [local-dev.md](./local-dev.md). The options
+> below are kept here for the deeper context on tradeoffs.
+
+Once you have a real file in place, run `npm run backup:amplify` to stash a
+copy at `~/.fiapp-amplify-outputs-backup.json`. If the file ever goes
+missing or gets stubbed, `npm run restore:amplify` puts it back. A `predev`
+guard refuses to start `npm run dev` if the file is missing or contains
+stub values, so the failure mode is now loud instead of silent.
 
 **Option A — Point local at staging (recommended for solo dev)**
 
@@ -386,6 +399,15 @@ recreate the pool via CloudFormation or destroy + redeploy the stack.
 isn't tracked. If it returns, check whether the file got re-tracked
 somewhere.
 
+### `npm run dev` fails with "amplify_outputs.json is not usable for local dev"
+
+→ The `predev` guard caught a missing or stubbed file. Run
+`npm run restore:amplify` (uses your backup at
+`~/.fiapp-amplify-outputs-backup.json`). If you have no backup, follow the
+"Populating `amplify_outputs.json`" recipe in
+[local-dev.md](./local-dev.md). To bypass the guard once (not recommended),
+run `next dev` directly.
+
 ### "Token is expired" / "AccessDeniedException" running locally
 
 → The dynamo client is falling back to AWS SDK default credential chain
@@ -426,4 +448,7 @@ Source of truth files:
 - [utils/dynamoClient.ts](../../utils/dynamoClient.ts) — direct DynamoDB SDK
 - [utils/amplifyServerUtils.ts](../../utils/amplifyServerUtils.ts) — AppSync server runner
 - [scripts/create-amplify-stub.mjs](../../scripts/create-amplify-stub.mjs) — CI stub generator
+- [scripts/check-amplify-outputs.mjs](../../scripts/check-amplify-outputs.mjs) — `predev` guard
+- [scripts/backup-amplify-outputs.mjs](../../scripts/backup-amplify-outputs.mjs) — `npm run backup:amplify`
+- [scripts/restore-amplify-outputs.mjs](../../scripts/restore-amplify-outputs.mjs) — `npm run restore:amplify`
 - [amplify.yml](../../amplify.yml) — Amplify Hosting build pipeline

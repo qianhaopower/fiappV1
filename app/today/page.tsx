@@ -10,6 +10,7 @@ import { pillarLabels } from '@/lib/assessment/pillars';
 import type { Pillar } from '@/lib/assessment/pillars';
 import type { DotEntry } from '@/lib/returns/returns';
 import type { NewMilestone } from '@/lib/milestones/milestones';
+import { celebrateDaily, celebrateMilestone } from '@/lib/celebrate';
 
 type ActivePractice = {
   id: string
@@ -108,7 +109,11 @@ export default function TodayPage() {
       .finally(() => setLoading(false))
   }, [loadReturns])
 
-  async function handleLog(practiceId: string, value: boolean) {
+  async function handleLog(
+    practiceId: string,
+    value: boolean,
+    origin?: { x: number; y: number }
+  ) {
     const current = stateById[practiceId]?.didIt ?? null
     if (current === value) return
     patchState(practiceId, { logging: true, loggingValue: value, logError: '' })
@@ -121,13 +126,20 @@ export default function TodayPage() {
       if (!res.ok) throw new Error('Failed to log return')
       const data: ReturnResponse = await res.json()
       patchState(practiceId, { didIt: value })
-      if (data.newMilestones && data.newMilestones.length > 0) {
+      const hasMilestone = !!(data.newMilestones && data.newMilestones.length > 0)
+      if (hasMilestone) {
         setNewMilestones((prev) => [...prev, ...data.newMilestones!])
       }
       await loadReturns(practiceId)
       if (value === true) {
         patchState(practiceId, { justLogged: true })
         setTimeout(() => patchState(practiceId, { justLogged: false }), 700)
+        // Milestone supersedes the daily burst — never fire both at once
+        if (hasMilestone) {
+          celebrateMilestone()
+        } else {
+          celebrateDaily(origin)
+        }
       }
     } catch {
       patchState(practiceId, { logError: 'Could not save. Please try again.' })
@@ -209,7 +221,7 @@ export default function TodayPage() {
                     size="lg"
                     variant={s.didIt === true ? 'default' : 'outline'}
                     disabled={s.logging}
-                    onClick={() => handleLog(p.id, true)}
+                    onClick={(e) => handleLog(p.id, true, { x: e.clientX, y: e.clientY })}
                     className={`w-full font-semibold ${s.didIt === null ? 'border-primary/40 text-primary hover:bg-primary/5' : ''} ${s.justLogged ? 'animate-button-confirm' : ''}`}
                   >
                     {s.logging && s.loggingValue === true ? '…' : '✓ Did it'}

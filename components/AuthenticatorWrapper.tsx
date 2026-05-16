@@ -13,14 +13,12 @@ const passwordSettings = {
   requireLowercase: true,
   requireUppercase: true,
   requireNumbers: true,
-  requireSpecialCharacters: true,
 };
 
 function PasswordRequirements() {
   return (
     <p className="mt-2 text-xs leading-5 text-muted-foreground">
-      Passwords need 8+ characters with uppercase, lowercase, a number, and a
-      symbol.
+      Passwords need 8+ characters with uppercase, lowercase, and a number.
     </p>
   );
 }
