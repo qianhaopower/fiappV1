@@ -117,8 +117,19 @@ If drift recurs, the cheapest fix is wrapping the two writes in
 `PROFILE.activePracticeIds` and having all three readers query
 UPRACTICE.
 
+**Follow-up (same day, second PR):** The #390 fix alone was insufficient
+for users with `UPRACTICE#<id>` rows left over from the 2026-05-16
+practice-ID rename ([`094fa55`](https://github.com/qianhaopower/fiappV1/commit/094fa55)).
+Those rows still carried `status='active'` but their `practiceId` was no
+longer in the library. The UI's `enrich()` filtered them out — the new
+cap check did not, so the user still hit `CAP_REACHED`. Fixed by tightening
+`isActiveUPractice` to require `practicesById.has(up.practiceId)`, matching
+the UI's behavior exactly. Lesson reinforced: "match the UI's source of
+truth" means matching its *filter rules* too, not just its source item.
+
 **References:**
-- PR [#390](https://github.com/qianhaopower/fiappV1/pull/390)
+- PR [#390](https://github.com/qianhaopower/fiappV1/pull/390) — initial fix (PROFILE → UPRACTICE)
+- PR [#393](https://github.com/qianhaopower/fiappV1/pull/393) — follow-up (skip ghost renamed IDs)
 - Diverging readers (still cache-trusting):
   [`app/api/return/route.ts`](../../app/api/return/route.ts),
   [`app/api/progress/route.ts`](../../app/api/progress/route.ts),
