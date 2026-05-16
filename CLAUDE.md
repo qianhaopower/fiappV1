@@ -21,6 +21,20 @@ After merging a feature to `main`, sync staging back up:
 git checkout staging && git merge main && git push origin staging
 ```
 
+## Practice IDs — HARD RULES
+
+**NEVER reuse a retired practice ID.** Practice IDs in `lib/practices/library.ts`
+are write keys in DynamoDB (`UPRACTICE#<id>`, `RETURN#<id>`, milestone SKs). When a
+practice is renamed or removed, dormant rows survive in existing users' data. If a
+new practice ever takes a retired ID, those rows silently come back to life with all
+the wrong history attached — data-correctness incident, no UI warning.
+
+**When renaming or removing a practice:**
+1. Add the OLD id to `RETIRED_PRACTICE_IDS` in [`lib/practices/retired-ids.ts`](lib/practices/retired-ids.ts).
+2. The test in `tests/unit/practices/retired-ids.test.ts` will fail any PR that
+   reuses a retired id. Do not bypass it.
+3. Never delete entries from `RETIRED_PRACTICE_IDS`. It is append-only.
+
 ## E2E tests (Layer 3) — SAFETY RULES
 
 **NEVER run `npm run test:e2e` or `npx playwright test` unless one of these is true:**
