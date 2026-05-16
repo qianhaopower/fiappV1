@@ -48,6 +48,11 @@ beforeEach(() => {
   updateItemMock.mockReset()
   queryMock.mockResolvedValue([])
   updateItemMock.mockResolvedValue(undefined)
+  // Default: putItemIfNotExists resolves successfully. The lazy USERS#INDEX
+  // backfill in GET /api/me calls this on every request, so the default
+  // keeps the .catch chain happy. Individual tests still override when they
+  // need to exercise the race path.
+  putItemIfNotExistsMock.mockResolvedValue(true)
 })
 
 describe('GET /api/me', () => {

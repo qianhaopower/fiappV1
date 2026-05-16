@@ -45,6 +45,19 @@ export async function GET(req: Request) {
     const existing = await client.getItem<ProfileItem>(profileKey);
 
     if (existing) {
+      // Lazy backfill of the admin user-list index. Profiles created before
+      // the index existed get registered on first read; idempotent for
+      // anyone already indexed. Best-effort — failures log but don't break
+      // the /me read.
+      client
+        .putItemIfNotExists({
+          PK: "USERS",
+          SK: `INDEX#${user.userId}`,
+          userId: user.userId,
+          createdAt: existing.createdAt ?? new Date().toISOString(),
+        })
+        .catch((e) => console.error("[GET /api/me] users index backfill failed:", e));
+
       return jsonWithNoStore({ ok: true, data: stripKeys(existing) }, 200);
     }
 
