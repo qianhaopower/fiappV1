@@ -79,6 +79,18 @@ export async function GET(req: Request) {
       return jsonWithNoStore({ ok: true, data: stripKeys(reread) }, 200);
     }
 
+    // Index entry for the admin user-list view. Idempotent and best-effort —
+    // if the write fails the profile is still valid; the user just won't show
+    // up in /admin until backfill runs.
+    client
+      .putItemIfNotExists({
+        PK: "USERS",
+        SK: `INDEX#${user.userId}`,
+        userId: user.userId,
+        createdAt: now,
+      })
+      .catch((e) => console.error("[GET /api/me] users index write failed:", e));
+
     trackEvent("totalUsers", "newUsers");
     return jsonWithNoStore({ ok: true, data: stripKeys(newItem) }, 200);
   });
