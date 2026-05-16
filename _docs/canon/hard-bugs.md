@@ -38,6 +38,94 @@ evidence matter more than narrative.
 
 ## Bugs
 
+### 2026-05-17 — "Choose a practice" + `CAP_REACHED`: UPRACTICE vs PROFILE divergence
+
+**Symptom (what users / monitoring saw):**
+On the today page, the UI showed "Choose one practice to start." (meaning
+no practice was active). Clicking to pick one returned `409 CAP_REACHED`
+on the FREE plan (cap = 1). UI and backend disagreed about whether the
+user already had an active practice.
+
+**Why it was hard to diagnose:**
+- Both endpoints individually looked correct. `/api/practices/active`
+  read UPRACTICE rows and reported "none active" — correct given the
+  data it saw. `/api/practice` read PROFILE and reported "cap reached" —
+  correct given the data *it* saw. The bug was in the *disagreement*,
+  not in either path alone.
+- The denormalization was historical and easy to overlook: PROFILE
+  carried `activePracticeIds` as a precomputed array, while UPRACTICE#
+  rows carried the authoritative `status` field. Nothing in the schema
+  flagged one as canonical.
+- The user's data had been in this state for some indeterminate amount
+  of time, so there was no recent code change to suspect.
+
+**Root cause:** Two sources of truth maintained by parallel writes.
+Every start / inactive / switch operation updated both the
+`UPRACTICE#<id>.status` field and the `PROFILE.activePracticeIds` array
+via `Promise.all` of two separate DynamoDB writes — no transaction, no
+rollback. If either write failed (throttle, Lambda mid-flight kill,
+network blip) the two items drifted. The cap check read PROFILE (the
+stale cache); the UI read UPRACTICE (truth). They contradicted each
+other and the user was locked out: PROFILE said "full," UPRACTICE said
+"empty," and there was no way for the user to break the deadlock
+because every "start practice" attempt got rejected by the cap check
+before it could rewrite PROFILE.
+
+**Fix:** PR [#390](https://github.com/qianhaopower/fiappV1/pull/390).
+All three handlers in `app/api/practice/route.ts`
+(`startPractice`/`reactivatePractice`, `makePracticeInactive`,
+`switchToPractice`) now query `UPRACTICE#*` once and derive *both* the
+active count (for the cap) and the new `activePracticeIds` value from
+that snapshot. PROFILE is rewritten from UPRACTICE truth on every
+successful write — so it's now a cache that self-heals on the next
+practice action, not an enforcement source that can lock the user out.
+
+No data backfill was required: the affected user's next "Start
+practice" click counts 0 active UPRACTICEs (reality), allows the
+write, and reconciles PROFILE in the same transaction-of-writes.
+
+**Lessons / what to check next time:**
+- **Never enforce a business rule against a denormalized cache.** If
+  the cap check had read UPRACTICE (the same source the UI used), the
+  divergence would have been invisible to the user — at worst PROFILE
+  stays slightly wrong for the admin count. The dangerous thing wasn't
+  the drift itself; it was *gating user actions on the side that could
+  drift*.
+- **`Promise.all` of two writes is not atomic.** It's two independent
+  DynamoDB calls. Either can fail. If both writes must agree, use
+  `TransactWriteItems` — or design so one side is derived from the
+  other and never written independently.
+- **Two readers of "the same thing" reading from two different items
+  is a smell.** Grep for every reader before adding a denormalized
+  cache. If readers disagree on the source, they will eventually
+  disagree on the answer.
+- **Self-healing beats backfill.** When you discover a class of drift,
+  prefer a fix that reconciles on the next write over a one-off cleanup
+  script. The script is one-time; the fix protects every future
+  incident of the same shape.
+
+**Residual risk (acknowledged, not yet fixed):** `PROFILE.activePracticeIds`
+is still updated via non-atomic `Promise.all` and is still read as a
+cache by `app/api/return/route.ts`, `app/api/progress/route.ts`, and
+`app/api/admin/users/route.ts`. A future partial-write failure can
+still cause those three to briefly see stale data (e.g. return
+submission blocked for a practice that's actually active) until the
+user's next practice mutation reconciles things. The cap check — the
+loud, lock-the-user-out path — is now safe. Smaller seams remain.
+If drift recurs, the cheapest fix is wrapping the two writes in
+`TransactWriteItems`; the structurally correct fix is dropping
+`PROFILE.activePracticeIds` and having all three readers query
+UPRACTICE.
+
+**References:**
+- PR [#390](https://github.com/qianhaopower/fiappV1/pull/390)
+- Diverging readers (still cache-trusting):
+  [`app/api/return/route.ts`](../../app/api/return/route.ts),
+  [`app/api/progress/route.ts`](../../app/api/progress/route.ts),
+  [`app/api/admin/users/route.ts`](../../app/api/admin/users/route.ts)
+
+---
+
 ### 2026-05-16 — Cognito verification emails silently lost to Gmail spam, plus the `amplify-backend#3134` deploy trap
 
 **Symptom (what users / monitoring saw):**

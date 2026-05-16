@@ -35,6 +35,19 @@ type Body = {
 
 type Client = ReturnType<typeof createDynamoClient>
 
+// Single source of truth for "what counts as active." Matches the lenient read in
+// /api/practices/active: missing status defaults to active; paused/replaced/inactive do not.
+function isActiveUPractice(up: UPracticeItem): boolean {
+  return !up.status || up.status === 'active'
+}
+
+async function queryUPractices(client: Client, pk: string): Promise<UPracticeItem[]> {
+  return client.query<UPracticeItem>({
+    KeyConditionExpression: 'PK = :pk AND begins_with(SK, :prefix)',
+    ExpressionAttributeValues: { ':pk': pk, ':prefix': 'UPRACTICE#' },
+  })
+}
+
 export async function POST(req: Request) {
   return withAuth(req, async (user) => {
     if (!checkRateLimit(`practice:${user.userId}`, 20)) return rateLimitedResponse()
@@ -86,11 +99,16 @@ async function handleStartOrReactivate(args: {
     return NextResponse.json({ error: 'PRACTICE_NOT_FOUND' }, { status: 404 })
   }
 
+  // PROFILE provides subscriptionStatus for the cap; UPRACTICE# items are the source
+  // of truth for which practices are active. PROFILE.activePracticeIds is a
+  // denormalized cache that can drift, so we don't read it for cap enforcement.
   const sk = makeUPracticeSK(practiceId)
-  const [profile, existing] = await Promise.all([
+  const [profile, upractices] = await Promise.all([
     client.getItem<ProfileData>({ PK: pk, SK: 'PROFILE' }),
-    client.getItem<UPracticeItem>({ PK: pk, SK: sk }),
+    queryUPractices(client, pk),
   ])
+
+  const existing = upractices.find((up) => up.practiceId === practiceId)
 
   // Already active — idempotent no-op (200 instead of 409)
   if (existing?.status === 'active') {
@@ -100,15 +118,18 @@ async function handleStartOrReactivate(args: {
     )
   }
 
-  const activePracticeIds = profile?.activePracticeIds ?? []
+  const otherActiveIds = upractices
+    .filter((up) => up.practiceId !== practiceId && isActiveUPractice(up))
+    .map((up) => up.practiceId)
 
-  const capCheck = checkActiveCap(profile?.subscriptionStatus, activePracticeIds.length)
+  const capCheck = checkActiveCap(profile?.subscriptionStatus, otherActiveIds.length)
   if (!capCheck.allowed) {
     return NextResponse.json({ error: capCheck.reason, cap: capCheck.cap }, { status: 409 })
   }
 
   const now = new Date().toISOString()
-  const newIds = [...activePracticeIds, practiceId]
+  // Reconcile PROFILE.activePracticeIds from the UPRACTICE source of truth on every write.
+  const newIds = [...otherActiveIds, practiceId]
 
   if (!existing) {
     await Promise.all([
@@ -157,16 +178,17 @@ async function handleMakeInactive(args: {
   const { pk, client, practiceId } = args
 
   const sk = makeUPracticeSK(practiceId)
-  const [profile, existing] = await Promise.all([
-    client.getItem<ProfileData>({ PK: pk, SK: 'PROFILE' }),
-    client.getItem<UPracticeItem>({ PK: pk, SK: sk }),
-  ])
+  const upractices = await queryUPractices(client, pk)
+  const existing = upractices.find((up) => up.practiceId === practiceId)
 
   if (!existing || existing.status !== 'active') {
     return NextResponse.json({ error: 'PRACTICE_NOT_ACTIVE' }, { status: 409 })
   }
 
-  const activePracticeIds = (profile?.activePracticeIds ?? []).filter((id) => id !== practiceId)
+  // Reconcile from UPRACTICE truth, excluding the one being deactivated.
+  const remainingActiveIds = upractices
+    .filter((up) => up.practiceId !== practiceId && isActiveUPractice(up))
+    .map((up) => up.practiceId)
 
   const now = new Date().toISOString()
   await Promise.all([
@@ -179,7 +201,7 @@ async function handleMakeInactive(args: {
     client.updateItem({
       Key: { PK: pk, SK: 'PROFILE' },
       UpdateExpression: 'SET activePracticeIds = :ids',
-      ExpressionAttributeValues: { ':ids': activePracticeIds },
+      ExpressionAttributeValues: { ':ids': remainingActiveIds },
     }),
   ])
 
@@ -205,11 +227,10 @@ async function handleSwitch(args: {
 
   const oldSk = makeUPracticeSK(deactivatePracticeId)
   const newSk = makeUPracticeSK(practiceId)
-  const [profile, oldExisting, newExisting] = await Promise.all([
-    client.getItem<ProfileData>({ PK: pk, SK: 'PROFILE' }),
-    client.getItem<UPracticeItem>({ PK: pk, SK: oldSk }),
-    client.getItem<UPracticeItem>({ PK: pk, SK: newSk }),
-  ])
+
+  const upractices = await queryUPractices(client, pk)
+  const oldExisting = upractices.find((up) => up.practiceId === deactivatePracticeId)
+  const newExisting = upractices.find((up) => up.practiceId === practiceId)
 
   if (!oldExisting || oldExisting.status !== 'active') {
     return NextResponse.json({ error: 'DEACTIVATE_PRACTICE_NOT_ACTIVE' }, { status: 409 })
@@ -218,8 +239,15 @@ async function handleSwitch(args: {
     return NextResponse.json({ error: 'PRACTICE_ALREADY_ACTIVE' }, { status: 409 })
   }
 
-  const activePracticeIds = (profile?.activePracticeIds ?? [])
-    .filter((id) => id !== deactivatePracticeId)
+  // Reconcile from UPRACTICE truth: drop the deactivated id, add the new one.
+  const activePracticeIds = upractices
+    .filter(
+      (up) =>
+        up.practiceId !== deactivatePracticeId &&
+        up.practiceId !== practiceId &&
+        isActiveUPractice(up),
+    )
+    .map((up) => up.practiceId)
     .concat(practiceId)
 
   const now = new Date().toISOString()
