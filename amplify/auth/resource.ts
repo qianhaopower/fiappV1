@@ -33,6 +33,12 @@ export const auth = defineAuth({
       ],
     },
   },
+  senders: {
+    email: {
+      fromEmail: 'no-reply@friendsintelligence.net',
+      fromName: 'Friends Intelligence',
+    },
+  },
   triggers: {
     preSignUp: preSignUpTrigger,
   },
