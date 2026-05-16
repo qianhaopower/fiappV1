@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { HelpTooltip } from '@/components/HelpTooltip';
 import { StandardPage } from '@/components/layout';
 import { Card, Button, Loading, ErrorState, EmptyState } from '@/components/ui';
+import { CapLimitNotice } from '@/components/CapLimitNotice';
 import { PillarRadarChart } from '@/components/ui/PillarRadarChart';
 import { pillarColors } from '@/lib/design/pillarColors';
 import { pillarOrder, pillarLabels } from '@/lib/assessment/pillars';
@@ -58,6 +59,7 @@ export default function ResultsPage() {
   const [error, setError] = useState(false)
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({})
   const [inlineError, setInlineError] = useState<Record<string, string>>({})
+  const [capNotice, setCapNotice] = useState<Record<string, number>>({})
   const [switchState, setSwitchState] = useState<SwitchState>(null)
 
   const load = useCallback(async () => {
@@ -112,6 +114,7 @@ export default function ResultsPage() {
   async function handleStart(practice: Practice) {
     setAction(practice.id, true)
     setInlineError((p) => ({ ...p, [practice.id]: '' }))
+    setCapNotice((p) => ({ ...p, [practice.id]: 0 }))
     try {
       const res = await callPractice({ mode: 'startPractice', practiceId: practice.id })
       const json = await res.json().catch(() => ({} as Record<string, unknown>))
@@ -127,10 +130,7 @@ export default function ResultsPage() {
           return
         }
         const cap = (json as { cap?: number }).cap ?? 10
-        setInlineError((p) => ({
-          ...p,
-          [practice.id]: `You're at the ${cap}-practice limit. Pause one first.`,
-        }))
+        setCapNotice((p) => ({ ...p, [practice.id]: cap }))
         return
       }
       setInlineError((p) => ({ ...p, [practice.id]: 'Could not start. Please try again.' }))
@@ -307,11 +307,13 @@ export default function ResultsPage() {
                                 <Link href="/today">View on Today</Link>
                               </Button>
                             )}
-                            {inlineError[practice.id] && (
+                            {capNotice[practice.id] ? (
+                              <CapLimitNotice cap={capNotice[practice.id]} />
+                            ) : inlineError[practice.id] ? (
                               <p className="text-xs text-destructive mt-1">
                                 {inlineError[practice.id]}
                               </p>
-                            )}
+                            ) : null}
                           </div>
                         </div>
                       </Card>
