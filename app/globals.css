@@ -177,6 +177,13 @@
   animation: button-confirm 0.3s ease-out;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .animate-dot-pop,
+  .animate-button-confirm {
+    animation: none;
+  }
+}
+
 /* Amplify Authenticator: full custom skin inside FIApp card */
 .fiapp-auth {
   width: 100%;
