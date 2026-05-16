@@ -87,7 +87,14 @@ describe('GET /api/me', () => {
     expect(json.ok).toBe(true)
     expect(json.data.subscriptionStatus).toBe('FREE')
     expect(json.data.activeTrialCount).toBeUndefined()
-    expect(putItemIfNotExistsMock).toHaveBeenCalledOnce()
+    // Two writes: the profile + the USERS#INDEX entry that powers /admin.
+    expect(putItemIfNotExistsMock).toHaveBeenCalledTimes(2)
+    expect(putItemIfNotExistsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ PK: 'USER#usr-1', SK: 'PROFILE' })
+    )
+    expect(putItemIfNotExistsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ PK: 'USERS', SK: 'INDEX#usr-1', userId: 'usr-1' })
+    )
   })
 
   it('re-reads profile on race condition (putItemIfNotExists returns false)', async () => {
