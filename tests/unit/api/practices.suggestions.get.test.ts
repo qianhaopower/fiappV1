@@ -45,8 +45,8 @@ describe('GET /api/practices/suggestions', () => {
       {
         suggestedPracticeIds: [
           'sleep-consistent-bedtime',
-          'sleep-wind-down-ritual',
-          'sleep-screen-off',
+          'sleep-morning-light',
+          'sleep-dim-before-bed',
         ],
         lowestPillarId: 'sleep',
       },
@@ -58,8 +58,8 @@ describe('GET /api/practices/suggestions', () => {
     expect(res.status).toBe(200)
     expect(json.suggestions.map((s: { id: string }) => s.id)).toEqual([
       'sleep-consistent-bedtime',
-      'sleep-wind-down-ritual',
-      'sleep-screen-off',
+      'sleep-morning-light',
+      'sleep-dim-before-bed',
     ])
     expect(json.lowestPillarId).toBe('sleep')
     expect(json.focusPillar).toBe('sleep')
@@ -110,9 +110,9 @@ describe('GET /api/practices/suggestions', () => {
       { latestAssessmentId: 'a-1', lowestPillarId: 'financial' },
       {
         suggestedPracticeIds: [
-          'financial-weekly-review',
-          'financial-bill-list',
-          'financial-24hr-rule',
+          'financial-label-decision',
+          'financial-repeated-cost',
+          'financial-auto-payment-review',
         ],
         lowestPillarId: 'financial',
       },

@@ -54,7 +54,7 @@ describe('GET /api/progress', () => {
 
   it('sums returnCounters for totalReturns', async () => {
     mainGetItemMock.mockResolvedValue({
-      returnCounters: { 'sleep-consistent-bedtime': 5, 'sleep-screen-off': 3 },
+      returnCounters: { 'sleep-consistent-bedtime': 5, 'sleep-dim-before-bed': 3 },
     })
     const res = await GET(makeReq())
     const json = await res.json()

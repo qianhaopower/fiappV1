@@ -47,7 +47,7 @@ function post(body: object) {
   );
 }
 
-const PRACTICE = "financial-weekly-review";
+const PRACTICE = "financial-label-decision";
 const TODAY = "2026-05-08";
 
 describe("POST /api/return", () => {

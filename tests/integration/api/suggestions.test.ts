@@ -40,8 +40,8 @@ describe("GET /api/practices/suggestions", () => {
     const assessmentId = randomUUID();
     const ids = [
       "sleep-consistent-bedtime",
-      "sleep-wind-down-ritual",
-      "sleep-screen-off",
+      "sleep-morning-light",
+      "sleep-dim-before-bed",
     ];
 
     await seedProfile(userId);
@@ -104,9 +104,9 @@ describe("GET /api/practices/suggestions", () => {
       focusPillar: "financial",
       lowestPillarId: "financial",
       suggestedPracticeIds: [
-        "financial-weekly-review",
-        "financial-bill-list",
-        "financial-24hr-rule",
+        "financial-label-decision",
+        "financial-repeated-cost",
+        "financial-auto-payment-review",
       ],
     });
     asUser(userId);

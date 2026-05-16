@@ -142,7 +142,7 @@ describe('POST /api/practice — startPractice', () => {
   })
 
   it('FREE user at cap is blocked with 409 CAP_REACHED', async () => {
-    mockStore({ activePracticeIds: ['financial-weekly-review'], subscriptionStatus: 'FREE' })
+    mockStore({ activePracticeIds: ['financial-label-decision'], subscriptionStatus: 'FREE' })
     const res = await POST(makeReq({ mode: 'startPractice', practiceId: 'sleep-consistent-bedtime' }))
     expect(res.status).toBe(409)
     expect((await res.json()).error).toBe('CAP_REACHED')
@@ -189,14 +189,14 @@ describe('POST /api/practice — startPractice', () => {
 describe('POST /api/practice — makePracticeInactive', () => {
   it('flips active to inactive (200)', async () => {
     mockStore(
-      { activePracticeIds: ['financial-weekly-review'], subscriptionStatus: 'FREE' },
-      { 'UPRACTICE#financial-weekly-review': { status: 'active' } },
+      { activePracticeIds: ['financial-label-decision'], subscriptionStatus: 'FREE' },
+      { 'UPRACTICE#financial-label-decision': { status: 'active' } },
     )
-    const res = await POST(makeReq({ mode: 'makePracticeInactive', practiceId: 'financial-weekly-review' }))
+    const res = await POST(makeReq({ mode: 'makePracticeInactive', practiceId: 'financial-label-decision' }))
     expect(res.status).toBe(200)
 
     const statusUpdate = updateItemMock.mock.calls.find(
-      (c) => c[0].Key.SK === 'UPRACTICE#financial-weekly-review',
+      (c) => c[0].Key.SK === 'UPRACTICE#financial-label-decision',
     )
     expect(statusUpdate[0].ExpressionAttributeValues[':status']).toBe('inactive')
     expect(statusUpdate[0].ExpressionAttributeValues[':now']).toBeDefined()
@@ -209,7 +209,7 @@ describe('POST /api/practice — makePracticeInactive', () => {
 
   it('returns 409 PRACTICE_NOT_ACTIVE when no UPRACTICE exists', async () => {
     mockStore({ activePracticeIds: [], subscriptionStatus: 'FREE' })
-    const res = await POST(makeReq({ mode: 'makePracticeInactive', practiceId: 'financial-weekly-review' }))
+    const res = await POST(makeReq({ mode: 'makePracticeInactive', practiceId: 'financial-label-decision' }))
     expect(res.status).toBe(409)
     expect((await res.json()).error).toBe('PRACTICE_NOT_ACTIVE')
   })
@@ -217,9 +217,9 @@ describe('POST /api/practice — makePracticeInactive', () => {
   it('returns 409 PRACTICE_NOT_ACTIVE when UPRACTICE exists but is already inactive', async () => {
     mockStore(
       { activePracticeIds: [], subscriptionStatus: 'FREE' },
-      { 'UPRACTICE#financial-weekly-review': { status: 'inactive' } },
+      { 'UPRACTICE#financial-label-decision': { status: 'inactive' } },
     )
-    const res = await POST(makeReq({ mode: 'makePracticeInactive', practiceId: 'financial-weekly-review' }))
+    const res = await POST(makeReq({ mode: 'makePracticeInactive', practiceId: 'financial-label-decision' }))
     expect(res.status).toBe(409)
   })
 })
@@ -230,11 +230,11 @@ describe('POST /api/practice — switchToPractice', () => {
   it('deactivates the old practice and activates the new (200)', async () => {
     mockStore(
       {
-        activePracticeIds: ['financial-weekly-review'],
+        activePracticeIds: ['financial-label-decision'],
         subscriptionStatus: 'FREE',
       },
       {
-        'UPRACTICE#financial-weekly-review': { status: 'active' },
+        'UPRACTICE#financial-label-decision': { status: 'active' },
         'UPRACTICE#sleep-consistent-bedtime': null,
       },
     )
@@ -242,17 +242,17 @@ describe('POST /api/practice — switchToPractice', () => {
       makeReq({
         mode: 'switchToPractice',
         practiceId: 'sleep-consistent-bedtime',
-        deactivatePracticeId: 'financial-weekly-review',
+        deactivatePracticeId: 'financial-label-decision',
       }),
     )
     expect(res.status).toBe(200)
     const json = await res.json()
     expect(json.practiceId).toBe('sleep-consistent-bedtime')
-    expect(json.deactivated).toBe('financial-weekly-review')
+    expect(json.deactivated).toBe('financial-label-decision')
 
     // Old was set to inactive
     const inactiveUpdate = updateItemMock.mock.calls.find(
-      (c) => c[0].Key.SK === 'UPRACTICE#financial-weekly-review',
+      (c) => c[0].Key.SK === 'UPRACTICE#financial-label-decision',
     )
     expect(inactiveUpdate[0].ExpressionAttributeValues[':status']).toBe('inactive')
 
@@ -266,11 +266,11 @@ describe('POST /api/practice — switchToPractice', () => {
   it('reactivates an existing inactive practice on the activate side', async () => {
     mockStore(
       {
-        activePracticeIds: ['financial-weekly-review'],
+        activePracticeIds: ['financial-label-decision'],
         subscriptionStatus: 'FREE',
       },
       {
-        'UPRACTICE#financial-weekly-review': { status: 'active' },
+        'UPRACTICE#financial-label-decision': { status: 'active' },
         'UPRACTICE#sleep-consistent-bedtime': {
           status: 'inactive',
           firstStartedAt: '2025-01-01T00:00:00.000Z',
@@ -281,7 +281,7 @@ describe('POST /api/practice — switchToPractice', () => {
       makeReq({
         mode: 'switchToPractice',
         practiceId: 'sleep-consistent-bedtime',
-        deactivatePracticeId: 'financial-weekly-review',
+        deactivatePracticeId: 'financial-label-decision',
       }),
     )
     expect(res.status).toBe(200)
@@ -293,12 +293,12 @@ describe('POST /api/practice — switchToPractice', () => {
   })
 
   it('returns 400 if practiceId === deactivatePracticeId', async () => {
-    mockStore({ activePracticeIds: ['financial-weekly-review'], subscriptionStatus: 'FREE' })
+    mockStore({ activePracticeIds: ['financial-label-decision'], subscriptionStatus: 'FREE' })
     const res = await POST(
       makeReq({
         mode: 'switchToPractice',
-        practiceId: 'financial-weekly-review',
-        deactivatePracticeId: 'financial-weekly-review',
+        practiceId: 'financial-label-decision',
+        deactivatePracticeId: 'financial-label-decision',
       }),
     )
     expect(res.status).toBe(400)
@@ -315,13 +315,13 @@ describe('POST /api/practice — switchToPractice', () => {
   it('returns 409 DEACTIVATE_PRACTICE_NOT_ACTIVE when the named practice is not active', async () => {
     mockStore(
       { activePracticeIds: [], subscriptionStatus: 'FREE' },
-      { 'UPRACTICE#financial-weekly-review': { status: 'inactive' } },
+      { 'UPRACTICE#financial-label-decision': { status: 'inactive' } },
     )
     const res = await POST(
       makeReq({
         mode: 'switchToPractice',
         practiceId: 'sleep-consistent-bedtime',
-        deactivatePracticeId: 'financial-weekly-review',
+        deactivatePracticeId: 'financial-label-decision',
       }),
     )
     expect(res.status).toBe(409)
@@ -331,11 +331,11 @@ describe('POST /api/practice — switchToPractice', () => {
   it('returns 409 PRACTICE_ALREADY_ACTIVE when target is already active', async () => {
     mockStore(
       {
-        activePracticeIds: ['financial-weekly-review', 'sleep-consistent-bedtime'],
+        activePracticeIds: ['financial-label-decision', 'sleep-consistent-bedtime'],
         subscriptionStatus: 'PAID',
       },
       {
-        'UPRACTICE#financial-weekly-review': { status: 'active' },
+        'UPRACTICE#financial-label-decision': { status: 'active' },
         'UPRACTICE#sleep-consistent-bedtime': { status: 'active' },
       },
     )
@@ -343,7 +343,7 @@ describe('POST /api/practice — switchToPractice', () => {
       makeReq({
         mode: 'switchToPractice',
         practiceId: 'sleep-consistent-bedtime',
-        deactivatePracticeId: 'financial-weekly-review',
+        deactivatePracticeId: 'financial-label-decision',
       }),
     )
     expect(res.status).toBe(409)

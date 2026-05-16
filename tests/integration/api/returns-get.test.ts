@@ -34,7 +34,7 @@ function asUser(userId: string) {
   );
 }
 
-const PRACTICE = "financial-weekly-review";
+const PRACTICE = "financial-label-decision";
 
 function get(practiceId: string, days?: number) {
   const url = new URL("http://localhost/api/returns");
