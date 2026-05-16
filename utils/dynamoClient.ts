@@ -5,10 +5,12 @@ import {
   PutCommand,
   UpdateCommand,
   QueryCommand,
+  ScanCommand,
   type GetCommandInput,
   type PutCommandInput,
   type UpdateCommandInput,
   type QueryCommandInput,
+  type ScanCommandInput,
 } from "@aws-sdk/lib-dynamodb";
 
 const DEFAULT_MAIN_TABLE = "FIAPP_MAIN";
@@ -107,6 +109,23 @@ export class DynamoClient {
       })
     );
     return (result.Items ?? []) as T[];
+  }
+
+  async scan<T>(input: Omit<ScanCommandInput, "TableName"> = {}): Promise<T[]> {
+    const items: T[] = []
+    let exclusiveStartKey: Record<string, unknown> | undefined
+    do {
+      const result = await this.client.send(
+        new ScanCommand({
+          TableName: this.tableName,
+          ...input,
+          ...(exclusiveStartKey ? { ExclusiveStartKey: exclusiveStartKey } : {}),
+        })
+      )
+      if (result.Items) items.push(...(result.Items as T[]))
+      exclusiveStartKey = result.LastEvaluatedKey as Record<string, unknown> | undefined
+    } while (exclusiveStartKey)
+    return items
   }
 }
 
