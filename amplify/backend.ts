@@ -55,3 +55,12 @@ backend.preSignUpTrigger.resources.lambda.addToRolePolicy(
     resources: [`arn:aws:cognito-idp:${Aws.REGION}:${Aws.ACCOUNT_ID}:userpool/*`],
   })
 );
+
+// Amplify Gen 2 defaults the Cognito password policy to require symbols, but
+// browser-suggested passwords often omit them, causing confusing signup failures.
+// Drop the symbol requirement via CDK escape hatch (defineAuth does not expose
+// passwordPolicy as a public option).
+backend.auth.resources.cfnResources.cfnUserPool.addPropertyOverride(
+  "Policies.PasswordPolicy.RequireSymbols",
+  false,
+);
