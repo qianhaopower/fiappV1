@@ -131,7 +131,14 @@ export async function POST(req: Request) {
             }
             const isNew = await mainClient.putItemIfNotExists(item)
             if (!isNew) return null
-            const m: NewMilestone = { type: def.type, threshold: def.threshold, title: def.title, description: def.description }
+            const m: NewMilestone = {
+              type: def.type,
+              threshold: def.threshold,
+              title: def.title,
+              description: def.description,
+              icon: def.icon,
+              tier: def.tier,
+            }
             if (hit.practiceId) m.practiceId = hit.practiceId
             return m
           })

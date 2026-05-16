@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { DashboardPage } from '@/components/layout';
 import { StatCard, EmptyState, Card, Button, Loading, ErrorState } from '@/components/ui';
+import { MilestoneBadge } from '@/components/MilestoneBadge';
+import type { MilestoneIcon, MilestoneTier } from '@/lib/milestones/milestones';
 
 type Milestone = {
   sk: string
@@ -13,16 +15,21 @@ type Milestone = {
   title: string
   description: string
   achievedAt: string
+  icon?: MilestoneIcon
+  tier?: MilestoneTier
 }
 
 type NextMilestone = {
   type: string
   threshold: number
   practiceId?: string
+  practiceTitle?: string
   title: string
   description: string
   progress: number
   remaining: number
+  icon: MilestoneIcon
+  tier: MilestoneTier
 }
 
 type ProgressData = {
@@ -94,19 +101,26 @@ export default function ProgressPage() {
                 const pct = Math.min(100, Math.round((m.progress / m.threshold) * 100))
                 return (
                   <Card key={`${m.type}-${m.threshold}-${m.practiceId ?? ''}`} variant="subtle">
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <p className="font-semibold text-foreground text-sm">{m.title}</p>
-                        <p className="text-xs text-muted-foreground">{m.progress}/{m.threshold}</p>
+                    <div className="flex items-start gap-3">
+                      <MilestoneBadge icon={m.icon} tier={m.tier} achieved={false} size="sm" />
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <p className="font-semibold text-foreground text-sm">
+                            {m.practiceTitle ?? m.title}
+                          </p>
+                          <p className="text-xs text-muted-foreground">{m.progress}/{m.threshold}</p>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {m.practiceTitle ? `${m.title} — ${m.description}` : m.description}
+                        </p>
+                        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className="h-1.5 rounded-full bg-primary transition-all"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground">{m.remaining} more to go</p>
                       </div>
-                      <p className="text-xs text-muted-foreground">{m.description}</p>
-                      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                        <div
-                          className="h-1.5 rounded-full bg-primary transition-all"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                      <p className="text-xs text-muted-foreground">{m.remaining} more to go</p>
                     </div>
                   </Card>
                 )
@@ -126,9 +140,13 @@ export default function ProgressPage() {
             <div className="space-y-3">
               {data.milestones.map((m) => (
                 <Card key={m.sk} variant="subtle" className="flex items-start gap-4">
-                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
-                  </div>
+                  {m.icon && m.tier ? (
+                    <MilestoneBadge icon={m.icon} tier={m.tier} achieved size="md" />
+                  ) : (
+                    <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+                    </div>
+                  )}
                   <div>
                     <p className="font-semibold text-foreground">{m.title}</p>
                     <p className="text-sm text-muted-foreground">{m.description}</p>
