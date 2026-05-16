@@ -49,7 +49,7 @@ export default function OnboardingPage() {
               7 areas of your life
             </h1>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Friends Intelligence is a framework for building the habits that matter most across seven areas of a well-lived life. You&apos;ll get a score for each — the one with the most room to grow becomes your starting focus.
+              Friends Intelligence is a framework for building the habits that matter most across seven areas of a well-lived life. You&apos;ll get a quick snapshot of how each area feels today — and we&apos;ll pick one to focus on first.
             </p>
           </div>
 
