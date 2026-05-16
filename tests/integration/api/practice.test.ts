@@ -90,6 +90,29 @@ describe("mode=startPractice", () => {
     expect(profile?.activePracticeIds).toHaveLength(1);
   });
 
+  // Regression: PROFILE.activePracticeIds and UPRACTICE.status are two writes that can
+  // diverge if a Promise.all step fails. The cap check must trust UPRACTICE (the source
+  // of truth used by /api/practices/active), not the cached PROFILE array.
+  it("recovers when PROFILE.activePracticeIds is stale but no UPRACTICE is active", async () => {
+    const userId = randomUUID();
+    // PROFILE wrongly says the cap is full, but there's no active UPRACTICE.
+    await seedProfile(userId, {
+      activePracticeIds: ["financial-label-decision"],
+      subscriptionStatus: "FREE",
+    });
+
+    asUser(userId);
+    const res = await post({ mode: "startPractice", practiceId: "sleep-consistent-bedtime" });
+    expect(res.status).toBe(201);
+
+    const client = createDynamoClient();
+    const profile = await client.getItem<{ activePracticeIds: string[] }>({
+      PK: `USER#${userId}`, SK: "PROFILE",
+    });
+    // PROFILE is reconciled from UPRACTICE truth on the write.
+    expect(profile?.activePracticeIds).toEqual(["sleep-consistent-bedtime"]);
+  });
+
   it("PAID user can add up to 10 practices with no warnings", async () => {
     const userId = randomUUID();
     const practiceIds = [
@@ -122,7 +145,8 @@ describe("mode=startPractice", () => {
       "information-phone-away-think", "information-learn-in-chunks", "information-check-source",
       "emotional-name-before-reacting",
     ];
-    await seedProfile(userId, { subscriptionStatus: "PAID", activePracticeIds: practiceIds });
+    await seedProfile(userId, { subscriptionStatus: "PAID" });
+    for (const pid of practiceIds) await seedActivePractice(userId, pid);
 
     asUser(userId);
     const res = await post({ mode: "startPractice", practiceId: "emotional-now-or-echo" });
