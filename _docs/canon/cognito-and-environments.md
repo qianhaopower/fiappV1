@@ -2,9 +2,11 @@
 
 This document captures how authentication, data, and environment configuration
 work across local / staging / production, plus the lessons learned from the
-2026-05-09 incident where the production Cognito user pool was accidentally
-deleted. Read this before making changes to anything in `amplify/` or before
-deleting AWS resources directly.
+2026-05-09 incident (production Cognito user pool accidentally deleted) and
+the 2026-05-16 SES email migration (Cognito verification codes were being
+spam-filtered by Gmail; switched to SES with DKIM/SPF/DMARC, and dropped the
+password symbol requirement at the same time). Read this before making
+changes to anything in `amplify/` or before deleting AWS resources directly.
 
 **For a short "how do I get `npm run dev` running on a fresh checkout" recipe,
 see [local-dev.md](./local-dev.md).** This doc is the deep reference; that one
@@ -347,7 +349,7 @@ table now outlives the stack permanently.
 
 ---
 
-## 8. Quick reference: AWS resources as of 2026-05-09
+## 8. Quick reference: AWS resources as of 2026-05-16
 
 ### Cognito user pools
 
@@ -382,6 +384,29 @@ tables. Access keys live in:
 
 The user has at most 2 active access keys at a time; rotate by deactivating
 old + creating new.
+
+### SES identities (added 2026-05-16, see § 11)
+
+All in `ap-southeast-2`:
+
+| Identity | Type | Status | Purpose |
+|---|---|---|---|
+| `friendsintelligence.net` | Domain | Verified, DKIM Successful | DKIM signs all Cognito outbound mail |
+| `no-reply@friendsintelligence.net` | Email | Verified | **Load-bearing** — workaround for amplify-backend#3134 |
+| `qianhaopower@gmail.com` | Email | Verified | (Optional) Leftover from sandbox-era testing; safe to keep or delete |
+
+SES production access: **granted** in `ap-southeast-2` on 2026-05-16
+(per-region; if region changes, must be requested again).
+
+### Third-party email forwarding (ImprovMX)
+
+ImprovMX free-tier handles inbound mail for `friendsintelligence.net`:
+- Catch-all alias `*@friendsintelligence.net` → `qianhaopower@gmail.com`
+- MX records in Route 53 point to `mx1.improvmx.com` / `mx2.improvmx.com`
+- Used so the `no-reply@` mailbox can receive SES verification emails
+
+Dashboard: improvmx.com. Free tier is generous (25 aliases, unlimited
+forwarding) so no cost concern.
 
 ---
 
@@ -432,6 +457,21 @@ to add a "set password" flow.
 CI workflow should already do this; if it doesn't, the workflow file got
 out of sync.
 
+### Signup verification email never arrives (post-2026-05-16)
+
+→ See § 11. Check, in order: (1) Gmail spam folder, (2) SES sending stats
+in the SES console for failed/bounced messages, (3) that SES is still out
+of sandbox in `ap-southeast-2`, (4) that both `friendsintelligence.net`
+(domain) and `no-reply@friendsintelligence.net` (email) identities are
+still verified in SES.
+
+### CloudFormation deploy fails with "Email address is not verified"
+
+→ The amplify-backend#3134 bug surfacing. Means the SES email-address
+identity `no-reply@friendsintelligence.net` got deleted, expired, or was
+never created. Recreate it in SES (`ap-southeast-2`); domain verification
+alone is not enough — see § 11 for why.
+
 ---
 
 ## 10. Related PRs and where to look
@@ -440,11 +480,16 @@ out of sync.
 - **PR #343** — import `FIAPP_RETURNS` in production
 - **PR #350** — untrack `amplify_outputs.json` + add CI stub script
 - **PR #353** — staging → main sync (after #350 caused conflict)
+- **PR #366** — fix middleware/Identity-Pool auth-hang loop (see [related project memory])
+- **PR #379** — Cognito verification emails now sent via SES (the headline of the 2026-05-16 migration)
+- **PR #380** — staging → main promotion shipping #379 + #382 (the actual prod cutover)
+- **PR #382** — drop Cognito password symbol requirement (CDK escape hatch)
 
 Source of truth files:
-- [amplify/backend.ts](../../amplify/backend.ts) — table imports vs creates
-- [amplify/auth/resource.ts](../../amplify/auth/resource.ts) — Cognito config
+- [amplify/backend.ts](../../amplify/backend.ts) — table imports vs creates; CDK escape hatch for password policy
+- [amplify/auth/resource.ts](../../amplify/auth/resource.ts) — Cognito config, including `senders.email`
 - [amplify/auth/pre-sign-up-trigger/handler.ts](../../amplify/auth/pre-sign-up-trigger/handler.ts) — account linking logic
+- [components/AuthenticatorWrapper.tsx](../../components/AuthenticatorWrapper.tsx) — client-side `passwordSettings` and UI help text (must mirror the server policy)
 - [utils/dynamoClient.ts](../../utils/dynamoClient.ts) — direct DynamoDB SDK
 - [utils/amplifyServerUtils.ts](../../utils/amplifyServerUtils.ts) — AppSync server runner
 - [scripts/create-amplify-stub.mjs](../../scripts/create-amplify-stub.mjs) — CI stub generator
@@ -452,3 +497,153 @@ Source of truth files:
 - [scripts/backup-amplify-outputs.mjs](../../scripts/backup-amplify-outputs.mjs) — `npm run backup:amplify`
 - [scripts/restore-amplify-outputs.mjs](../../scripts/restore-amplify-outputs.mjs) — `npm run restore:amplify`
 - [amplify.yml](../../amplify.yml) — Amplify Hosting build pipeline
+
+---
+
+## 11. Email delivery via SES (added 2026-05-16)
+
+The Cognito user pool sends signup verification codes, password reset codes,
+and email-change confirmations. Until 2026-05-16, these went through
+Cognito's default sender (`no-reply@verificationemail.com`), which Gmail
+aggressively spam-filtered — many new users never saw their verification
+email. This section is the deep reference for the SES setup we migrated to.
+
+### 11.1 What changed in code
+
+[amplify/auth/resource.ts](../../amplify/auth/resource.ts):
+
+```ts
+export const auth = defineAuth({
+  loginWith: { email: true, externalProviders: { ... } },
+  senders: {
+    email: {
+      fromEmail: 'no-reply@friendsintelligence.net',
+      fromName: 'Friends Intelligence',
+    },
+  },
+  triggers: { preSignUp: preSignUpTrigger },
+});
+```
+
+That single `senders.email` block routes all Cognito outbound mail through
+SES from the verified domain identity. Gmail sees a DKIM-signed message
+from a verified domain and delivers to inbox (the `mailed-by:
+ap-southeast-2.amazonses.com` + `signed-by: friendsintelligence.net`
+headers are the textbook signals).
+
+### 11.2 Required SES identities — both must exist
+
+| Identity | Type | Region | Purpose |
+|---|---|---|---|
+| `friendsintelligence.net` | Domain | ap-southeast-2 | DKIM signing (Easy DKIM, RSA_2048_BIT) |
+| `no-reply@friendsintelligence.net` | Email | ap-southeast-2 | Workaround for amplify-backend#3134 |
+
+**Both identities are load-bearing.** If either is deleted, deploys break
+or signups silently fail. The duplication is required until AWS fixes
+[amplify-backend#3134](https://github.com/aws-amplify/amplify-backend/issues/3134)
+(see § 11.3).
+
+### 11.3 The #3134 dual-identity workaround
+
+The Amplify Gen 2 SDK has an open bug: when you specify
+`senders.email.fromEmail = 'no-reply@example.com'`, Amplify generates a
+CloudFormation `EmailConfiguration.SourceArn` pointing at the
+**email-level** identity ARN (`...identity/no-reply@example.com`) — NOT
+the **domain-level** identity ARN (`...identity/example.com`). If you only
+verified the domain in SES, deploys fail with:
+
+> Email address is not verified. The following identities failed the check
+> in region AP-SOUTHEAST-2:
+> arn:aws:ses:ap-southeast-2:...:identity/no-reply@friendsintelligence.net
+
+The error message is misleading — the identity *is* verified, just at a
+different ARN.
+
+**Workaround:** verify BOTH the domain (for DKIM signing) AND the specific
+email address (for the ARN that Amplify generates). SES picks the most
+specific verified identity when signing, so DKIM still comes from the
+domain identity. Two identities; one outcome.
+
+If AWS ever fixes #3134, the email-address identity becomes redundant and
+can be deleted. Until then it must stay verified or deploys break.
+
+### 11.4 DNS records on `friendsintelligence.net` (Route 53)
+
+| Type | Name | Value | Source |
+|---|---|---|---|
+| CNAME × 3 | `<token>._domainkey.friendsintelligence.net` | `<token>.dkim.amazonses.com` | SES auto-published (DKIM) |
+| TXT | `friendsintelligence.net` (apex) | `v=spf1 include:amazonses.com include:spf.improvmx.com ~all` | Manually added (SPF — must merge SES + ImprovMX) |
+| TXT | `_dmarc.friendsintelligence.net` | `v=DMARC1; p=none; rua=mailto:...` | SES auto-published (DMARC) |
+| MX × 2 | `friendsintelligence.net` (apex) | `10 mx1.improvmx.com`, `20 mx2.improvmx.com` | Manually added (ImprovMX forwarding) |
+
+**SPF gotcha:** Only one SPF record is permitted per domain. If ImprovMX
+already published `v=spf1 include:spf.improvmx.com ~all`, edit the
+existing record to merge in `include:amazonses.com` rather than creating
+a second TXT record.
+
+### 11.5 ImprovMX (inbound mail)
+
+We don't run a real mailbox on `friendsintelligence.net`. ImprovMX
+free-tier catch-all `*@friendsintelligence.net` → `qianhaopower@gmail.com`
+lets the `no-reply@` address receive SES verification emails (needed for
+the email-identity verification step that satisfies #3134) without
+running our own mail server.
+
+Free tier covers any future address (`hello@`, `support@`, etc.) at zero
+cost, no configuration changes needed.
+
+### 11.6 SES production access — per-region
+
+SES starts every region in sandbox mode: 200/day cap, can only send to
+verified recipients. **Production access was granted in `ap-southeast-2`
+on 2026-05-16**, lifting these restrictions for Cognito.
+
+If we ever move regions (e.g. add a US-region Cognito pool), production
+access must be requested again — it does not transfer between regions.
+Submit the request via SES console → Account dashboard → Request
+production access; AWS reviews within ~24h.
+
+### 11.7 Password policy — symbol requirement dropped
+
+Same migration also relaxed the Cognito password policy. Default Amplify
+Gen 2 policy requires symbols, which rejects Chrome-autofilled passwords
+that omit them (a common Chrome behavior). `defineAuth` doesn't expose
+`passwordPolicy` as a public option, so we use a CDK escape hatch in
+[amplify/backend.ts](../../amplify/backend.ts):
+
+```ts
+backend.auth.resources.cfnResources.cfnUserPool.addPropertyOverride(
+  "Policies.PasswordPolicy.RequireSymbols",
+  false,
+);
+```
+
+The client-side validation in
+[components/AuthenticatorWrapper.tsx](../../components/AuthenticatorWrapper.tsx)
+must mirror this — if they diverge, the UI displays one rule and Cognito
+enforces another, and users see confusing rejection errors after a UI
+that said the password was fine.
+
+**Effective policy:** min 8 chars, requires lowercase + uppercase + digit.
+Symbols allowed but not required.
+
+### 11.8 Lessons
+
+1. **Always verify both domain and email when using `senders.email`** —
+   until AWS fixes #3134, this is the only way to get past CFN deploy.
+2. **SES domain verification alone is not enough for Gmail inbox
+   delivery.** SPF (`include:amazonses.com`) and DMARC (even `p=none`)
+   must also be in DNS. SES auto-publishes DKIM CNAMEs + DMARC to Route
+   53 if "Publish DNS records to Route 53" is checked at identity
+   creation; SPF must be added manually.
+3. **Merging SPF records is non-obvious.** If something already has an
+   SPF record at the apex (ImprovMX, Google Workspace, etc.), edit it to
+   merge the new include rather than creating a second TXT record.
+   Multiple SPF records is a protocol violation.
+4. **Production access is per-region.** Don't assume sandbox status from
+   one region applies to another.
+5. **CDK escape hatches are required for password policy.** `defineAuth`
+   doesn't expose `passwordPolicy`; use `cfnUserPool.addPropertyOverride`.
+6. **Client-side and server-side password policy must agree.** If you
+   change one, change the other in the same PR. They're in different
+   files but conceptually the same rule.
