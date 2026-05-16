@@ -28,9 +28,11 @@ export function DevSubscriptionToggle() {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        toast.error("Failed to update", {
-          description: data?.error || `HTTP ${res.status}`,
-        });
+        const description =
+          typeof data?.error === "string"
+            ? data.error
+            : data?.error?.message || `HTTP ${res.status}`;
+        toast.error("Failed to update", { description });
         return;
       }
 
