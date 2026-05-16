@@ -35,10 +35,13 @@ type Body = {
 
 type Client = ReturnType<typeof createDynamoClient>
 
-// Single source of truth for "what counts as active." Matches the lenient read in
-// /api/practices/active: missing status defaults to active; paused/replaced/inactive do not.
+// Single source of truth for "what counts as active." Must match /api/practices/active:
+// missing status defaults to active; paused/replaced/inactive do not; rows whose
+// practiceId is no longer in the library (e.g. left over from the 2026-05-16 ID
+// rename) are treated as inactive — the UI's enrich() drops them, so the cap must too.
 function isActiveUPractice(up: UPracticeItem): boolean {
-  return !up.status || up.status === 'active'
+  if (up.status && up.status !== 'active') return false
+  return practicesById.has(up.practiceId)
 }
 
 async function queryUPractices(client: Client, pk: string): Promise<UPracticeItem[]> {

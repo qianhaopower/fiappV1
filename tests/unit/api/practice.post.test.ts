@@ -165,7 +165,12 @@ describe('POST /api/practice — startPractice', () => {
   })
 
   it('PAID user blocked at 10 (no soft warnings)', async () => {
-    const ten = Array.from({ length: 10 }, (_, i) => `practice-${i}`)
+    const ten = [
+      'financial-label-decision', 'financial-repeated-cost', 'financial-auto-payment-review',
+      'financial-purchase-pause', 'financial-discuss-purchase',
+      'relationship-listen-to-understand', 'relationship-caring-question',
+      'relationship-notice-detail', 'relationship-phone-away', 'information-check-source',
+    ]
     const uprBySK: Record<string, Record<string, unknown>> = {}
     for (const id of ten) uprBySK[`UPRACTICE#${id}`] = { status: 'active' }
     mockStore({ activePracticeIds: ten, subscriptionStatus: 'PAID' }, uprBySK)
@@ -175,7 +180,10 @@ describe('POST /api/practice — startPractice', () => {
   })
 
   it('PAID user at 5 active gets no warning (warnings dropped in v2)', async () => {
-    const five = Array.from({ length: 5 }, (_, i) => `practice-${i}`)
+    const five = [
+      'financial-label-decision', 'financial-repeated-cost', 'financial-auto-payment-review',
+      'financial-purchase-pause', 'financial-discuss-purchase',
+    ]
     const uprBySK: Record<string, Record<string, unknown>> = {}
     for (const id of five) uprBySK[`UPRACTICE#${id}`] = { status: 'active' }
     mockStore({ activePracticeIds: five, subscriptionStatus: 'PAID' }, uprBySK)
@@ -183,6 +191,32 @@ describe('POST /api/practice — startPractice', () => {
     expect(res.status).toBe(201)
     const json = await res.json()
     expect(json.warning).toBeUndefined()
+  })
+
+  // Regression: the 2026-05-16 practice-ID rename left orphan UPRACTICE rows on existing
+  // users with status='active' but a practiceId that's no longer in the library. The UI
+  // hides those rows (enrich() returns null) — the cap check must skip them too, or the
+  // user is locked out by a ghost they can't see.
+  it('ignores UPRACTICE rows whose practiceId is no longer in the library (ghost rows)', async () => {
+    mockStore(
+      { activePracticeIds: ['retired-practice-id'], subscriptionStatus: 'FREE' },
+      {
+        // status='active' but the id is not in practicesById (a renamed/removed practice).
+        'UPRACTICE#retired-practice-id': {
+          status: 'active',
+          practiceId: 'retired-practice-id',
+        },
+      },
+    )
+    const res = await POST(makeReq({ mode: 'startPractice', practiceId: 'sleep-consistent-bedtime' }))
+    expect(res.status).toBe(201)
+    // Reconciled list contains only the new (valid) practice; ghost row excluded.
+    const profileUpdate = updateItemMock.mock.calls.find(
+      (c) => c[0].Key.SK === 'PROFILE',
+    )
+    expect(profileUpdate[0].ExpressionAttributeValues[':ids']).toEqual([
+      'sleep-consistent-bedtime',
+    ])
   })
 
   // Regression: PROFILE.activePracticeIds can drift from UPRACTICE.status if a prior
