@@ -38,6 +38,129 @@ evidence matter more than narrative.
 
 ## Bugs
 
+### 2026-05-16 — Cognito verification emails silently lost to Gmail spam, plus the `amplify-backend#3134` deploy trap
+
+**Symptom (what users / monitoring saw):**
+New users signing up on `friendsintelligence.net` never received their
+verification code email. Cognito User Pool logs showed the signup
+attempt succeeded and the email was "sent." No error anywhere; users
+just disappeared between hitting Submit on the signup form and never
+returning. Discovered when the developer tested their own signup flow
+and noticed the email arriving in Gmail spam — meaning earlier testers
+had likely missed the verification email entirely.
+
+**Why it was hard to diagnose:**
+- Two stacked issues that looked like one. The visible problem (no
+  email) had a mundane cause (Cognito's default sender from
+  `no-reply@verificationemail.com` lands in Gmail spam). But the
+  obvious fix — switch to SES via `senders.email` in `defineAuth` —
+  hit a second, much weirder problem: an open Amplify Gen 2 bug
+  ([#3134](https://github.com/aws-amplify/amplify-backend/issues/3134))
+  with a misleading error message.
+- The #3134 error reads:
+  > Email address is not verified. The following identities failed
+  > the check in region AP-SOUTHEAST-2:
+  > arn:aws:ses:ap-southeast-2:...:identity/no-reply@friendsintelligence.net
+  …which is wrong in a specific way: the *domain*
+  `friendsintelligence.net` *was* verified in SES, just not the
+  email-address-form identity that Amplify Gen 2 silently builds the
+  `SourceArn` for at synth time.
+- The plan looked clean on paper: verify SES domain, configure
+  `senders.email`, deploy. We caught #3134 only by doing deliberate
+  web research on the plan before executing — the official Amplify
+  docs do not mention the bug.
+
+**Root cause (two layers):**
+1. **Surface-level:** Cognito's default email sender
+   (`no-reply@verificationemail.com`) is aggressively spam-filtered
+   by Gmail. The domain has no DKIM keys aligned with the recipient
+   inbox provider's expectations, SPF is broken on it, and the
+   sender has no reputation history with the recipient. Result: spam
+   folder or silent drop.
+2. **Hidden trap:** Amplify Gen 2's `senders.email` block in
+   `defineAuth` constructs the SES `SourceArn` from `fromEmail` as
+   an *email-level* identity ARN
+   (`arn:aws:ses:...:identity/no-reply@friendsintelligence.net`).
+   If only the *domain* is verified in SES (which gives you a
+   *domain-level* ARN of `...:identity/friendsintelligence.net`),
+   the deploy fails because the email-level ARN does not exist as
+   a verified identity. The error sounds like "you didn't verify
+   your email," but you did — just not in the form Amplify
+   expected.
+
+**Fix:** Shipped via PRs #379 + #382 (promoted to main as #380).
+- Verified the SES *domain* `friendsintelligence.net` (Easy DKIM,
+  RSA_2048_BIT) for actual mail signing.
+- Verified the SES *email address* `no-reply@friendsintelligence.net`
+  purely to satisfy the ARN that Amplify generates at deploy time.
+  DKIM signing still comes from the domain identity (SES picks the
+  most specific verified identity when signing).
+- Added DNS records on `friendsintelligence.net` (Route 53): 3 DKIM
+  CNAMEs (SES auto-published), merged SPF TXT
+  (`v=spf1 include:amazonses.com include:spf.improvmx.com ~all` —
+  one record, two includes), DMARC TXT (`p=none`).
+- Set up ImprovMX free-tier catch-all forwarding
+  `*@friendsintelligence.net → qianhaopower@gmail.com` so the
+  `no-reply@` mailbox can receive the SES verification link
+  required for the email-identity verification step.
+- Submitted and got granted SES production access for
+  `ap-southeast-2` (per-region — separate from sandbox status in
+  any other region).
+- While we were touching Cognito, also dropped the password
+  `requireSymbols` policy via CDK escape hatch in
+  `amplify/backend.ts` (Amplify Gen 2's `defineAuth` doesn't expose
+  `passwordPolicy` as a public option), because Chrome-suggested
+  passwords often omit symbols, causing rejected-after-autofill
+  confusion.
+
+**Lessons / what to check next time:**
+- **`senders.email` + domain-only verification is a deploy trap.**
+  When configuring Cognito to send via SES in Amplify Gen 2, always
+  verify *both* the domain (for DKIM) AND the specific email
+  address used in `fromEmail` (for the ARN Amplify generates).
+  Until AWS fixes #3134, both identities are mandatory.
+- **CFN error messages can be precisely wrong.** "Email address is
+  not verified" sounds like a user error; it was actually a library
+  bug. Be ready to read the ARN in the error carefully and ask "is
+  this the ARN I think it is?"
+- **Gmail wants DKIM + SPF + DMARC, not just one.** SES
+  auto-publishes DKIM CNAMEs and DMARC to Route 53 (if you check
+  "Publish DNS records to Route 53" at identity creation); SPF
+  must be added manually. Don't ship until all three are in DNS.
+- **Single SPF record per domain.** If something else (ImprovMX,
+  Google Workspace) already published one, edit it to merge
+  includes rather than creating a second TXT. Multiple SPF records
+  is a protocol violation.
+- **SES sandbox is per-region.** Production access in `us-east-1`
+  does not grant it in `ap-southeast-2`. Submit separately.
+- **Do web research on Amplify Gen 2 changes before executing.**
+  The official Amplify docs do not surface open bugs; GitHub
+  issues do. 20 minutes of search can save hours of failed deploys
+  plus the context-switch cost of debugging a misleading error.
+- **`defineAuth` doesn't expose `passwordPolicy`.** Use the CDK
+  escape hatch (`cfnUserPool.addPropertyOverride(...)`). Same
+  pattern applies to any Cognito property Amplify Gen 2's public
+  API hides.
+- **Client-side and server-side password policy must agree.**
+  `passwordSettings` in `AuthenticatorWrapper.tsx` and the CDK
+  override in `backend.ts` must say the same thing, otherwise the
+  UI accepts a password Cognito will reject.
+
+**References:**
+- PRs [#379](https://github.com/qianhaopower/fiappV1/pull/379),
+  [#380](https://github.com/qianhaopower/fiappV1/pull/380),
+  [#382](https://github.com/qianhaopower/fiappV1/pull/382),
+  [#384](https://github.com/qianhaopower/fiappV1/pull/384) (this doc)
+- Full setup reference:
+  [`cognito-and-environments.md` §11](./cognito-and-environments.md)
+- Amplify bug:
+  [aws-amplify/amplify-backend#3134](https://github.com/aws-amplify/amplify-backend/issues/3134)
+  (open, no fix yet as of 2026-05-16)
+- Memory:
+  `~/.claude/projects/-Users-haoqian-Documents-fiappv1/memory/project_cognito_ses_migration.md`
+
+---
+
 ### 2026-05-13 — New users stuck on `/auth` (Cognito Identity Pool credential exchange failing)
 
 **Symptom:** Brand-new users signing up on `friendsintelligence.net` got

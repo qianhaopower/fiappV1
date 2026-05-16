@@ -2,7 +2,7 @@
 
 Run this end-to-end before any public launch or major release. Use a real device (phone + desktop). Automated tests cover rules; this covers the human experience.
 
-Last revised: 2026-05-13 (v2 business-logic refactor).
+Last revised: 2026-05-16 (added SES email delivery + password policy checks).
 
 **Sign in as a real test user with a populated account before starting sections 2–8.**
 
@@ -14,17 +14,25 @@ Last revised: 2026-05-13 (v2 business-logic refactor).
 - [ ] Amplify environment variables are set (`FIAPP_AWS_ACCESS_KEY_ID`, `FIAPP_AWS_SECRET_ACCESS_KEY`, `FIAPP_AWS_REGION`, `FIAPP_RETURNS_TABLE`, `FIAPP_MAIN_TABLE`)
 - [ ] CI is green on `main` branch (lint + typecheck + unit + Layer 3 E2E smoke)
 - [ ] No open `P0` GitHub issues
+- [ ] SES email delivery healthy (see [cognito-and-environments.md §11](./cognito-and-environments.md)):
+  - SES `ap-southeast-2` is **out of sandbox** (Account dashboard → no yellow banner)
+  - Both SES identities verified: `friendsintelligence.net` (Domain, DKIM Successful) **and** `no-reply@friendsintelligence.net` (Email) — second one is the `amplify-backend#3134` workaround and is load-bearing
+  - SES sending stats show no recent bounce/complaint spikes
+- [ ] DNS for `friendsintelligence.net` still in place (Route 53): 3 DKIM CNAMEs, merged SPF TXT (`include:amazonses.com include:spf.improvmx.com`), DMARC TXT, ImprovMX MX records
+- [ ] ImprovMX dashboard shows the catch-all alias `*@friendsintelligence.net → qianhaopower@gmail.com` is still **Active**
 
 ---
 
 ## 1. Auth flow
 
 - [ ] `/auth` loads — Friends Intelligence logo, sign in tab visible, no layout breaks
-- [ ] Sign up: create a new account with email + password — confirmation email received
+- [ ] Sign up: create a new account with email + password — confirmation email arrives **in Gmail inbox (not spam)** from `Friends Intelligence <no-reply@friendsintelligence.net>`, **DKIM-signed by `friendsintelligence.net`** (Gmail "show original" shows `signed-by: friendsintelligence.net`, `mailed-by: ap-southeast-2.amazonses.com`)
+- [ ] Sign up with a **Chrome-suggested password (no special character)** — accepted. Effective policy is 8+ chars, lowercase + uppercase + digit; symbols allowed but not required (see [cognito-and-environments.md §11.7](./cognito-and-environments.md))
+- [ ] Help text under password field reads "Passwords need 8+ characters with uppercase, lowercase, and a number." (no mention of symbol)
 - [ ] Confirm email → redirected into app (lands on `/onboarding` for new users, `/today` for returning users with assessment)
 - [ ] Sign in with confirmed account → lands on correct page per `decideRoute` (auth → `/auth`; authed without assessment → `/onboarding`; authed with assessment → `/today`)
 - [ ] Wrong password → error message visible, not cryptic
-- [ ] "Forgot password" flow — email sent, reset works
+- [ ] "Forgot password" flow — email sent (same `no-reply@friendsintelligence.net` sender), reset works
 - [ ] Sign out → redirected to `/auth`, cannot navigate back to protected pages
 - [ ] **Mobile**: auth form not cut off, keyboard doesn't obscure input fields
 
