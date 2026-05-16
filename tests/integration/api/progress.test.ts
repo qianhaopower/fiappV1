@@ -35,7 +35,7 @@ function asUser(userId: string) {
   );
 }
 
-const PRACTICE = "financial-weekly-review";
+const PRACTICE = "financial-label-decision";
 
 describe("GET /api/progress", () => {
   it("returns zero-state safely with no profile", async () => {

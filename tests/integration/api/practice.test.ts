@@ -53,21 +53,21 @@ describe("mode=startPractice", () => {
     await seedProfile(userId);
 
     asUser(userId);
-    const res = await post({ mode: "startPractice", practiceId: "financial-weekly-review" });
+    const res = await post({ mode: "startPractice", practiceId: "financial-label-decision" });
     expect(res.status).toBe(201);
 
     const client = createDynamoClient();
     const profile = await client.getItem<{ activePracticeIds: string[] }>({
       PK: `USER#${userId}`, SK: "PROFILE",
     });
-    expect(profile?.activePracticeIds).toContain("financial-weekly-review");
+    expect(profile?.activePracticeIds).toContain("financial-label-decision");
 
     const upractice = await client.getItem<{
       status: string;
       firstStartedAt: string;
       lastActivatedAt: string;
     }>({
-      PK: `USER#${userId}`, SK: "UPRACTICE#financial-weekly-review",
+      PK: `USER#${userId}`, SK: "UPRACTICE#financial-label-decision",
     });
     expect(upractice?.status).toBe("active");
     expect(upractice?.firstStartedAt).toBeDefined();
@@ -77,10 +77,10 @@ describe("mode=startPractice", () => {
   it("FREE user is blocked at cap=1 with CAP_REACHED", async () => {
     const userId = randomUUID();
     await seedProfile(userId);
-    await seedActivePractice(userId, "financial-weekly-review");
+    await seedActivePractice(userId, "financial-label-decision");
 
     asUser(userId);
-    const res = await post({ mode: "startPractice", practiceId: "financial-24hr-rule" });
+    const res = await post({ mode: "startPractice", practiceId: "financial-auto-payment-review" });
     expect(res.status).toBe(409);
     expect((await res.json()).error).toBe("CAP_REACHED");
 
@@ -93,10 +93,10 @@ describe("mode=startPractice", () => {
   it("PAID user can add up to 10 practices with no warnings", async () => {
     const userId = randomUUID();
     const practiceIds = [
-      "financial-weekly-review", "financial-24hr-rule", "financial-save-small",
-      "relationship-daily-checkin", "relationship-device-free-meal", "relationship-express-gratitude",
-      "information-news-free-morning", "information-single-tab", "information-evening-review",
-      "emotional-name-feeling",
+      "financial-label-decision", "financial-auto-payment-review", "financial-purchase-pause",
+      "relationship-caring-action", "relationship-caring-question", "relationship-notice-detail",
+      "information-phone-away-think", "information-learn-in-chunks", "information-check-source",
+      "emotional-name-before-reacting",
     ];
     await seedProfile(userId, { subscriptionStatus: "PAID" });
 
@@ -117,15 +117,15 @@ describe("mode=startPractice", () => {
   it("PAID user blocked at 10 with CAP_REACHED", async () => {
     const userId = randomUUID();
     const practiceIds = [
-      "financial-weekly-review", "financial-24hr-rule", "financial-save-small",
-      "relationship-daily-checkin", "relationship-device-free-meal", "relationship-express-gratitude",
-      "information-news-free-morning", "information-single-tab", "information-evening-review",
-      "emotional-name-feeling",
+      "financial-label-decision", "financial-auto-payment-review", "financial-purchase-pause",
+      "relationship-caring-action", "relationship-caring-question", "relationship-notice-detail",
+      "information-phone-away-think", "information-learn-in-chunks", "information-check-source",
+      "emotional-name-before-reacting",
     ];
     await seedProfile(userId, { subscriptionStatus: "PAID", activePracticeIds: practiceIds });
 
     asUser(userId);
-    const res = await post({ mode: "startPractice", practiceId: "emotional-3-breath-reset" });
+    const res = await post({ mode: "startPractice", practiceId: "emotional-now-or-echo" });
     expect(res.status).toBe(409);
     expect((await res.json()).error).toBe("CAP_REACHED");
   });
@@ -133,10 +133,10 @@ describe("mode=startPractice", () => {
   it("returns 200 alreadyActive when practice is already active (idempotent)", async () => {
     const userId = randomUUID();
     await seedProfile(userId);
-    await seedActivePractice(userId, "financial-weekly-review");
+    await seedActivePractice(userId, "financial-label-decision");
 
     asUser(userId);
-    const res = await post({ mode: "startPractice", practiceId: "financial-weekly-review" });
+    const res = await post({ mode: "startPractice", practiceId: "financial-label-decision" });
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.alreadyActive).toBe(true);
@@ -148,22 +148,22 @@ describe("mode=startPractice", () => {
 
     // Start, then make inactive
     asUser(userId);
-    await post({ mode: "startPractice", practiceId: "financial-weekly-review" });
+    await post({ mode: "startPractice", practiceId: "financial-label-decision" });
 
     const client = createDynamoClient();
     const before = await client.getItem<{ firstStartedAt: string; lastActivatedAt: string }>({
-      PK: `USER#${userId}`, SK: "UPRACTICE#financial-weekly-review",
+      PK: `USER#${userId}`, SK: "UPRACTICE#financial-label-decision",
     });
     const originalFirst = before?.firstStartedAt;
 
     asUser(userId);
-    await post({ mode: "makePracticeInactive", practiceId: "financial-weekly-review" });
+    await post({ mode: "makePracticeInactive", practiceId: "financial-label-decision" });
 
     // Sleep 5ms to ensure timestamp difference
     await new Promise((r) => setTimeout(r, 10));
 
     asUser(userId);
-    const res = await post({ mode: "startPractice", practiceId: "financial-weekly-review" });
+    const res = await post({ mode: "startPractice", practiceId: "financial-label-decision" });
     expect(res.status).toBe(200);
     expect((await res.json()).reactivated).toBe(true);
 
@@ -172,7 +172,7 @@ describe("mode=startPractice", () => {
       firstStartedAt: string;
       lastActivatedAt: string;
     }>({
-      PK: `USER#${userId}`, SK: "UPRACTICE#financial-weekly-review",
+      PK: `USER#${userId}`, SK: "UPRACTICE#financial-label-decision",
     });
     expect(after?.status).toBe("active");
     expect(after?.firstStartedAt).toBe(originalFirst);
@@ -224,17 +224,17 @@ describe("mode=reactivatePractice (alias for startPractice)", () => {
     await seedProfile(userId);
 
     asUser(userId);
-    await post({ mode: "startPractice", practiceId: "financial-weekly-review" });
+    await post({ mode: "startPractice", practiceId: "financial-label-decision" });
     asUser(userId);
-    await post({ mode: "makePracticeInactive", practiceId: "financial-weekly-review" });
+    await post({ mode: "makePracticeInactive", practiceId: "financial-label-decision" });
 
     asUser(userId);
-    const res = await post({ mode: "reactivatePractice", practiceId: "financial-weekly-review" });
+    const res = await post({ mode: "reactivatePractice", practiceId: "financial-label-decision" });
     expect(res.status).toBe(200);
     expect((await res.json()).reactivated).toBe(true);
 
     const after = await createDynamoClient().getItem<{ status: string }>({
-      PK: `USER#${userId}`, SK: "UPRACTICE#financial-weekly-review",
+      PK: `USER#${userId}`, SK: "UPRACTICE#financial-label-decision",
     });
     expect(after?.status).toBe("active");
   });
@@ -246,20 +246,20 @@ describe("mode=makePracticeInactive", () => {
   it("flips active to inactive — removes from activePracticeIds, sets lastInactivatedAt", async () => {
     const userId = randomUUID();
     await seedProfile(userId);
-    await seedActivePractice(userId, "financial-weekly-review");
+    await seedActivePractice(userId, "financial-label-decision");
 
     asUser(userId);
-    const res = await post({ mode: "makePracticeInactive", practiceId: "financial-weekly-review" });
+    const res = await post({ mode: "makePracticeInactive", practiceId: "financial-label-decision" });
     expect(res.status).toBe(200);
 
     const client = createDynamoClient();
     const profile = await client.getItem<{ activePracticeIds: string[] }>({
       PK: `USER#${userId}`, SK: "PROFILE",
     });
-    expect(profile?.activePracticeIds).not.toContain("financial-weekly-review");
+    expect(profile?.activePracticeIds).not.toContain("financial-label-decision");
 
     const upractice = await client.getItem<{ status: string; lastInactivatedAt: string }>({
-      PK: `USER#${userId}`, SK: "UPRACTICE#financial-weekly-review",
+      PK: `USER#${userId}`, SK: "UPRACTICE#financial-label-decision",
     });
     expect(upractice?.status).toBe("inactive");
     expect(upractice?.lastInactivatedAt).toBeDefined();
@@ -270,7 +270,7 @@ describe("mode=makePracticeInactive", () => {
     await seedProfile(userId);
 
     asUser(userId);
-    const res = await post({ mode: "makePracticeInactive", practiceId: "financial-weekly-review" });
+    const res = await post({ mode: "makePracticeInactive", practiceId: "financial-label-decision" });
     expect(res.status).toBe(409);
     expect((await res.json()).error).toBe("PRACTICE_NOT_ACTIVE");
   });
@@ -278,12 +278,12 @@ describe("mode=makePracticeInactive", () => {
   it("returns 409 when practice is already inactive", async () => {
     const userId = randomUUID();
     await seedProfile(userId);
-    await seedActivePractice(userId, "financial-weekly-review");
+    await seedActivePractice(userId, "financial-label-decision");
 
     asUser(userId);
-    await post({ mode: "makePracticeInactive", practiceId: "financial-weekly-review" });
+    await post({ mode: "makePracticeInactive", practiceId: "financial-label-decision" });
     asUser(userId);
-    const res = await post({ mode: "makePracticeInactive", practiceId: "financial-weekly-review" });
+    const res = await post({ mode: "makePracticeInactive", practiceId: "financial-label-decision" });
     expect(res.status).toBe(409);
   });
 });
@@ -294,13 +294,13 @@ describe("mode=switchToPractice (free-user 1-cap flow)", () => {
   it("deactivates the old practice and activates the new", async () => {
     const userId = randomUUID();
     await seedProfile(userId);
-    await seedActivePractice(userId, "financial-weekly-review");
+    await seedActivePractice(userId, "financial-label-decision");
 
     asUser(userId);
     const res = await post({
       mode: "switchToPractice",
       practiceId: "sleep-consistent-bedtime",
-      deactivatePracticeId: "financial-weekly-review",
+      deactivatePracticeId: "financial-label-decision",
     });
     expect(res.status).toBe(200);
 
@@ -311,7 +311,7 @@ describe("mode=switchToPractice (free-user 1-cap flow)", () => {
     expect(profile?.activePracticeIds).toEqual(["sleep-consistent-bedtime"]);
 
     const oldUp = await client.getItem<{ status: string }>({
-      PK: `USER#${userId}`, SK: "UPRACTICE#financial-weekly-review",
+      PK: `USER#${userId}`, SK: "UPRACTICE#financial-label-decision",
     });
     expect(oldUp?.status).toBe("inactive");
 
@@ -340,13 +340,13 @@ describe("mode=switchToPractice (free-user 1-cap flow)", () => {
 
     // Now start a different practice and switch back to sleep
     asUser(userId);
-    await post({ mode: "startPractice", practiceId: "financial-weekly-review" });
+    await post({ mode: "startPractice", practiceId: "financial-label-decision" });
 
     asUser(userId);
     const res = await post({
       mode: "switchToPractice",
       practiceId: "sleep-consistent-bedtime",
-      deactivatePracticeId: "financial-weekly-review",
+      deactivatePracticeId: "financial-label-decision",
     });
     expect(res.status).toBe(200);
 
@@ -360,13 +360,13 @@ describe("mode=switchToPractice (free-user 1-cap flow)", () => {
   it("returns 400 when practiceId === deactivatePracticeId", async () => {
     const userId = randomUUID();
     await seedProfile(userId);
-    await seedActivePractice(userId, "financial-weekly-review");
+    await seedActivePractice(userId, "financial-label-decision");
 
     asUser(userId);
     const res = await post({
       mode: "switchToPractice",
-      practiceId: "financial-weekly-review",
-      deactivatePracticeId: "financial-weekly-review",
+      practiceId: "financial-label-decision",
+      deactivatePracticeId: "financial-label-decision",
     });
     expect(res.status).toBe(400);
   });
@@ -379,7 +379,7 @@ describe("mode=switchToPractice (free-user 1-cap flow)", () => {
     const res = await post({
       mode: "switchToPractice",
       practiceId: "sleep-consistent-bedtime",
-      deactivatePracticeId: "financial-weekly-review",
+      deactivatePracticeId: "financial-label-decision",
     });
     expect(res.status).toBe(409);
     expect((await res.json()).error).toBe("DEACTIVATE_PRACTICE_NOT_ACTIVE");
@@ -388,14 +388,14 @@ describe("mode=switchToPractice (free-user 1-cap flow)", () => {
   it("returns 409 when target is already active", async () => {
     const userId = randomUUID();
     await seedProfile(userId, { subscriptionStatus: "PAID" });
-    await seedActivePractice(userId, "financial-weekly-review");
+    await seedActivePractice(userId, "financial-label-decision");
     await seedActivePractice(userId, "sleep-consistent-bedtime");
 
     asUser(userId);
     const res = await post({
       mode: "switchToPractice",
       practiceId: "sleep-consistent-bedtime",
-      deactivatePracticeId: "financial-weekly-review",
+      deactivatePracticeId: "financial-label-decision",
     });
     expect(res.status).toBe(409);
     expect((await res.json()).error).toBe("PRACTICE_ALREADY_ACTIVE");
@@ -411,7 +411,7 @@ describe("mode validation", () => {
 
     for (const mode of ["startTrial", "promoteTrial", "discardTrial", "add", "replace", "pause", "resume", "setFocus"]) {
       asUser(userId);
-      const res = await post({ mode, practiceId: "financial-weekly-review" });
+      const res = await post({ mode, practiceId: "financial-label-decision" });
       expect(res.status).toBe(400);
     }
   });
