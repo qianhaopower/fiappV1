@@ -23,6 +23,22 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
+  const client = createDynamoClient();
+
+  // Idempotency: claim this event.id. Stripe may redeliver the same event;
+  // a redelivered refund could otherwise downgrade a user who re-purchased
+  // between deliveries. To replay manually, delete the STRIPE_EVENT#<id> row.
+  const claimed = await client.putItemIfNotExists({
+    PK: `STRIPE_EVENT#${event.id}`,
+    SK: "META",
+    type: event.type,
+    createdAt: new Date().toISOString(),
+  });
+  if (!claimed) {
+    console.log(`[webhook] duplicate delivery ignored: ${event.id} (${event.type})`);
+    return NextResponse.json({ received: true });
+  }
+
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
     const userId = session.metadata?.userId;
@@ -33,7 +49,6 @@ export async function POST(req: Request) {
     }
 
     try {
-      const client = createDynamoClient();
       await client.updateItem({
         Key: { PK: `USER#${userId}`, SK: "PROFILE" },
         UpdateExpression: "SET subscriptionStatus = :status",
