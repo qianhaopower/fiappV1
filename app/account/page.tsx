@@ -5,7 +5,7 @@ import { useAuthenticator } from '@aws-amplify/ui-react';
 import { NarrowFormPage } from '@/components/layout';
 import { Card, Button } from '@/components/ui';
 import { useProfile } from '@/contexts/ProfileContext';
-import { getPlanLabel } from '@/lib/plans';
+import { getPlanLabel, isPlusPlan, PLUS_PLAN_DESCRIPTION } from '@/lib/plans';
 import { UpgradeButton } from '@/components/UpgradeButton';
 import { useUserEmail } from '@/lib/useUserEmail';
 
@@ -42,6 +42,11 @@ export default function AccountPage() {
               <div>
                 <p className="text-xs text-muted-foreground mb-0.5">Plan</p>
                 <p className="text-sm font-medium text-foreground">{plan}</p>
+                {!isPlusPlan(profile?.subscriptionStatus) && (
+                  <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
+                    {PLUS_PLAN_DESCRIPTION}
+                  </p>
+                )}
                 <div className="mt-2"><UpgradeButton /></div>
               </div>
             </div>

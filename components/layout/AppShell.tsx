@@ -8,7 +8,7 @@ import { Button } from '@/components/ui'
 import { PlanBadge } from '@/components/PlanBadge'
 import { DevSubscriptionToggle } from '@/components/DevSubscriptionToggle'
 import { useProfile } from '@/contexts/ProfileContext'
-import { getPlanLabel, isPlusPlan } from '@/lib/plans'
+import { getPlanLabel, isPlusPlan, PLUS_PLAN_TAGLINE } from '@/lib/plans'
 import { useUserEmail } from '@/lib/useUserEmail'
 
 interface AppShellProps {
@@ -39,13 +39,15 @@ export function AppShell({ children, onSignOut }: AppShellProps) {
     try {
       const res = await fetch('/api/payment/checkout', { method: 'POST' })
       const data = await res.json()
-      if (data.url) window.location.href = data.url
-      else toast.error('Could not start checkout. Please try again.')
+      if (data.url) {
+        window.location.href = data.url
+        return
+      }
+      toast.error('Could not start checkout. Please try again.')
     } catch {
       toast.error('Could not start checkout. Please try again.')
-    } finally {
-      setCheckoutBusy(false)
     }
+    setCheckoutBusy(false)
   }
   const accountRef = useRef<HTMLDivElement>(null)
   const { profile } = useProfile()
@@ -110,13 +112,18 @@ export function AppShell({ children, onSignOut }: AppShellProps) {
                     <p className="text-xs text-muted-foreground truncate">{email}</p>
                     <p className="text-xs font-medium text-foreground mt-0.5">{planLabel}</p>
                     {!isPlusPlan(profile?.subscriptionStatus) && (
-                      <button
-                        onClick={handleUpgrade}
-                        disabled={checkoutBusy}
-                        className="mt-2 w-full rounded-md bg-primary/10 border border-primary/25 px-2 py-1 text-xs font-semibold text-primary hover:bg-primary/20 transition-colors text-center disabled:opacity-50"
-                      >
-                        {checkoutBusy ? 'Loading…' : 'Upgrade to Plus'}
-                      </button>
+                      <>
+                        <p className="mt-2 text-[10px] leading-snug text-muted-foreground">
+                          {PLUS_PLAN_TAGLINE}
+                        </p>
+                        <button
+                          onClick={handleUpgrade}
+                          disabled={checkoutBusy}
+                          className="mt-1.5 w-full rounded-md bg-primary/10 border border-primary/25 px-2 py-1 text-xs font-semibold text-primary hover:bg-primary/20 transition-colors text-center disabled:opacity-50"
+                        >
+                          {checkoutBusy ? 'Loading…' : 'Upgrade to Plus'}
+                        </button>
+                      </>
                     )}
                   </div>
                   <Link
@@ -192,13 +199,18 @@ export function AppShell({ children, onSignOut }: AppShellProps) {
                 Account
               </Link>
               {!isPlusPlan(profile?.subscriptionStatus) && (
-                <button
-                  onClick={() => { setMobileOpen(false); handleUpgrade(); }}
-                  disabled={checkoutBusy}
-                  className="block w-full text-left px-3 py-2 rounded-md text-sm font-medium text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
-                >
-                  {checkoutBusy ? 'Loading…' : 'Upgrade to Plus'}
-                </button>
+                <div>
+                  <button
+                    onClick={() => { setMobileOpen(false); handleUpgrade(); }}
+                    disabled={checkoutBusy}
+                    className="block w-full text-left px-3 py-2 rounded-md text-sm font-medium text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+                  >
+                    {checkoutBusy ? 'Loading…' : 'Upgrade to Plus'}
+                  </button>
+                  <p className="px-3 mt-0.5 text-[11px] leading-snug text-muted-foreground">
+                    {PLUS_PLAN_TAGLINE}
+                  </p>
+                </div>
               )}
               {onSignOut && (
                 <button

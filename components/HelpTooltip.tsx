@@ -1,17 +1,18 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 
 interface HelpTooltipProps {
   content: string;
 }
 
-const TOOLTIP_WIDTH = 256; // w-64
+const TOOLTIP_WIDTH = 256; // matches w-64
 const VIEWPORT_MARGIN = 12;
 
 export function HelpTooltip({ content }: HelpTooltipProps) {
   const [open, setOpen] = useState(false);
-  const [alignRight, setAlignRight] = useState(false);
+  const [position, setPosition] = useState<CSSProperties>({ left: 0 });
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -27,7 +28,17 @@ export function HelpTooltip({ content }: HelpTooltipProps) {
   function handleOpen() {
     if (ref.current) {
       const rect = ref.current.getBoundingClientRect();
-      setAlignRight(rect.left + TOOLTIP_WIDTH > window.innerWidth - VIEWPORT_MARGIN);
+      const vw = window.innerWidth;
+      const usable = vw - 2 * VIEWPORT_MARGIN;
+      const width = Math.min(TOOLTIP_WIDTH, usable);
+
+      if (rect.left + width <= vw - VIEWPORT_MARGIN) {
+        setPosition({ left: 0 });
+      } else if (rect.right - width >= VIEWPORT_MARGIN) {
+        setPosition({ right: 0 });
+      } else {
+        setPosition({ left: VIEWPORT_MARGIN - rect.left });
+      }
     }
     setOpen((v) => !v);
   }
@@ -44,7 +55,8 @@ export function HelpTooltip({ content }: HelpTooltipProps) {
       </button>
       {open && (
         <div
-          className={`absolute top-6 z-50 w-64 rounded-lg border border-border bg-card p-3 text-xs leading-relaxed text-muted-foreground shadow-lg ${alignRight ? "right-0" : "left-0"}`}
+          style={position}
+          className="absolute top-6 z-50 w-64 max-w-[calc(100vw-24px)] rounded-lg border border-border bg-card p-3 text-xs leading-relaxed text-muted-foreground shadow-lg"
         >
           {content}
         </div>

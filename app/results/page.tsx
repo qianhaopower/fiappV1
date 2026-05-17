@@ -178,7 +178,7 @@ export default function ResultsPage() {
         {!loading && !error && !assessment && (
           <EmptyState
             title="No insights yet"
-            text="Take the assessment to see your pillar scores and get personalized practice suggestions."
+            text="Take the assessment to see your pillar results and get personalized practice suggestions."
             action={<Button asChild><Link href="/assessment">Start assessment →</Link></Button>}
           />
         )}
@@ -213,7 +213,7 @@ export default function ResultsPage() {
 
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">All Pillars</p>
+                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Your Results by Pillar</p>
                 <HelpTooltip content="Each pillar has 5 questions. Your score reflects how many you answered Yes to in the last 7–14 days. A 3/5 isn't a failure — it's a starting point." />
               </div>
               <div className="space-y-3">
@@ -340,8 +340,8 @@ export default function ResultsPage() {
                   <Link href="/assessment">Retake assessment</Link>
                 </Button>
                 <p className="mt-1.5 text-xs text-muted-foreground">
-                  Scores update when you retake — useful after a few weeks of practice.{" "}
-                  <Link href="/faq" className="underline underline-offset-2 hover:text-foreground">Questions about your scores?</Link>
+                  Your results update when you retake — useful after a few weeks of practice.{" "}
+                  <Link href="/faq" className="underline underline-offset-2 hover:text-foreground">Questions about your results?</Link>
                 </p>
               </div>
             </div>

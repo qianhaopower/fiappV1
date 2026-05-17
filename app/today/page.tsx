@@ -150,7 +150,10 @@ export default function TodayPage() {
   }
 
   return (
-    <NarrowFormPage title="Today">
+    <NarrowFormPage
+      title="Today"
+      description="Did you practice today? Tap once for each active practice — you can change your answer any time today."
+    >
       <div className="space-y-8">
 
         {newMilestones.length > 0 && (
@@ -217,7 +220,7 @@ export default function TodayPage() {
                     >
                       {pillarLabels[p.pillar]}
                     </span>
-                    <HelpTooltip content="'Did it' logs that you completed your practice today. 'Not today' logs that you skipped — no judgment, it still counts as showing up. You can change your answer any time today." />
+                    <HelpTooltip content="'Did it today' logs that you completed your practice. 'Not today' logs that you skipped — no judgment, both count as showing up. You can change your answer any time today." />
                   </div>
                   <p className="mt-3 text-xl font-semibold text-foreground">{p.title}</p>
                   <p className="mt-1 text-sm text-muted-foreground">{p.description}</p>
@@ -231,7 +234,7 @@ export default function TodayPage() {
                     onClick={(e) => handleLog(p.id, true, { x: e.clientX, y: e.clientY })}
                     className={`w-full font-semibold ${s.didIt === null ? 'border-primary/40 text-primary hover:bg-primary/5' : ''} ${s.justLogged ? 'animate-button-confirm' : ''}`}
                   >
-                    {s.logging && s.loggingValue === true ? '…' : '✓ Did it'}
+                    {s.logging && s.loggingValue === true ? '…' : '✓ Did it today'}
                   </Button>
                   <Button
                     size="sm"

@@ -18,14 +18,13 @@ export function UpgradeButton() {
       const data = await res.json();
       if (data.url) {
         window.location.href = data.url;
-      } else {
-        toast.error("Could not start checkout. Please try again.");
+        return;
       }
+      toast.error("Could not start checkout. Please try again.");
     } catch {
       toast.error("Could not start checkout. Please try again.");
-    } finally {
-      setBusy(false);
     }
+    setBusy(false);
   }
 
   return (

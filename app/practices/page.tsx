@@ -204,8 +204,8 @@ export default function PracticesPage() {
                 const busy = !!actionLoading[p.id]
                 return (
                   <Card key={p.id} variant="interactive">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="space-y-2 min-w-0 flex-1">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="space-y-2 min-w-0 sm:flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span
                             className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-white"
@@ -240,7 +240,7 @@ export default function PracticesPage() {
                         ) : null}
                       </div>
 
-                      <div className="flex flex-col gap-2 shrink-0">
+                      <div className="flex flex-row gap-2 sm:flex-col sm:shrink-0">
                         {status === 'none' && (
                           <Button size="sm" variant="outline" disabled={busy} onClick={() => handleStart(p)}>
                             {busy ? '…' : 'Start this practice'}
