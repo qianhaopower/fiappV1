@@ -31,7 +31,7 @@ Follow-up PRs after the main merge: #376 (manual checklist rewrites against v2) 
 
 ## Business / Payments
 
-- [ ] **Stripe live mode** — Currently on test keys. Update `FIAPP_STRIPE_SECRET_KEY`, `FIAPP_STRIPE_WEBHOOK_SECRET`, and `FIAPP_STRIPE_PRICE_ID` in Amplify to live values when ready to accept real payments.
+- [x] ~~**Stripe live mode**~~ → shipped 2026-05-17. Live `rk_live_…` key + live webhook + live price are on the `main`-branch Amplify override. Staging still runs on the Sandbox via "All branches" defaults. End-to-end verified with a real A$19 charge + refund. Webhook idempotent via `STRIPE_EVENT#` rows; refund + dispute handlers flip users back to FREE. See [docs/operations/stripe-go-live.md](docs/operations/stripe-go-live.md) for the cutover playbook and [docs/operations/runbook.md#stripe-configuration-reference](docs/operations/runbook.md) for ops reference.
 
 ---
 
