@@ -1,11 +1,22 @@
 # Stripe — Test → Live Cutover Playbook
 
+**Status: shipped 2026-05-17.** Production accepts real payments. This doc is preserved as the record of what was done and the rollback path.
+
 Goal: take payments from real users on production while keeping staging on Stripe test mode.
 
 After this is done:
 - `friendsintelligence.net` → Stripe **live** mode → real cards → real money
-- `staging.d3nyg9qvz1tj5n.amplifyapp.com` → Stripe **test** mode → test cards only
-- `localhost:3000` → Stripe test mode (unchanged)
+- `staging.d3nyg9qvz1tj5n.amplifyapp.com` → Stripe **Sandbox** (legacy test mode) → test cards only
+- `localhost:3000` → Stripe Sandbox (unchanged)
+
+### Important note on Stripe environments
+
+When this playbook was executed, Stripe's UI presented two separate test environments:
+
+- **Sandbox** (legacy "Test mode") — where the original `sk_test_51TU2Nj…` API keys live. This is where staging continues to run.
+- **Test mode** (newer feature, paired with the live account post-activation) — initially empty for us. We briefly created a webhook here (`fiapp-staging`) before realising our API keys point at Sandbox, not this one. The Test-mode webhook was deleted.
+
+The cleanest model going forward: **staging = Sandbox, production = Live mode.** The post-activation "Test mode" environment is unused.
 
 ---
 
