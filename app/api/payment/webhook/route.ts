@@ -1,9 +1,34 @@
 import { NextResponse } from "next/server";
+import type Stripe from "stripe";
 import { getStripeClient } from "@/utils/stripeClient";
-import { createDynamoClient } from "@/utils/dynamoClient";
+import { createDynamoClient, DynamoClient } from "@/utils/dynamoClient";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+async function resolveUserIdFromPaymentIntent(
+  stripe: Stripe,
+  paymentIntent: string | Stripe.PaymentIntent | null
+): Promise<string | null> {
+  if (!paymentIntent) return null;
+  const piId = typeof paymentIntent === "string" ? paymentIntent : paymentIntent.id;
+  try {
+    const pi = await stripe.paymentIntents.retrieve(piId);
+    return (pi.metadata?.userId as string | undefined) ?? null;
+  } catch (err) {
+    console.error("[webhook] failed to retrieve PaymentIntent:", err);
+    return null;
+  }
+}
+
+async function downgradeUser(client: DynamoClient, userId: string, reason: string) {
+  await client.updateItem({
+    Key: { PK: `USER#${userId}`, SK: "PROFILE" },
+    UpdateExpression: "SET subscriptionStatus = :status",
+    ExpressionAttributeValues: { ":status": "FREE" },
+  });
+  console.log(`[webhook] downgraded user ${userId} to FREE (${reason})`);
+}
 
 export async function POST(req: Request) {
   const body = await req.text();
@@ -14,13 +39,29 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing signature or webhook secret" }, { status: 400 });
   }
 
+  const stripe = getStripeClient();
   let event;
   try {
-    const stripe = getStripeClient();
     event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
   } catch (err) {
     console.error("[webhook] signature verification failed:", err);
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
+  }
+
+  const client = createDynamoClient();
+
+  // Idempotency: claim this event.id. Stripe may redeliver the same event;
+  // a redelivered refund could otherwise downgrade a user who re-purchased
+  // between deliveries. To replay manually, delete the STRIPE_EVENT#<id> row.
+  const claimed = await client.putItemIfNotExists({
+    PK: `STRIPE_EVENT#${event.id}`,
+    SK: "META",
+    type: event.type,
+    createdAt: new Date().toISOString(),
+  });
+  if (!claimed) {
+    console.log(`[webhook] duplicate delivery ignored: ${event.id} (${event.type})`);
+    return NextResponse.json({ received: true });
   }
 
   if (event.type === "checkout.session.completed") {
@@ -33,7 +74,6 @@ export async function POST(req: Request) {
     }
 
     try {
-      const client = createDynamoClient();
       await client.updateItem({
         Key: { PK: `USER#${userId}`, SK: "PROFILE" },
         UpdateExpression: "SET subscriptionStatus = :status",
@@ -42,6 +82,38 @@ export async function POST(req: Request) {
       console.log(`[webhook] upgraded user ${userId} to PAID`);
     } catch (err) {
       console.error("[webhook] failed to update DynamoDB:", err);
+      return NextResponse.json({ error: "DB update failed" }, { status: 500 });
+    }
+  } else if (event.type === "charge.refunded") {
+    const charge = event.data.object;
+    // `charge.refunded` boolean is true only for full refunds. Partial refunds
+    // keep the customer's access — they still paid for some of the product.
+    if (!charge.refunded) {
+      console.log(`[webhook] partial refund on ${charge.id} — not downgrading`);
+      return NextResponse.json({ received: true });
+    }
+    const userId = await resolveUserIdFromPaymentIntent(stripe, charge.payment_intent);
+    if (!userId) {
+      console.error(`[webhook] charge.refunded ${charge.id} could not resolve userId`);
+      return NextResponse.json({ received: true });
+    }
+    try {
+      await downgradeUser(client, userId, "refund");
+    } catch (err) {
+      console.error("[webhook] failed to downgrade user on refund:", err);
+      return NextResponse.json({ error: "DB update failed" }, { status: 500 });
+    }
+  } else if (event.type === "charge.dispute.created") {
+    const dispute = event.data.object;
+    const userId = await resolveUserIdFromPaymentIntent(stripe, dispute.payment_intent);
+    if (!userId) {
+      console.error(`[webhook] charge.dispute.created ${dispute.id} could not resolve userId`);
+      return NextResponse.json({ received: true });
+    }
+    try {
+      await downgradeUser(client, userId, "dispute");
+    } catch (err) {
+      console.error("[webhook] failed to downgrade user on dispute:", err);
       return NextResponse.json({ error: "DB update failed" }, { status: 500 });
     }
   }
