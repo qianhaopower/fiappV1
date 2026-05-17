@@ -1,9 +1,34 @@
 import { NextResponse } from "next/server";
+import type Stripe from "stripe";
 import { getStripeClient } from "@/utils/stripeClient";
-import { createDynamoClient } from "@/utils/dynamoClient";
+import { createDynamoClient, DynamoClient } from "@/utils/dynamoClient";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+async function resolveUserIdFromPaymentIntent(
+  stripe: Stripe,
+  paymentIntent: string | Stripe.PaymentIntent | null
+): Promise<string | null> {
+  if (!paymentIntent) return null;
+  const piId = typeof paymentIntent === "string" ? paymentIntent : paymentIntent.id;
+  try {
+    const pi = await stripe.paymentIntents.retrieve(piId);
+    return (pi.metadata?.userId as string | undefined) ?? null;
+  } catch (err) {
+    console.error("[webhook] failed to retrieve PaymentIntent:", err);
+    return null;
+  }
+}
+
+async function downgradeUser(client: DynamoClient, userId: string, reason: string) {
+  await client.updateItem({
+    Key: { PK: `USER#${userId}`, SK: "PROFILE" },
+    UpdateExpression: "SET subscriptionStatus = :status",
+    ExpressionAttributeValues: { ":status": "FREE" },
+  });
+  console.log(`[webhook] downgraded user ${userId} to FREE (${reason})`);
+}
 
 export async function POST(req: Request) {
   const body = await req.text();
@@ -14,9 +39,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing signature or webhook secret" }, { status: 400 });
   }
 
+  const stripe = getStripeClient();
   let event;
   try {
-    const stripe = getStripeClient();
     event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
   } catch (err) {
     console.error("[webhook] signature verification failed:", err);
@@ -57,6 +82,38 @@ export async function POST(req: Request) {
       console.log(`[webhook] upgraded user ${userId} to PAID`);
     } catch (err) {
       console.error("[webhook] failed to update DynamoDB:", err);
+      return NextResponse.json({ error: "DB update failed" }, { status: 500 });
+    }
+  } else if (event.type === "charge.refunded") {
+    const charge = event.data.object;
+    // `charge.refunded` boolean is true only for full refunds. Partial refunds
+    // keep the customer's access — they still paid for some of the product.
+    if (!charge.refunded) {
+      console.log(`[webhook] partial refund on ${charge.id} — not downgrading`);
+      return NextResponse.json({ received: true });
+    }
+    const userId = await resolveUserIdFromPaymentIntent(stripe, charge.payment_intent);
+    if (!userId) {
+      console.error(`[webhook] charge.refunded ${charge.id} could not resolve userId`);
+      return NextResponse.json({ received: true });
+    }
+    try {
+      await downgradeUser(client, userId, "refund");
+    } catch (err) {
+      console.error("[webhook] failed to downgrade user on refund:", err);
+      return NextResponse.json({ error: "DB update failed" }, { status: 500 });
+    }
+  } else if (event.type === "charge.dispute.created") {
+    const dispute = event.data.object;
+    const userId = await resolveUserIdFromPaymentIntent(stripe, dispute.payment_intent);
+    if (!userId) {
+      console.error(`[webhook] charge.dispute.created ${dispute.id} could not resolve userId`);
+      return NextResponse.json({ received: true });
+    }
+    try {
+      await downgradeUser(client, userId, "dispute");
+    } catch (err) {
+      console.error("[webhook] failed to downgrade user on dispute:", err);
       return NextResponse.json({ error: "DB update failed" }, { status: 500 });
     }
   }

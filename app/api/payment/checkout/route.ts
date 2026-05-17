@@ -32,6 +32,9 @@ export async function POST(req: Request) {
       mode: "payment",
       line_items: [{ price: priceId, quantity: 1 }],
       metadata: { userId: user.userId },
+      // Stamped on the PaymentIntent so refund/dispute webhook events can
+      // recover userId from charge.payment_intent without listing sessions.
+      payment_intent_data: { metadata: { userId: user.userId } },
       success_url: `${origin}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/practices`,
     });
