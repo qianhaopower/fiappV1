@@ -1,15 +1,28 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/utils/authServer";
+import { createDynamoClient } from "@/utils/dynamoClient";
 import { getStripeClient } from "@/utils/stripeClient";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+type ProfileItem = { subscriptionStatus?: string };
 
 export async function POST(req: Request) {
   return withAuth(req, async (user) => {
     const priceId = process.env.FIAPP_STRIPE_PRICE_ID;
     if (!priceId) {
       return NextResponse.json({ error: "Payment not configured" }, { status: 500 });
+    }
+
+    const dynamo = createDynamoClient();
+    const profile = await dynamo.getItem<ProfileItem>({
+      PK: `USER#${user.userId}`,
+      SK: "PROFILE",
+    });
+
+    if (profile?.subscriptionStatus?.toUpperCase() === "PAID") {
+      return NextResponse.json({ error: "ALREADY_PAID" }, { status: 409 });
     }
 
     const origin = req.headers.get("origin") ?? "http://localhost:3000";
