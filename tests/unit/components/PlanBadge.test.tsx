@@ -49,7 +49,7 @@ describe("PlanBadge", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("renders Free plan when subscriptionStatus is FREE", () => {
+  it("renders Free plan as an upgrade-triggering button when subscriptionStatus is FREE", () => {
     useProfileMock.mockReturnValue({
       profile: { subscriptionStatus: "FREE" },
       loading: false,
@@ -58,8 +58,9 @@ describe("PlanBadge", () => {
     });
 
     render(<PlanBadge />);
-    expect(screen.getByText("Free plan")).toBeInTheDocument();
-    expect(screen.getByLabelText("Plan: Free plan")).toBeInTheDocument();
+    const badge = screen.getByRole("button", { name: /Plan: Free plan\. Upgrade to Plus\./ });
+    expect(badge).toBeInTheDocument();
+    expect(badge).toHaveTextContent("Free plan");
   });
 
   it("renders Plus plan when subscriptionStatus is PAID", () => {

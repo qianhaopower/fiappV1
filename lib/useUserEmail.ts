@@ -39,7 +39,5 @@ export function useUserEmail(): string {
   }, [user]);
 
   const loginId = user?.signInDetails?.loginId ?? "";
-  const username = user?.username ?? "";
-  const isFederatedUsername = /^[a-z]+_[a-zA-Z0-9-]+$/.test(username);
-  return email || loginId || (isFederatedUsername ? "" : username);
+  return email || loginId || "";
 }
