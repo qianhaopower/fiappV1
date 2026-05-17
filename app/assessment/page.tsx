@@ -223,7 +223,7 @@ export default function AssessmentPage() {
               {pillarLabel}
             </span>
 
-            <div className="mt-4 min-h-[3.5rem] text-xl font-semibold leading-7 text-foreground">
+            <div className="mt-4 min-h-[10rem] sm:min-h-[7rem] text-xl font-semibold leading-7 text-foreground">
               {current.text}
             </div>
 

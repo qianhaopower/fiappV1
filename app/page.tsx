@@ -230,7 +230,7 @@ export default function LandingPage() {
             <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
               {[
                 { n: "01", icon: <IconAssess />, title: "Assess", body: "35 questions across the seven Friends pillars. Honest answers, no right or wrong." },
-                { n: "02", icon: <IconInsight />, title: "Insight", body: "A personalised report with your scores and one focus pillar to start with — not a long to-do list." },
+                { n: "02", icon: <IconInsight />, title: "Insight", body: "A personalised report with your results and one focus pillar to start with — not a long to-do list." },
                 { n: "03", icon: <IconPractice />, title: "Practice", body: "Build one small daily practice at a time. We'll flag if you drift. We won't nag." },
               ].map((s) => (
                 <div
