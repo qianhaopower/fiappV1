@@ -179,8 +179,12 @@ test.describe("/practices", () => {
   });
 
   test("top action links back to Today", async ({ page }) => {
+    // The brand link in AppShell also includes "go to Today" in its aria-label
+    // (added in #411), so target the explicit "Go to Today →" CTA by exact text.
     await page.goto("/practices");
-    await expect(page.getByRole("link", { name: /go to today/i })).toBeVisible({ timeout: 10_000 });
+    await expect(
+      page.getByRole("link", { name: "Go to Today →" })
+    ).toBeVisible({ timeout: 10_000 });
   });
 });
 
@@ -264,11 +268,13 @@ test.describe("/results", () => {
   });
 
   test("Go to Today button is present when assessment exists", async ({ page }) => {
+    // Brand link's aria-label also contains "go to Today" (#411). Target the
+    // explicit CTA by exact text to disambiguate.
     await page.goto("/results");
     await page.waitForTimeout(2000);
     const hasFocus = await page.getByText(/Focus Pillar/i).isVisible().catch(() => false);
     if (!hasFocus) { test.skip(); return; }
-    await expect(page.getByRole("link", { name: /go to today/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Go to Today →" })).toBeVisible();
   });
 
   test("Retake assessment button is present when assessment exists", async ({ page }) => {
