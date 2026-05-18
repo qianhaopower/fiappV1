@@ -99,6 +99,78 @@ describe("Assessment page", () => {
     expect(replaceMock).not.toHaveBeenCalled();
   });
 
+  // #415 — Restart action must require explicit confirmation so users can't
+  // accidentally wipe in-progress answers near the end of a 35-question flow.
+  describe("Restart confirmation (#415)", () => {
+    it("opens a confirmation dialog and does NOT reset answers immediately", () => {
+      render(<AssessmentPage />);
+      fireEvent.click(screen.getByRole("button", { name: /Start assessment/ }));
+
+      // Answer 2 questions so Restart is enabled (it's disabled at 0 answers).
+      fireEvent.click(screen.getByRole("button", { name: "Yes" }));
+      fireEvent.click(screen.getByRole("button", { name: "Yes" }));
+
+      // We're now on question 3.
+      expect(screen.getByText(/Question\s*3\s*\/\s*35/)).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Restart" }));
+
+      // Dialog is visible. Answers untouched — still on question 3.
+      expect(
+        screen.getByRole("heading", { name: /Start the assessment again\?/ })
+      ).toBeInTheDocument();
+      expect(screen.getByText(/clears your 2 answers/)).toBeInTheDocument();
+      expect(screen.getByText(/Question\s*3\s*\/\s*35/)).toBeInTheDocument();
+    });
+
+    it("Cancel closes the dialog and preserves answers + current question", () => {
+      render(<AssessmentPage />);
+      fireEvent.click(screen.getByRole("button", { name: /Start assessment/ }));
+
+      fireEvent.click(screen.getByRole("button", { name: "Yes" }));
+      fireEvent.click(screen.getByRole("button", { name: "Yes" }));
+      fireEvent.click(screen.getByRole("button", { name: "Restart" }));
+
+      fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+      // Dialog dismissed; user still on question 3 with both answers intact.
+      expect(
+        screen.queryByRole("heading", { name: /Start the assessment again\?/ })
+      ).not.toBeInTheDocument();
+      expect(screen.getByText(/Question\s*3\s*\/\s*35/)).toBeInTheDocument();
+
+      // Walking back confirms answers weren't dropped.
+      fireEvent.click(screen.getByRole("button", { name: "Back" }));
+      expect(screen.getByRole("button", { name: "Next" })).not.toBeDisabled();
+    });
+
+    it("Start again wipes answers and returns to question 1", () => {
+      render(<AssessmentPage />);
+      fireEvent.click(screen.getByRole("button", { name: /Start assessment/ }));
+
+      fireEvent.click(screen.getByRole("button", { name: "Yes" }));
+      fireEvent.click(screen.getByRole("button", { name: "Yes" }));
+      fireEvent.click(screen.getByRole("button", { name: "Restart" }));
+
+      fireEvent.click(screen.getByRole("button", { name: "Start again" }));
+
+      // Back at question 1 with no preserved answer (Next disabled).
+      expect(screen.getByText(/Question\s*1\s*\/\s*35/)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Back" })).toBeDisabled();
+      expect(
+        screen.queryByRole("heading", { name: /Start the assessment again\?/ })
+      ).not.toBeInTheDocument();
+    });
+
+    it("Restart button is disabled when no answers have been given yet", () => {
+      render(<AssessmentPage />);
+      fireEvent.click(screen.getByRole("button", { name: /Start assessment/ }));
+
+      expect(screen.getByRole("button", { name: "Restart" })).toBeDisabled();
+    });
+  });
+
   it("redirects to /auth on unauthorized", async () => {
     (global.fetch as unknown as Mock).mockResolvedValue({
       ok: false,

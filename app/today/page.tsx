@@ -264,11 +264,14 @@ export default function TodayPage() {
                 {s.dots.some((d) => d.didIt !== null) && (
                   <div>
                     <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-3">Last 14 days</p>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="grid grid-cols-7 gap-2 justify-items-center">
                       {s.dots.map((dot) => {
                         const d = new Date(dot.date + 'T00:00:00Z')
                         const label = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })
-                        const tooltip = dot.didIt === true ? `${label} · Did it` : dot.didIt === false ? `${label} · Skipped` : label
+                        const isToday = dot.date === s.currentReturnDate
+                        const tooltip = isToday
+                          ? `${label} · Today${dot.didIt === true ? ' · Did it' : dot.didIt === false ? ' · Skipped' : ''}`
+                          : dot.didIt === true ? `${label} · Did it` : dot.didIt === false ? `${label} · Skipped` : label
                         return (
                           <span
                             key={dot.date}
@@ -279,7 +282,7 @@ export default function TodayPage() {
                                 : dot.didIt === false
                                 ? 'bg-foreground/20 border-foreground/35'
                                 : 'bg-muted/70 border-border/50'
-                            } ${s.justLogged && dot.date === s.currentReturnDate ? 'animate-dot-pop' : ''}`}
+                            } ${isToday ? 'ring-2 ring-primary/40 ring-offset-2 ring-offset-card' : ''} ${s.justLogged && isToday ? 'animate-dot-pop' : ''}`}
                           />
                         )
                       })}

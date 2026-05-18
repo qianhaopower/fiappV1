@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthenticator } from "@aws-amplify/ui-react";
 import { decideRoute, type ProfileForRouting } from "@/lib/decideRoute";
@@ -8,10 +8,26 @@ import { useProfile } from "@/contexts/ProfileContext";
 import FullPageSpinner from "@/components/FullPageSpinner";
 import { Button } from "@/components/ui";
 
+// After a quiet period the Lambda may need to cold-start. fetchMe retries
+// transient failures already (see lib/apiClient.ts); this just lets the
+// user know we're still working, instead of staring at a silent spinner.
+const SLOW_LOAD_MESSAGE_MS = 6000;
+
 export default function DecideRouteClient() {
   const router = useRouter();
   const { authStatus } = useAuthenticator((context) => [context.authStatus]);
   const { profile, loading, error, refetch } = useProfile();
+  const [slow, setSlow] = useState(false);
+
+  useEffect(() => {
+    if (!loading) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSlow(false);
+      return;
+    }
+    const t = setTimeout(() => setSlow(true), SLOW_LOAD_MESSAGE_MS);
+    return () => clearTimeout(t);
+  }, [loading]);
 
   useEffect(() => {
     if (authStatus === "unauthenticated") {
@@ -37,7 +53,11 @@ export default function DecideRouteClient() {
   }
 
   if (loading) {
-    return <FullPageSpinner label="Loading your profile…" />;
+    return (
+      <FullPageSpinner
+        label={slow ? "Waking the server up — almost there…" : "Loading your profile…"}
+      />
+    );
   }
 
   if (error && error.status !== 401 && error.status !== 403) {

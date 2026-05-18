@@ -1,0 +1,12 @@
+customHeaders:
+  # API responses are per-user. Force the CDN (CloudFront in front of Amplify
+  # Hosting) and every intermediate cache to never store them, and to never
+  # share an entry across sessions. Defense in depth alongside withAuth and
+  # next.config.ts — even if a future code change weakens the app-layer
+  # headers, the hosting layer still rewrites Cache-Control here.
+  - pattern: '/api/**/*'
+    headers:
+      - key: 'Cache-Control'
+        value: 'no-store, private'
+      - key: 'Vary'
+        value: 'Cookie'
