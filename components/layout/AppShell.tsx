@@ -72,11 +72,19 @@ export function AppShell({ children, onSignOut }: AppShellProps) {
         </div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
           <div className="flex items-center gap-6">
-            <Link href="/today" className="flex items-center gap-2 group">
+            <Link
+              href="/today"
+              aria-label="Friends Intelligence home — go to Today"
+              title="Go to Today"
+              className="flex items-center gap-2 group"
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo-mark.svg" alt="Friends Intelligence" className="h-7 w-7 shrink-0" />
+              <img src="/logo-mark.svg" alt="" aria-hidden="true" className="h-7 w-7 shrink-0" />
               <span className="whitespace-nowrap font-semibold tracking-tight text-foreground group-hover:text-primary transition-colors text-sm">
                 Friends Intelligence
+              </span>
+              <span className="hidden sm:inline text-xs text-muted-foreground font-normal" aria-hidden="true">
+                · Today
               </span>
             </Link>
             <nav className="hidden md:flex items-center gap-4 text-sm">

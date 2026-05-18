@@ -159,9 +159,9 @@ export const practices: Practice[] = [
     pillar: 'emotional',
     order: 1,
     mappedQuestionId: 'emotional-1',
-    title: 'Name before reacting',
-    description: 'Name one emotion today before reacting, such as anxiety, anger, sadness, excitement, shame, calm, or frustration.',
-    rationale: 'Naming a feeling activates the thinking part of the brain and quiets the reactive part. The half-second between feeling and labelling is where calmer choices live.',
+    title: 'Catch a feeling before it acts',
+    description: 'When something gets to you today, pause and say what you\'re feeling — like anger, hurt, fear, worry, or excitement — before you say or do anything back.',
+    rationale: 'Putting a feeling into a word — even a quick "I\'m hurt" or "I\'m worried" — gives your brain a beat to slow down. That tiny pause is where calmer choices live.',
   },
   {
     id: 'emotional-now-or-echo',

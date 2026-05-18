@@ -38,6 +38,146 @@ evidence matter more than narrative.
 
 ## Bugs
 
+### 2026-05-18 — CloudFront caching cross-user `/api/*` responses (data isolation incident)
+
+**Symptom (what users / monitoring saw):**
+A friend who had signed up the previous day (Google login, brand-new Cognito
+user, no prior history) opened the app and saw a fully-populated UI that
+belonged to someone else. /today showed 2 active practices labelled "Label
+one spending decision" and "Notice one repeated cost" with "you've done this
+2 times" / "1 time" captions; /practices showed those same two with `Active`
+/ `Paused` status; /progress showed 6 total check-ins, "Practices started:
+4", and a `First check-in` milestone dated 5/9/2026 — 8 days before their
+Cognito account was even created. A direct DynamoDB query on the user's
+partition key (`USER#698e8478-...`) returned only 37 rows: 1 PROFILE
+(empty `activePracticeIds`, empty `returnCounters`), 1 ASSESS#, and 35 ANS#.
+Zero UPRACTICE rows. Zero MILESTONE rows. The UI was rendering data that
+did not exist on the server for that user.
+
+**Why it was hard to diagnose:**
+- The UI and the database told contradictory stories. The natural debug
+  path ("what data does this user have?") said empty. The UI clearly
+  rendered consistent non-empty state — practice cards with the right
+  pillar colours, a milestone with a specific date, counters that matched
+  the dot history. It looked like real data, just not theirs.
+- Initial hypothesis was the boring one: "user just forgot they used the
+  app earlier." Took two rounds of evidence (Cognito timestamps + DDB
+  query) before we accepted that the contradiction was real.
+- Pre-sign-up trigger account linking (Google ↔ existing native account
+  with same email) was the obvious next theory and would have explained
+  inherited data. The Cognito user's `Created time` equalling
+  `Last updated time` ruled it out — no subsequent linking write had
+  happened on that record.
+- No recent code change to suspect. The cache headers had been wrong
+  since the routes were written; only some users hit the wrong cache
+  entry at the right time.
+- The smoking gun was a date that *could not exist*: "First check-in
+  5/9/2026" pre-dates the account creation (`2026-05-17 20:04`) by 8
+  days. Once we noticed it, the cross-user theory was inescapable.
+
+**Root cause:** Authenticated API routes returning per-user JSON didn't
+set `Cache-Control: no-store`. Affected routes:
+`/api/progress`, `/api/practices/active`, `/api/returns`, `/api/practice`,
+`/api/return`, `/api/assessment`. Only `/api/me` had the header
+(via a local `jsonWithNoStore` helper that wasn't reused elsewhere).
+
+Behind Amplify Hosting's CloudFront, a response with no `Cache-Control`
+falls back to the distribution's default TTL and is cached under the
+URL alone — **CloudFront's default cache key does not include cookies**.
+So `GET /api/practices/active` cached the first authenticated user's
+response at the edge, and every subsequent user requesting the same URL
+got that same JSON until the cached entry expired or was evicted. The
+authenticated request even arrived at the origin Lambda only on the
+first call; after that, the edge served the cached payload without ever
+re-running `withAuth` or rechecking the cookie.
+
+`#416` ("you've done this X times" wrong after clearing today) was the
+same root cause from a different angle — the counter the user saw came
+from another user's cached `/api/practices/active` / `/api/returns`
+response.
+
+**Fix:** Defense in depth, 5 layers:
+
+1. **`utils/authServer.ts` `withAuth`** — always rewrites
+   `Cache-Control: no-store, private` and `Vary: Cookie` on every
+   response it passes through, including the 401 / 429 / 500 error
+   paths. Overrides any permissive header a handler tried to set, so a
+   future new route can't accidentally reintroduce caching. This is the
+   chokepoint fix and would have prevented the original bug on its own.
+2. **`next.config.ts`** — global header rule for `source: "/api/:path*"`
+   applying the same `Cache-Control` + `Vary`. Belt; catches public
+   API routes that don't go through `withAuth`.
+3. **`customHttp.yml`** (new file) — Amplify Hosting CDN-level header
+   override for `/api/**/*`. Suspenders; enforced at the edge even if
+   the app layer regresses.
+4. **Unit tests** in `tests/unit/authServer.test.ts` — assert the
+   headers on success responses, that `withAuth` overrides a permissive
+   header set by a handler, that the 500 error path also carries them,
+   and that `unauthorizedResponse()` includes them.
+5. **Post-deploy curl verification** — `curl -sSI .../api/me` against
+   staging then prod after deploy to confirm headers are on the wire,
+   not just in code.
+
+`Vary: Cookie` is the load-bearing header for the
+defense-in-depth story: even if a future change weakens `Cache-Control`,
+any cache that respects `Vary` keys responses by the auth cookie — so
+two different users can never share a cache entry. `private` does the
+same job for shared caches that ignore `Vary`. `no-store` is the
+strictest blanket "don't cache anywhere" directive. All three together
+cover the realistic failure modes.
+
+**Lessons / what to check next time:**
+- **Authed routes need explicit cache control. `no-store` is not the
+  CDN default.** CloudFront, every other CDN, every reverse proxy —
+  they all default to "may cache." If you do nothing, your private API
+  responses are cacheable. The vulnerability is the absence of a
+  header, not the presence of a wrong one.
+- **CloudFront's default cache key is URL-only. Cookies are not in
+  it unless you configure the cache policy to forward and key on
+  them.** "Cookies vary, so the response varies" is a *server*
+  assumption. The CDN does not share it.
+- **Add the header at a chokepoint, not per-route.** This bug
+  happened because cache control was per-route and four out of ~ten
+  authed routes were missing it. `withAuth` is the natural chokepoint
+  for all authed responses. Per-route headers are exactly how this
+  bug was created.
+- **Believe the database.** When the UI shows data and the DB has
+  none, do not assume "user is mistaken" or "stale frontend cache."
+  A 37-row DDB query with zero UPRACTICE is the truth; the UI
+  rendering practices is the question to answer.
+- **Look for values whose existence is logically impossible for the
+  user.** Timestamps predating signup, IDs from a previous schema,
+  references to users who don't share that account — these are
+  higher-signal than any "looks suspicious" pattern.
+- **`Vary` is cheap insurance.** Even if you trust your `Cache-Control`
+  today, adding `Vary: Cookie` makes the next class of weakening
+  failure (someone tweaks `Cache-Control` to allow short caching for
+  perf) safe by construction.
+- **Test by curl after deploy, not by code review.** App-layer
+  headers can be silently stripped by hosting platforms, edge
+  workers, or middlebox proxies. `curl -I` against the deployed URL
+  is the ground truth.
+
+**Residual risk (acknowledged):** `customHttp.yml` patterns are an
+Amplify Hosting feature whose exact glob syntax has shifted across
+Amplify versions. The pattern in this PR is `/api/**/*` which matches
+Amplify Hosting's current behaviour, but a future Amplify version could
+change pattern interpretation. The `withAuth` (layer 1) and
+`next.config.ts` (layer 2) defenses are independent of `customHttp.yml`
+and would still hold if layer 3 ever silently stopped matching.
+
+**References:**
+- Issue [#417](https://github.com/qianhaopower/fiappV1/issues/417) — original report (data pollution)
+- Issue [#416](https://github.com/qianhaopower/fiappV1/issues/416) — same root cause (counter tooltip)
+- Epic [#328](https://github.com/qianhaopower/fiappV1/issues/328) — bug tracker
+- PR fix/bug-tracker-batch-2
+- Layer 1: [`utils/authServer.ts`](../../utils/authServer.ts)
+- Layer 2: [`next.config.ts`](../../next.config.ts)
+- Layer 3: [`customHttp.yml`](../../customHttp.yml)
+- Layer 4: [`tests/unit/authServer.test.ts`](../../tests/unit/authServer.test.ts)
+
+---
+
 ### 2026-05-17 — "Choose a practice" + `CAP_REACHED`: UPRACTICE vs PROFILE divergence
 
 **Symptom (what users / monitoring saw):**

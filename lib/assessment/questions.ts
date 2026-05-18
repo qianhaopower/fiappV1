@@ -201,11 +201,11 @@ export const QUESTIONS: Question[] = [
     pillar: "emotional",
     order: 1,
     mappedPracticeId: "emotional-name-before-reacting",
-    text: "Have you named an emotion before reacting to it?",
+    text: "Have you stopped and asked yourself what you were feeling — like anger, hurt, fear, or worry — before saying or doing something?",
     suggestions: [
-      "When a strong reaction rises, pause and say the feeling silently — \"anger\", \"hurt\", \"fear\".",
-      "Add one word about the cause: \"frustrated about the delay\".",
-      "Notice that naming it often shrinks it.",
+      "When something gets to you, take a breath and say the feeling to yourself — anger, hurt, fear, worry.",
+      "Add one word about why: \"frustrated about the delay\".",
+      "Just saying what you feel often makes it feel smaller.",
     ],
   },
   {

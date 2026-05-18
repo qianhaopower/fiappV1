@@ -7,6 +7,14 @@ import { assessmentQuestions } from "@/lib/assessment/questions";
 import { pillarColors } from "@/lib/design/pillarColors";
 import { NarrowFormPage } from "@/components/layout";
 import { Button, Card } from "@/components/ui";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export default function AssessmentPage() {
   const router = useRouter();
@@ -16,6 +24,7 @@ export default function AssessmentPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [introAccepted, setIntroAccepted] = useState(false);
+  const [confirmRestart, setConfirmRestart] = useState(false);
 
   function getContrastingTextColor(hex: string) {
     const match = /^#?([0-9a-fA-F]{6})$/.exec(hex);
@@ -103,6 +112,11 @@ export default function AssessmentPage() {
     setSubmitting(false);
   }
 
+  function confirmAndReset() {
+    handleReset();
+    setConfirmRestart(false);
+  }
+
   if (!introAccepted) {
     return (
       <NarrowFormPage title="">
@@ -168,7 +182,7 @@ export default function AssessmentPage() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={handleReset}
+                onClick={() => setConfirmRestart(true)}
                 disabled={submitting || answeredCount === 0}
               >
                 Restart
@@ -285,6 +299,30 @@ export default function AssessmentPage() {
         This assessment is for personal reflection only —{' '}
         <Link href="/disclaimer" className="underline underline-offset-2 hover:text-foreground">not professional advice</Link>.
       </p>
+
+      <Dialog open={confirmRestart} onOpenChange={setConfirmRestart}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Start the assessment again?</DialogTitle>
+            <DialogDescription>
+              This goes back to the first question and clears your{' '}
+              {answeredCount} {answeredCount === 1 ? 'answer' : 'answers'} so far.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setConfirmRestart(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="button" onClick={confirmAndReset}>
+              Start again
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </NarrowFormPage>
   );
 }
