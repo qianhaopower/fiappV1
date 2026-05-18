@@ -83,14 +83,30 @@ test.describe("/assessment", () => {
     expect(parseFloat(w2)).toBeGreaterThan(parseFloat(w1));
   });
 
-  test("Restart button resets to question 1", async ({ page }) => {
+  test("Restart button confirms and resets to question 1", async ({ page }) => {
+    // #415 — Restart now opens a confirmation dialog. Cancel preserves state,
+    // Start again wipes answers and returns to question 1.
     await page.goto("/assessment");
     await page.getByRole("button", { name: /start assessment/i }).click();
     await page.getByRole("button", { name: /^yes$/i }).click(); // → Q2
     await page.getByRole("button", { name: /^yes$/i }).click(); // → Q3
     await expect(page.getByText(/Question 3/i)).toBeVisible();
 
-    await page.getByRole("button", { name: /restart/i }).click();
+    // First Restart: opens dialog, doesn't reset yet.
+    await page.getByRole("button", { name: /^restart$/i }).click();
+    await expect(
+      page.getByRole("heading", { name: /Start the assessment again\?/i })
+    ).toBeVisible();
+    // Still on question 3 — dialog hasn't acted yet.
+    await expect(page.getByText(/Question 3/i)).toBeVisible();
+
+    // Cancel preserves state.
+    await page.getByRole("button", { name: /^cancel$/i }).click();
+    await expect(page.getByText(/Question 3/i)).toBeVisible();
+
+    // Restart again, this time confirm via Start again.
+    await page.getByRole("button", { name: /^restart$/i }).click();
+    await page.getByRole("button", { name: /^start again$/i }).click();
     await expect(page.getByText(/Question 1/i)).toBeVisible();
   });
 
