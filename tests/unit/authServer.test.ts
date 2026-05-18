@@ -61,10 +61,11 @@ describe("authServer", () => {
       expect(json.error.message).toBe("Authentication required");
     });
 
-    it("sets Cache-Control no-store", () => {
+    it("sets Cache-Control no-store, private and Vary: Cookie", () => {
       const res = unauthorizedResponse();
 
-      expect(res.headers.get("Cache-Control")).toBe("no-store");
+      expect(res.headers.get("Cache-Control")).toBe("no-store, private");
+      expect(res.headers.get("Vary")).toBe("Cookie");
     });
   });
 
@@ -109,6 +110,53 @@ describe("authServer", () => {
       await withAuth(undefined, handler);
 
       expect(handler).toHaveBeenCalledWith({ userId: "usr-99", username: "test" });
+    });
+
+    // Cross-user data isolation guard. Every authenticated response must
+    // forbid shared caches (CDN, proxies) from storing it. See #417 for the
+    // incident this defends against.
+    it("forces Cache-Control: no-store, private and Vary: Cookie on the handler's response", async () => {
+      runWithAmplifyMock.mockResolvedValue({
+        user: { userId: "usr-77", username: "test" },
+      });
+
+      const { withAuth } = await import("@/utils/authServer");
+      const res = await withAuth(undefined, async () =>
+        new Response(JSON.stringify({ ok: true }), { status: 200 })
+      );
+
+      expect(res.headers.get("Cache-Control")).toBe("no-store, private");
+      expect(res.headers.get("Vary")).toBe("Cookie");
+    });
+
+    it("overrides a handler that tries to set a permissive Cache-Control", async () => {
+      runWithAmplifyMock.mockResolvedValue({
+        user: { userId: "usr-77", username: "test" },
+      });
+
+      const { withAuth } = await import("@/utils/authServer");
+      const res = await withAuth(undefined, async () => {
+        const r = new Response(JSON.stringify({ ok: true }), { status: 200 });
+        r.headers.set("Cache-Control", "public, max-age=3600");
+        return r;
+      });
+
+      expect(res.headers.get("Cache-Control")).toBe("no-store, private");
+    });
+
+    it("sets cache headers on 500 responses from handler errors", async () => {
+      runWithAmplifyMock.mockResolvedValue({
+        user: { userId: "usr-77", username: "test" },
+      });
+
+      const { withAuth } = await import("@/utils/authServer");
+      const res = await withAuth(undefined, async () => {
+        throw new Error("boom");
+      });
+
+      expect(res.status).toBe(500);
+      expect(res.headers.get("Cache-Control")).toBe("no-store, private");
+      expect(res.headers.get("Vary")).toBe("Cookie");
     });
   });
 });

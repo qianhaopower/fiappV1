@@ -44,6 +44,22 @@ export async function getUserId(_req?: Request): Promise<AuthUser> {
   }
 }
 
+/**
+ * Cross-user data isolation defense.
+ *
+ * Every authenticated response carries per-user data. Without these headers
+ * the CDN (CloudFront in front of Amplify Hosting) and any intermediate proxy
+ * can cache one user's response under the URL alone and serve it back to
+ * other users. `no-store` forbids storage; `private` forbids shared caches
+ * even if a future change weakens `no-store`; `Vary: Cookie` keys responses
+ * by the auth cookie so no cache entry is ever shared across sessions.
+ */
+function applyNoStoreHeaders(res: Response): Response {
+  res.headers.set("Cache-Control", "no-store, private");
+  res.headers.set("Vary", "Cookie");
+  return res;
+}
+
 export function unauthorizedResponse() {
   const res = NextResponse.json(
     {
@@ -55,8 +71,7 @@ export function unauthorizedResponse() {
     },
     { status: 401 },
   );
-  res.headers.set("Cache-Control", "no-store");
-  return res;
+  return applyNoStoreHeaders(res);
 }
 
 export function rateLimitedResponse() {
@@ -70,8 +85,7 @@ export function rateLimitedResponse() {
     },
     { status: 429 },
   );
-  res.headers.set("Cache-Control", "no-store");
-  return res;
+  return applyNoStoreHeaders(res);
 }
 
 export function isUnauthorizedError(error: unknown): error is UnauthorizedError {
@@ -107,7 +121,7 @@ export async function withAuth(
     const status = response.status
     const outcome = status === 429 ? 'rate_limited' : status < 400 ? 'ok' : 'error'
     log({ requestId, route, method, outcome, status, latencyMs: Date.now() - startedAt, userId: user.userId })
-    return response
+    return applyNoStoreHeaders(response)
   } catch (error) {
     log({ requestId, route, method, outcome: 'error', status: 500, latencyMs: Date.now() - startedAt, userId: user.userId }, 'error')
     // Amplify Data client throws NoSignedUser when server context isn't
@@ -115,16 +129,16 @@ export async function withAuth(
     // redirect authenticated users back to /auth
     if (error instanceof Error && error.name === 'NoSignedUser') {
       console.warn('[withAuth] NoSignedUser in handler — Amplify Data client missing server context')
-      return NextResponse.json(
+      return applyNoStoreHeaders(NextResponse.json(
         { ok: false, error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } },
         { status: 500 }
-      )
+      ))
     }
     console.error('[withAuth] handler error:', error);
-    return NextResponse.json(
+    return applyNoStoreHeaders(NextResponse.json(
       { ok: false, error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } },
       { status: 500 }
-    );
+    ));
   }
 }
 

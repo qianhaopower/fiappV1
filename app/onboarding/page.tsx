@@ -16,11 +16,33 @@ const SAMPLE_SCORES: Record<Pillar, number> = {
   sleep: 3,
 };
 
+// #419 escape hatch — some users got stuck on /onboarding when router.replace
+// silently failed to change the URL (browser/router state we couldn't repro).
+// If we're still on /onboarding NAV_FALLBACK_MS after the click, force a full
+// page navigation so the user is never trapped. The console.warn leaves a
+// breadcrumb the next time someone reports being stuck.
+const NAV_FALLBACK_MS = 600;
+
 export default function OnboardingPage() {
   const router = useRouter();
 
   function start() {
+    if (typeof window !== "undefined") {
+      console.info("[onboarding] start: navigating to /assessment");
+    }
     router.replace("/assessment");
+    if (typeof window !== "undefined") {
+      window.setTimeout(() => {
+        if (window.location.pathname.startsWith("/onboarding")) {
+          console.warn(
+            "[onboarding] router.replace did not change URL after",
+            NAV_FALLBACK_MS,
+            "ms — falling back to window.location"
+          );
+          window.location.href = "/assessment";
+        }
+      }, NAV_FALLBACK_MS);
+    }
   }
 
   return (

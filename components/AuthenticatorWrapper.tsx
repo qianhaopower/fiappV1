@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Authenticator, useAuthenticator } from "@aws-amplify/ui-react";
 import { Hub } from "aws-amplify/utils";
 import { getCurrentUser } from "aws-amplify/auth";
 import { ensureAmplifyConfigured } from "@/lib/amplifyClient";
+import { detectInAppBrowser, type InAppBrowser } from "@/lib/inAppBrowser";
 
 const passwordSettings = {
   minLength: 8,
@@ -64,9 +65,44 @@ function AuthRedirect() {
   );
 }
 
+// Google OAuth rejects embedded webviews with `disallowed_useragent` (Error
+// 403). Surface a notice so users in WeChat / Facebook / Instagram / etc.
+// know to open the link in their device's real browser before tapping Google.
+function InAppBrowserNotice({ browser }: { browser: InAppBrowser }) {
+  const openInstructions: Record<InAppBrowser, string> = {
+    WeChat: "Tap the ⋯ menu in the top-right and choose ‘Open in Browser’.",
+    Facebook: "Tap the ⋯ menu and choose ‘Open in External Browser’.",
+    Instagram: "Tap the ⋯ menu and choose ‘Open in External Browser’.",
+    TikTok: "Tap the ⋯ menu and choose ‘Open in External Browser’.",
+    Line: "Tap the ⋯ menu and choose ‘Open in Default Browser’.",
+  };
+
+  return (
+    <div
+      role="status"
+      className="mb-4 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-900 dark:text-amber-200"
+    >
+      <p className="font-semibold">
+        Open this page in your phone&apos;s browser to sign in with Google.
+      </p>
+      <p className="mt-1">
+        Google blocks sign-in inside {browser}. {openInstructions[browser]} You can still sign in with email and password here.
+      </p>
+    </div>
+  );
+}
+
 export default function AuthenticatorWrapper() {
   ensureAmplifyConfigured();
   const router = useRouter();
+  const [inAppBrowser, setInAppBrowser] = useState<InAppBrowser | null>(null);
+
+  // Runs only on the client to avoid SSR/CSR markup mismatch — we can't
+  // read navigator on the server. One-shot setState after mount is fine.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setInAppBrowser(detectInAppBrowser(navigator.userAgent));
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -105,6 +141,8 @@ export default function AuthenticatorWrapper() {
             An account saves your assessment results and practice progress so you can pick up where you left off. We only store your email and your responses — nothing is shared or sold.
           </p>
         </div>
+
+        {inAppBrowser && <InAppBrowserNotice browser={inAppBrowser} />}
 
         <div className="fiapp-auth-shell">
           <Authenticator

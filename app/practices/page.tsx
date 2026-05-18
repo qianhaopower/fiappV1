@@ -186,8 +186,34 @@ export default function PracticesPage() {
         {loading && <Loading text="Loading practices…" />}
         {!loading && error && <ErrorState message="Couldn't load practices." onRetry={load} />}
 
+        {!loading && !error && (
+          <nav
+            aria-label="Jump to pillar"
+            className="-mb-4 flex flex-wrap gap-1.5 sm:gap-2 pb-4 border-b border-border/40"
+          >
+            {pillarOrder.map((pillar) => (
+              <a
+                key={pillar}
+                href={`#pillar-${pillar}`}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background px-2.5 py-1 text-xs text-foreground no-underline hover:bg-muted/40 transition-colors"
+              >
+                <span
+                  className="h-2 w-2 rounded-full shrink-0"
+                  style={{ backgroundColor: pillarColors[pillar] }}
+                  aria-hidden="true"
+                />
+                {pillarLabels[pillar]}
+              </a>
+            ))}
+          </nav>
+        )}
+
         {!loading && !error && pillarOrder.map((pillar) => (
-          <section key={pillar} className="space-y-3">
+          <section
+            key={pillar}
+            id={`pillar-${pillar}`}
+            className="space-y-3 scroll-mt-20"
+          >
             <div className="flex items-center gap-2">
               <span
                 className="h-3 w-3 rounded-full shrink-0"
