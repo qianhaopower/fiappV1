@@ -22,7 +22,10 @@ export default function AccountPage() {
       // ignore — still proceed with client-side signout
     } finally {
       await signOut()
-      window.location.href = '/auth'
+      // Land on the marketing landing page rather than /auth — same call as
+      // AppChrome's sign-out handler. Better "goodbye" surface and consistent
+      // with what a logged-out visitor sees by default.
+      window.location.href = '/'
     }
   }
 
