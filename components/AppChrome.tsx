@@ -45,7 +45,10 @@ export default function AppChrome({ children }: { children: ReactNode }) {
       // ignore network errors – still run Amplify signOut
     } finally {
       await signOut();
-      window.location.href = "/auth";
+      // Land on the marketing landing page rather than /auth — better
+      // "goodbye" surface (value prop, nav, friendly tone) and consistent
+      // with what a logged-out visitor sees by default.
+      window.location.href = "/";
     }
   }
 
