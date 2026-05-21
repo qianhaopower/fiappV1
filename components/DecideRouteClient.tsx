@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthenticator } from "@aws-amplify/ui-react";
 import { decideRoute, type ProfileForRouting } from "@/lib/decideRoute";
@@ -20,6 +20,14 @@ export default function DecideRouteClient() {
   const { authStatus } = useAuthenticator((context) => [context.authStatus]);
   const { profile, loading, error, refetch } = useProfile();
   const [slow, setSlow] = useState(false);
+  // Routing decision is made once per mount. Subsequent profile updates
+  // (e.g. from the refetch() after anonymous-result hydration) must not
+  // re-fire the routing logic — that would clobber our chosen destination.
+  // See https://github.com/qianhaopower/fiappV1/pull/425 for the race
+  // condition this prevents: hydration → clearLocalResult → refetch →
+  // effect re-runs with stored=null + latestAssessmentId set →
+  // decideRoute returns /today → overrides our intended /results redirect.
+  const routedRef = useRef(false);
 
   useEffect(() => {
     if (!loading) {
@@ -45,6 +53,10 @@ export default function DecideRouteClient() {
     if (loading || !profile) return;
 
     if (error) return;
+
+    // Already decided where to go — don't re-decide after profile state
+    // updates from an in-flight refetch (see routedRef comment above).
+    if (routedRef.current) return;
 
     let cancelled = false;
     const profileSnapshot = profile;
@@ -75,8 +87,14 @@ export default function DecideRouteClient() {
             }));
             trackEvent("hydration_success", { focus_pillar: stored.focusPillar });
             trackEvent("signup_completed");
-            await refetch();
+            // Mark routed BEFORE navigating + refetch, so any effect re-run
+            // triggered by the profile state change short-circuits at the
+            // routedRef check above instead of falling through to /today.
+            routedRef.current = true;
             if (!cancelled) router.replace("/results");
+            // Refresh ProfileContext in the background so other pages see
+            // the new latestAssessmentId — intentionally not awaited.
+            refetch().catch(() => {});
             return;
           }
           console.log(JSON.stringify({
@@ -97,6 +115,7 @@ export default function DecideRouteClient() {
       }
 
       const next = decideRoute(profileSnapshot as ProfileForRouting);
+      routedRef.current = true;
       if (!cancelled) router.replace(next);
     }
 
