@@ -159,4 +159,55 @@ describe("authServer", () => {
       expect(res.headers.get("Vary")).toBe("Cookie");
     });
   });
+
+  describe("withOptionalAuth guard", () => {
+    it("invokes handler with user=null when unauthenticated (no 401)", async () => {
+      runWithAmplifyMock.mockRejectedValue(new Error("Not authenticated"));
+
+      const { withOptionalAuth } = await import("@/utils/authServer");
+      const handler = vi.fn(async () => new Response("ok", { status: 200 }));
+      const res = await withOptionalAuth(undefined, handler);
+
+      expect(handler).toHaveBeenCalledWith({ user: null });
+      expect(res.status).toBe(200);
+    });
+
+    it("invokes handler with user object when authenticated", async () => {
+      runWithAmplifyMock.mockResolvedValue({
+        user: { userId: "usr-42", username: "test" },
+      });
+
+      const { withOptionalAuth } = await import("@/utils/authServer");
+      const handler = vi.fn(async () => new Response("ok", { status: 200 }));
+      await withOptionalAuth(undefined, handler);
+
+      expect(handler).toHaveBeenCalledWith({
+        user: { userId: "usr-42", username: "test" },
+      });
+    });
+
+    it("applies no-store cache headers for both anonymous and authed responses", async () => {
+      runWithAmplifyMock.mockRejectedValue(new Error("Not authenticated"));
+
+      const { withOptionalAuth } = await import("@/utils/authServer");
+      const res = await withOptionalAuth(undefined, async () =>
+        new Response(JSON.stringify({ ok: true }), { status: 200 })
+      );
+
+      expect(res.headers.get("Cache-Control")).toBe("no-store, private");
+      expect(res.headers.get("Vary")).toBe("Cookie");
+    });
+
+    it("returns 500 with cache headers when handler throws", async () => {
+      runWithAmplifyMock.mockRejectedValue(new Error("Not authenticated"));
+
+      const { withOptionalAuth } = await import("@/utils/authServer");
+      const res = await withOptionalAuth(undefined, async () => {
+        throw new Error("boom");
+      });
+
+      expect(res.status).toBe(500);
+      expect(res.headers.get("Cache-Control")).toBe("no-store, private");
+    });
+  });
 });

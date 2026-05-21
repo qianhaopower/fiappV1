@@ -33,7 +33,7 @@ Last revised: 2026-05-16 (added SES email delivery + password policy checks).
 - [ ] Sign in with confirmed account → lands on correct page per `decideRoute` (auth → `/auth`; authed without assessment → `/onboarding`; authed with assessment → `/today`)
 - [ ] Wrong password → error message visible, not cryptic
 - [ ] "Forgot password" flow — email sent (same `no-reply@friendsintelligence.net` sender), reset works
-- [ ] Sign out → redirected to `/auth`, cannot navigate back to protected pages
+- [ ] Sign out → redirected to `/` (landing page), cannot navigate back to protected pages
 - [ ] **Mobile**: auth form not cut off, keyboard doesn't obscure input fields
 
 ---
@@ -47,6 +47,13 @@ Last revised: 2026-05-16 (added SES email delivery + password policy checks).
 - [ ] Restart button clears answers (confirm dialog works)
 - [ ] Submit on last question → spinner visible, then redirected to `/results`
 - [ ] **Mobile**: question text readable, buttons not overlapping, progress bar visible
+
+### Anonymous funnel (new, 2026-05-21)
+
+- [ ] **Logged out**: visiting `/assessment` directly loads the intro screen (no auth redirect)
+- [ ] **Logged out**: answer 3-5 questions, refresh the tab — previous answers and current question are restored from localStorage
+- [ ] **Logged out**: submit on last question → spinner → redirected to `/results` (no auth wall)
+- [ ] **Logged out**: clicking Restart clears the in-progress draft from localStorage
 
 ---
 
@@ -68,6 +75,18 @@ Last revised: 2026-05-16 (added SES email delivery + password policy checks).
 - [ ] Empty state (no assessment yet): CTA to start assessment shown — radar/scores absent
 - [ ] **Mobile**: radar chart not clipped, pillar labels readable
 - [ ] **No v1 vocabulary** anywhere: "Try this practice", "Your focus", "Go to My Practices", "Inactive", "Bring this back" must not appear
+
+### Anonymous funnel (new, 2026-05-21)
+
+- [ ] **Logged out at `/results` with localStorage result**: full pillar scores, focus pillar, radar chart, and 3 suggested practices with full titles + descriptions + rationale
+- [ ] Per-practice CTA reads `Sign up to start →` (not `Start this practice`)
+- [ ] Footer CTA is pillar-aware: `Sign up free to start your <Pillar> practice` (Pillar uses the focusPillar label)
+- [ ] `Retake (clears your result)` link clears localStorage and lands on `/assessment`
+- [ ] **Logged out at `/results` with no localStorage**: redirected to `/assessment`
+- [ ] **Logged out with localStorage `takenAt` > 30 days**: amber "Your result is N days old" banner visible above focus pillar card
+- [ ] **After signup via email**: localStorage hydrated to DynamoDB (`ASSESS#` row), lands on `/results` with working `Start this practice` CTAs
+- [ ] **After signup via Google OAuth**: same outcome — verifies localStorage survived the OAuth redirect (highest-risk unknown per the plan)
+- [ ] **Existing user login with localStorage on the browser**: localStorage silently dropped, server data preserved, lands per `decideRoute` (`/today` if they had a prior assessment)
 
 ---
 
@@ -196,6 +215,25 @@ Last revised: 2026-05-16 (added SES email delivery + password policy checks).
 - [ ] /practices renders 35 cards smoothly (no jank when scrolling)
 - [ ] No visible layout shift (CLS) after initial load
 - [ ] Radar chart renders without flicker
+
+---
+
+## 13. Anonymous funnel + analytics end-to-end (new, 2026-05-21)
+
+Full happy path on the deployed staging URL, then again on prod after deploy.
+
+- [ ] Open incognito → `/` → "Free · no account needed to start" micro-copy visible under primary CTA; "8 minutes" pill visible on mobile too
+- [ ] Click `Start free assessment` → lands on `/assessment` with intro screen (no auth wall)
+- [ ] Answer all 35 questions → click Submit → lands on `/results`
+- [ ] `/results` shows: focus pillar, radar, per-pillar bars, 3 suggested practices with full content, pillar-aware "Sign up free" CTA
+- [ ] Click the per-practice `Sign up to start` → lands on `/auth`
+- [ ] Sign up with a fresh email → confirm code → redirected → eventually lands back on `/results` with working `Start this practice` CTAs
+- [ ] DynamoDB now has the user with a populated `ASSESS#` row matching what was just submitted (manual spot check in console)
+- [ ] Repeat the entire path via **Google OAuth signup** instead of email — same outcome
+- [ ] **Cookie banner**: on first incognito visit, banner appears at bottom; DevTools Network filtered for `google` shows zero requests until `Accept` clicked
+- [ ] After `Accept`: GA4 Realtime (analytics.google.com → Realtime) shows the current visit within ~30s; `assessment_started`, `assessment_submitted`, `results_viewed`, `signup_clicked`, `signup_completed`, `hydration_success` events appear in order
+- [ ] After `Decline`: no further GA requests, no flicker, banner stays dismissed
+- [ ] CloudWatch Logs Insights query for `funnel_event` returns all expected server-side events for the test run
 
 ---
 

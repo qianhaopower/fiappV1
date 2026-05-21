@@ -7,6 +7,8 @@ import "./globals.css";
 import { Toaster } from "@/components/ui";
 import AmplifyProvider from "@/components/AmplifyProvider";
 import AppChrome from "@/components/AppChrome";
+import CookieBanner from "@/components/CookieBanner";
+import GA4Loader from "@/components/GA4Loader";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -26,6 +28,8 @@ export default function RootLayout({
         <AmplifyProvider>
           <AppChrome>{children}</AppChrome>
         </AmplifyProvider>
+        <CookieBanner />
+        <GA4Loader />
         <Toaster />
       </body>
     </html>
