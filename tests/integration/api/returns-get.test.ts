@@ -43,22 +43,32 @@ function get(practiceId: string, days?: number) {
   return GET(new Request(url.toString()));
 }
 
+// Use dates relative to today so the test doesn't drift out of the API's
+// rolling N-day window. Returns are seeded as "N days ago in UTC".
+function daysAgoUTC(n: number): string {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - n);
+  return d.toISOString().slice(0, 10);
+}
+
 describe("GET /api/returns", () => {
   it("returns dot entries with correct didIt values for seeded returns", async () => {
     const userId = randomUUID();
     await seedProfile(userId, { timezone: "UTC", dayResetTime: 0 });
-    await seedReturn(userId, PRACTICE, "2026-05-07", true);
-    await seedReturn(userId, PRACTICE, "2026-05-08", false);
+    const dateDidIt = daysAgoUTC(3);
+    const dateMissed = daysAgoUTC(2);
+    await seedReturn(userId, PRACTICE, dateDidIt, true);
+    await seedReturn(userId, PRACTICE, dateMissed, false);
 
     asUser(userId);
     const res = await get(PRACTICE, 14);
     expect(res.status).toBe(200);
     const json = await res.json();
 
-    const may7 = json.returns.find((r: { date: string }) => r.date === "2026-05-07");
-    const may8 = json.returns.find((r: { date: string }) => r.date === "2026-05-08");
-    expect(may7?.didIt).toBe(true);
-    expect(may8?.didIt).toBe(false);
+    const yes = json.returns.find((r: { date: string }) => r.date === dateDidIt);
+    const no = json.returns.find((r: { date: string }) => r.date === dateMissed);
+    expect(yes?.didIt).toBe(true);
+    expect(no?.didIt).toBe(false);
   });
 
   it("dates with no returns have didIt=null", async () => {
@@ -74,9 +84,9 @@ describe("GET /api/returns", () => {
   it("total reflects count of didIt=true items only", async () => {
     const userId = randomUUID();
     await seedProfile(userId, { timezone: "UTC", dayResetTime: 0 });
-    await seedReturn(userId, PRACTICE, "2026-05-06", true);
-    await seedReturn(userId, PRACTICE, "2026-05-07", true);
-    await seedReturn(userId, PRACTICE, "2026-05-08", false);
+    await seedReturn(userId, PRACTICE, daysAgoUTC(4), true);
+    await seedReturn(userId, PRACTICE, daysAgoUTC(3), true);
+    await seedReturn(userId, PRACTICE, daysAgoUTC(2), false);
 
     asUser(userId);
     const res = await get(PRACTICE, 14);
