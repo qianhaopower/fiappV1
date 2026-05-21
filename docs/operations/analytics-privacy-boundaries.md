@@ -81,8 +81,16 @@ Only these are permitted on custom events fired through [`lib/analytics.ts`](../
 
 - `is_anonymous: boolean` — authed vs. anonymous caller
 - `focus_pillar: <pillarId>` — the seven canonical pillar IDs only (`financial`, `relationship`, etc.); never a user-readable label
+- `pillar: <pillarId>` — same enum; used on per-question events to indicate which pillar the question belongs to
+- `question_index: number` — 0-34, the position in the 35-question assessment. Position is not identifying.
 - `source: "practice_card" | "results_bottom"` — which CTA fired a signup click
 - `error_status: number` — HTTP status code on hydration failure
+
+Explicitly **forbidden** as event params, even though tempting:
+
+- The user's actual `yes`/`no` answer to a question (could become identifying when correlated across questions)
+- A question's full text or ID (`financial-3` is fine as `pillar=financial, question_index=2`; the per-question ID is not)
+- Any user-readable string
 
 Any new custom param must be added to this list. Adding raw answers, identifiers, or freeform user text is forbidden — that's the line.
 
@@ -91,6 +99,7 @@ Any new custom param must be added to this list. Adding raw answers, identifiers
 | Event | Fires from | Params |
 |---|---|---|
 | `assessment_started` | `/assessment` mount | `is_anonymous` |
+| `assessment_question_answered` | each Yes/No click in the quiz | `question_index`, `pillar`, `is_anonymous` |
 | `assessment_submitted` | submit success | `is_anonymous`, `focus_pillar` |
 | `results_viewed` | `/results` mount with data loaded | `is_anonymous`, `focus_pillar` |
 | `signup_clicked` | "Sign up to start" CTA click on `/results` | `focus_pillar`, `source` |
