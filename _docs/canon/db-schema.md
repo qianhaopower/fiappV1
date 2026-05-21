@@ -16,7 +16,7 @@
 
 **Status:** Partially canonical (see supersede note above)
 **Tables:** 2 (FIAPP_MAIN + FIAPP_RETURNS)  
-**Rule:** DynamoDB is the source of truth (no local-storage persistence logic).
+**Rule:** DynamoDB is the source of truth for all authenticated state. `localStorage` may hold transient pre-account state — specifically `assessment.draft` (in-progress quiz answers) and `assessment.result` (anonymous-computed result for `/results` rendering). Both are cleared on signup hydration. No other client-side persistence is permitted. See [anonymous-assessment-funnel](../plans/anonymous-assessment-funnel.md).
 
 ---
 

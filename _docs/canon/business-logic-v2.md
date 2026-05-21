@@ -101,16 +101,18 @@ Same CTA rules everywhere: results screen, practice bank, recommendation cards.
 
 Note: with assessment but 0 active practices, the default destination is **still `/today`** (it renders the empty state). It is no longer `/results`.
 
+Note: `decideRoute` itself stays pure. `DecideRouteClient` may one-shot override the destination to `/results` immediately after a successful anonymous-result hydration on signup — the hydration logic does not modify the pure function. See [anonymous-assessment-funnel](../plans/anonymous-assessment-funnel.md).
+
 ### Per-route guards
 
 | Route | Required state | 0-active behaviour |
 |---|---|---|
 | `/auth` | unauthenticated | N/A. Authed users who land here are redirected to the default route. |
 | `/onboarding` | authed, no assessment | N/A (pre-assessment). Intro screen that leads into `/assessment`. |
-| `/assessment` | authed | N/A. Always accessible (user can retake anytime). |
+| `/assessment` | **public** | N/A. Anonymous visitors complete the questions and submit. Authed visitors see the same questions; submission persists an `ASSESS#` row. See [anonymous-assessment-funnel](../plans/anonymous-assessment-funnel.md). |
 | `/today` | authed + assessment | Empty state with "Browse practices" / "Take assessment" CTAs. **Never redirect.** |
 | `/practices` | authed + assessment | Always accessible. Practice bank: all 35 practices grouped by 7 pillars. |
-| `/results` | authed + assessment | Always accessible. Shows latest assessment summary + suggested practices. |
+| `/results` | **public** | Anonymous visitors render from localStorage (set by `/assessment` submit); empty localStorage → redirect to `/assessment`. Authed visitors render from server-side latest assessment. |
 | `/progress` | authed + assessment | Always accessible. Robust to 0 counters / 0 milestones. |
 
 ### Forbidden / server-enforced
@@ -194,6 +196,8 @@ Removed modes: `startTrial`, `promoteTrial`, `discardTrial`, `add`, `replace`, `
 
 All endpoints require an authenticated user; `userId` is resolved server-side from the session. Error responses follow `{ error: "CODE", ...optional fields }` with an appropriate HTTP status.
 
+**Exception:** `POST /api/assessment` accepts anonymous submissions and returns a compute-only response (no DynamoDB writes). Persistence still requires auth. See dual response shape below and [anonymous-assessment-funnel](../plans/anonymous-assessment-funnel.md).
+
 ### `GET /api/me`
 
 **Purpose:** return PROFILE (create if missing).
@@ -235,7 +239,7 @@ Notes:
 5. Write `ASSESS#<assessmentId>` item with all of the above.
 6. Update `PROFILE.latestAssessmentId` and `PROFILE.lowestPillarId`.
 
-**Returns:**
+**Returns (authed):**
 ```json
 {
   "assessmentId": "...",
@@ -244,6 +248,18 @@ Notes:
   "suggestedPracticeIds": ["...", "...", "..."]
 }
 ```
+
+**Returns (anonymous):** identical shape, minus `assessmentId` (no row was written). Clients must tolerate both shapes — the presence of `assessmentId` is the signal that persistence happened.
+
+```json
+{
+  "pillarScores": { "<pillarId>": number },
+  "lowestPillarId": "...",
+  "suggestedPracticeIds": ["...", "...", "..."]
+}
+```
+
+Anonymous submissions still increment the aggregate `totalAnonymousAssessments` counter (see [analytics-privacy-boundaries.md](../../docs/operations/analytics-privacy-boundaries.md)).
 
 ---
 
