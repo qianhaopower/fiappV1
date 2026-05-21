@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { fetchAuthSession } from 'aws-amplify/auth/server'
 import { runWithAmplifyServerContext } from '@/utils/amplifyServerUtils'
 
+// `/assessment` and `/results` are intentionally PUBLIC so that anonymous
+// visitors can complete the assessment and see results before being asked to
+// sign up. See _docs/plans/anonymous-assessment-funnel.md and the updated
+// per-route guard table in _docs/canon/business-logic-v2.md.
 const PROTECTED_PREFIXES = [
   '/today',
   '/practices',
-  '/results',
-  '/assessment',
   '/onboarding',
   '/progress',
   '/account',

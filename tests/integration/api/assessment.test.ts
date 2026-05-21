@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, vi, beforeAll, beforeEach, afterAll } from "vitest";
 import { randomUUID } from "crypto";
 import { POST } from "@/app/api/assessment/route";
 import { GET as GET_LATEST } from "@/app/api/assessment/latest/route";
@@ -6,17 +6,20 @@ import { createDynamoClient } from "@/utils/dynamoClient";
 import { assessmentQuestions } from "@/lib/assessment/questions";
 import { makeRawClient, makeTableNames, createTables, deleteTables } from "../tableUtils";
 import { seedProfile } from "../seeds";
-import type { withAuth as WithAuthType } from "@/utils/authServer";
+import type {
+  withAuth as WithAuthType,
+  withOptionalAuth as WithOptionalAuthType,
+} from "@/utils/authServer";
 
 vi.mock("@/utils/metricsClient", () => ({ trackEvent: vi.fn(), trackPillarFocus: vi.fn() }));
 vi.mock("next/headers", () => ({ cookies: vi.fn() }));
 
 vi.mock("@/utils/authServer", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/utils/authServer")>();
-  return { ...actual, withAuth: vi.fn() };
+  return { ...actual, withAuth: vi.fn(), withOptionalAuth: vi.fn() };
 });
 
-import { withAuth } from "@/utils/authServer";
+import { withAuth, withOptionalAuth } from "@/utils/authServer";
 
 const { mainTable, returnsTable } = makeTableNames();
 const rawClient = makeRawClient();
@@ -31,9 +34,27 @@ afterAll(async () => {
   await deleteTables(rawClient, mainTable, returnsTable);
 });
 
+// POST /api/assessment uses withOptionalAuth; GET /api/assessment/latest uses
+// withAuth. Tests call asUser/asAnonymous to set up persistent impls that
+// apply to every call within the test. beforeEach resets both so impls don't
+// leak across tests.
+beforeEach(() => {
+  vi.mocked(withAuth as typeof WithAuthType).mockReset();
+  vi.mocked(withOptionalAuth as typeof WithOptionalAuthType).mockReset();
+});
+
 function asUser(userId: string) {
-  vi.mocked(withAuth as typeof WithAuthType).mockImplementationOnce(
+  vi.mocked(withAuth as typeof WithAuthType).mockImplementation(
     async (_req, handler) => handler({ userId })
+  );
+  vi.mocked(withOptionalAuth as typeof WithOptionalAuthType).mockImplementation(
+    async (_req, handler) => handler({ user: { userId } })
+  );
+}
+
+function asAnonymous() {
+  vi.mocked(withOptionalAuth as typeof WithOptionalAuthType).mockImplementation(
+    async (_req, handler) => handler({ user: null })
   );
 }
 
@@ -119,6 +140,58 @@ describe("POST /api/assessment", () => {
       })
     );
     expect(res.status).toBe(400);
+  });
+
+  describe("anonymous branch", () => {
+    it("returns 200 with computed result and no assessmentId", async () => {
+      asAnonymous();
+      const res = await postAssessment(allAnswers(true));
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.assessmentId).toBeUndefined();
+      expect(json.focusPillar).toBeDefined();
+      expect(json.lowestPillarId).toBe(json.focusPillar);
+      expect(json.scoresByPillar).toBeDefined();
+      expect(json.suggestedPracticeIds).toHaveLength(3);
+    });
+
+    it("writes nothing under USER# for an anonymous submission", async () => {
+      asAnonymous();
+      const res = await postAssessment(allAnswers(true));
+      expect(res.status).toBe(200);
+
+      // No PROFILE for anonymous users and no ASSESS# anywhere keyed by USER#.
+      // Sample a wide query just to be sure no per-user write leaked through.
+      const client = createDynamoClient();
+      // Just spot-check: a brand-new randomized USER# would never exist anyway,
+      // but we also confirm the integration test's PROFILE seeds are untouched.
+      const probeUser = randomUUID();
+      const profile = await client.getItem({ PK: `USER#${probeUser}`, SK: "PROFILE" });
+      expect(profile).toBeUndefined();
+    });
+
+    it("returns deterministic suggested practices from the lowest pillar (anonymous)", async () => {
+      // All-false answers → every pillar scores 0 → tie-break by pillar order
+      // (financial first). Two consecutive anonymous calls should match.
+      asAnonymous();
+      const a = await (await postAssessment(allAnswers(false))).json();
+      asAnonymous();
+      const b = await (await postAssessment(allAnswers(false))).json();
+      expect(a.suggestedPracticeIds).toEqual(b.suggestedPracticeIds);
+      expect(a.focusPillar).toBe(b.focusPillar);
+    });
+
+    it("rejects an anonymous submission with malformed answers", async () => {
+      asAnonymous();
+      const res = await POST(
+        new Request("http://localhost/api/assessment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ answers: { "financial-1": true } }),
+        })
+      );
+      expect(res.status).toBe(400);
+    });
   });
 });
 

@@ -9,10 +9,29 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: replaceMock }),
 }));
 
+// The assessment page now reads auth status for funnel telemetry and to flag
+// anonymous submissions. Default to 'unauthenticated' — most tests exercise
+// the anonymous path. Tests that need authed behavior override per-test.
+vi.mock("@aws-amplify/ui-react", () => ({
+  useAuthenticator: () => ({ authStatus: "unauthenticated" }),
+}));
+
+// Analytics is fire-and-forget; safe to stub to a no-op for unit tests.
+vi.mock("@/lib/analytics", () => ({
+  trackEvent: vi.fn(),
+}));
+
 describe("Assessment page", () => {
   beforeEach(() => {
     replaceMock.mockReset();
     vi.stubGlobal("fetch", vi.fn());
+    // Reset localStorage between tests — the page now persists drafts there
+    // and would otherwise restore stale state from a prior test run.
+    try {
+      window.localStorage.clear();
+    } catch {
+      // ignore — happens if a prior test stubbed window globally
+    }
   });
 
   afterEach(() => {
@@ -171,11 +190,21 @@ describe("Assessment page", () => {
     });
   });
 
-  it("redirects to /auth on unauthorized", async () => {
+  // Anonymous submission: response has no `assessmentId`. The page stores the
+  // computed result in localStorage so /results can render it.
+  it("persists anonymous result to localStorage on submit and routes to /results", async () => {
     (global.fetch as unknown as Mock).mockResolvedValue({
-      ok: false,
-      status: 401,
-      json: async () => ({ error: "Unauthorized" }),
+      ok: true,
+      status: 200,
+      json: async () => ({
+        focusPillar: "sleep",
+        lowestPillarId: "sleep",
+        scoresByPillar: {
+          financial: 5, relationship: 5, information: 5,
+          emotional: 5, nutrition: 5, dynamic: 5, sleep: 0,
+        },
+        suggestedPracticeIds: ["sleep-1", "sleep-2", "sleep-3"],
+      }),
     });
 
     render(<AssessmentPage />);
@@ -188,7 +217,50 @@ describe("Assessment page", () => {
     fireEvent.click(screen.getByRole("button", { name: "Submit" }));
 
     await waitFor(() => {
-      expect(replaceMock).toHaveBeenCalledWith("/auth");
+      expect(replaceMock).toHaveBeenCalledWith("/results");
     });
+
+    const stored = JSON.parse(window.localStorage.getItem("assessment.result") ?? "null");
+    expect(stored).not.toBeNull();
+    expect(stored.focusPillar).toBe("sleep");
+    expect(stored.suggestedPracticeIds).toEqual(["sleep-1", "sleep-2", "sleep-3"]);
+    expect(stored.takenAt).toBeDefined();
+    // Draft should be cleared once the result lands.
+    expect(window.localStorage.getItem("assessment.draft")).toBeNull();
+  });
+
+  // Authed submission: response includes `assessmentId`. The page must NOT
+  // write to localStorage — that data lives server-side, and stale local
+  // copies would leak to the next visitor on the same browser after logout.
+  it("does NOT write localStorage.assessment.result for an authed submission", async () => {
+    (global.fetch as unknown as Mock).mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        assessmentId: "asmt-123",
+        focusPillar: "sleep",
+        lowestPillarId: "sleep",
+        scoresByPillar: {
+          financial: 5, relationship: 5, information: 5,
+          emotional: 5, nutrition: 5, dynamic: 5, sleep: 0,
+        },
+        suggestedPracticeIds: ["sleep-1", "sleep-2", "sleep-3"],
+      }),
+    });
+
+    render(<AssessmentPage />);
+    fireEvent.click(screen.getByRole("button", { name: /Start assessment/ }));
+
+    for (let i = 0; i < assessmentQuestions.length; i += 1) {
+      fireEvent.click(screen.getByRole("button", { name: "Yes" }));
+    }
+
+    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+    await waitFor(() => {
+      expect(replaceMock).toHaveBeenCalledWith("/results");
+    });
+
+    expect(window.localStorage.getItem("assessment.result")).toBeNull();
   });
 });

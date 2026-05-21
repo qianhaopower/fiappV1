@@ -93,6 +93,52 @@ export function isUnauthorizedError(error: unknown): error is UnauthorizedError 
 }
 
 /**
+ * Like `withAuth`, but allows the request to be unauthenticated.
+ *
+ * Handler receives `{ user: AuthUser | null }`. Missing/invalid auth resolves
+ * to `null` (no 401); only used by endpoints that intentionally accept both
+ * authed and anonymous callers (e.g. `POST /api/assessment`). Cache headers
+ * are applied the same as `withAuth` — anonymous responses can still carry
+ * input-dependent content that we must not let intermediates cache by URL.
+ */
+export async function withOptionalAuth(
+  req: Request | undefined,
+  handler: (_args: { user: AuthUser | null }) => Promise<Response>
+): Promise<Response> {
+  const requestId = crypto.randomUUID()
+  const startedAt = Date.now()
+  const method = req?.method ?? 'UNKNOWN'
+  let route = 'unknown'
+  if (req?.url) {
+    try { route = new URL(req.url).pathname } catch { route = req.url }
+  }
+
+  let user: AuthUser | null = null;
+  try {
+    user = await getUserId(req);
+  } catch {
+    user = null;
+  }
+
+  try {
+    const response = await handler({ user })
+    const status = response.status
+    const outcome = status === 429 ? 'rate_limited' : status < 400 ? 'ok' : 'error'
+    // userId omitted from the log line indicates an anonymous caller; we don't
+    // need a separate outcome tag for it.
+    log({ requestId, route, method, outcome, status, latencyMs: Date.now() - startedAt, userId: user?.userId })
+    return applyNoStoreHeaders(response)
+  } catch (error) {
+    log({ requestId, route, method, outcome: 'error', status: 500, latencyMs: Date.now() - startedAt, userId: user?.userId }, 'error')
+    console.error('[withOptionalAuth] handler error:', error);
+    return applyNoStoreHeaders(NextResponse.json(
+      { ok: false, error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } },
+      { status: 500 }
+    ));
+  }
+}
+
+/**
  * Guard wrapper for protected API handlers.
  * Resolves user or returns standardized 401 response.
  * Use for all routes that require authentication.
