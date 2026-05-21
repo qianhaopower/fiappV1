@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from "vite
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import AssessmentPage from "@/app/assessment/page";
 import { assessmentQuestions } from "@/lib/assessment/questions";
+import { trackEvent } from "@/lib/analytics";
 
 const replaceMock = vi.fn();
 
@@ -21,9 +22,12 @@ vi.mock("@/lib/analytics", () => ({
   trackEvent: vi.fn(),
 }));
 
+const trackEventMock = vi.mocked(trackEvent);
+
 describe("Assessment page", () => {
   beforeEach(() => {
     replaceMock.mockReset();
+    trackEventMock.mockReset();
     vi.stubGlobal("fetch", vi.fn());
     // Reset localStorage between tests — the page now persists drafts there
     // and would otherwise restore stale state from a prior test run.
@@ -262,5 +266,65 @@ describe("Assessment page", () => {
     });
 
     expect(window.localStorage.getItem("assessment.result")).toBeNull();
+  });
+
+  // Per-question funnel telemetry. Each Yes/No click should fire
+  // assessment_question_answered with the question index and pillar (NOT the
+  // answer value — privacy-sensitive when correlated across questions).
+  describe("per-question tracking", () => {
+    it("fires assessment_question_answered on each Yes/No click with index + pillar (NOT the answer)", () => {
+      render(<AssessmentPage />);
+      fireEvent.click(screen.getByRole("button", { name: /Start assessment/ }));
+
+      // Answer Q1 (index 0) with Yes
+      fireEvent.click(screen.getByRole("button", { name: /^yes$/i }));
+      // Answer Q2 (index 1) with No
+      fireEvent.click(screen.getByRole("button", { name: /^no$/i }));
+
+      // Two events fired in order.
+      const calls = trackEventMock.mock.calls.filter(
+        ([name]) => name === "assessment_question_answered"
+      );
+      expect(calls).toHaveLength(2);
+
+      // Q1 — index 0, pillar matches first question
+      expect(calls[0][1]).toEqual({
+        question_index: 0,
+        pillar: assessmentQuestions[0].pillar,
+        is_anonymous: true,
+      });
+
+      // Q2 — index 1, pillar matches second question
+      expect(calls[1][1]).toEqual({
+        question_index: 1,
+        pillar: assessmentQuestions[1].pillar,
+        is_anonymous: true,
+      });
+
+      // The user's answer to the question must never be exposed as a param.
+      // `is_anonymous` is the only legitimate boolean here.
+      for (const [, params] of calls) {
+        expect(params).not.toHaveProperty("value");
+        expect(params).not.toHaveProperty("answer");
+        expect(params).not.toHaveProperty("answer_value");
+      }
+    });
+
+    it("fires once per click, not once per render (no double-counting after Back-Next)", () => {
+      render(<AssessmentPage />);
+      fireEvent.click(screen.getByRole("button", { name: /Start assessment/ }));
+
+      // Answer Q1, navigate back, navigate forward without re-answering.
+      fireEvent.click(screen.getByRole("button", { name: /^yes$/i }));
+      fireEvent.click(screen.getByRole("button", { name: "Back" }));
+      fireEvent.click(screen.getByRole("button", { name: "Next" }));
+
+      const calls = trackEventMock.mock.calls.filter(
+        ([name]) => name === "assessment_question_answered"
+      );
+      // Only one click fired the event. Back/Next without re-answering must
+      // not double-count — those movements aren't "answering."
+      expect(calls).toHaveLength(1);
+    });
   });
 });

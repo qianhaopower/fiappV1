@@ -119,6 +119,16 @@ export default function AssessmentPage() {
   function handleAnswer(value: boolean) {
     setAnswers((prev) => ({ ...prev, [current.id]: value }));
     setError(null);
+    // Per-question funnel event. We intentionally do NOT send `value` — the
+    // answer itself could become identifying when correlated across questions
+    // (see docs/operations/analytics-privacy-boundaries.md §Allowed event
+    // params). `question_index` + `pillar` is enough to compute where in the
+    // 35-question flow people drop off.
+    trackEvent("assessment_question_answered", {
+      question_index: index,
+      pillar: current.pillar,
+      is_anonymous: isAnonymous,
+    });
     if (index < total - 1) {
       setIndex((prev) => Math.min(total - 1, prev + 1));
     }
