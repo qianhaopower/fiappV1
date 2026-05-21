@@ -33,7 +33,7 @@ Last revised: 2026-05-16 (added SES email delivery + password policy checks).
 - [ ] Sign in with confirmed account → lands on correct page per `decideRoute` (auth → `/auth`; authed without assessment → `/onboarding`; authed with assessment → `/today`)
 - [ ] Wrong password → error message visible, not cryptic
 - [ ] "Forgot password" flow — email sent (same `no-reply@friendsintelligence.net` sender), reset works
-- [ ] Sign out → redirected to `/auth`, cannot navigate back to protected pages
+- [ ] Sign out → redirected to `/` (landing page), cannot navigate back to protected pages
 - [ ] **Mobile**: auth form not cut off, keyboard doesn't obscure input fields
 
 ---
