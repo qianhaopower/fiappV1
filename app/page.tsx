@@ -190,7 +190,7 @@ export default function LandingPage() {
         {/* Hero */}
         <section className="px-6 pt-24 pb-28 text-center sm:pt-28 sm:pb-32">
           <div className="mx-auto max-w-[47.5rem]">
-            <div className="mb-7 hidden items-center gap-2 rounded-full border border-line-2 bg-white px-3 py-1.5 text-[0.78rem] text-ink-2 sm:inline-flex">
+            <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-line-2 bg-white px-3 py-1.5 text-[0.78rem] text-ink-2">
               <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
               <span>35-question assessment · 7 pillars · about 8 minutes</span>
             </div>
@@ -202,19 +202,24 @@ export default function LandingPage() {
             <p className="mx-auto mb-9 max-w-[36rem] text-[clamp(1.05rem,1.4vw,1.2rem)] text-ink-2 text-pretty">
               Find your focus pillar, then build one small daily practice at a time.
             </p>
-            <div className="inline-flex flex-wrap items-center justify-center gap-3">
-              <Link
-                href="/assessment"
-                className="group inline-flex h-12 items-center gap-2 rounded-[0.5rem] bg-primary px-5 text-[0.95rem] font-medium text-white no-underline transition-colors hover:bg-[oklch(0.5_0.22_260)]"
-              >
-                Start free assessment <Arrow />
-              </Link>
-              <Link
-                href="/auth"
-                className="inline-flex h-12 items-center gap-2 rounded-[0.5rem] border border-line bg-transparent px-5 text-[0.95rem] font-medium text-ink no-underline transition-colors hover:border-[oklch(0.85_0.012_260)] hover:bg-bg-2"
-              >
-                Log in
-              </Link>
+            <div>
+              <div className="inline-flex flex-wrap items-center justify-center gap-3">
+                <Link
+                  href="/assessment"
+                  className="group inline-flex h-12 items-center gap-2 rounded-[0.5rem] bg-primary px-5 text-[0.95rem] font-medium text-white no-underline transition-colors hover:bg-[oklch(0.5_0.22_260)]"
+                >
+                  Start free assessment <Arrow />
+                </Link>
+                <Link
+                  href="/auth"
+                  className="inline-flex h-12 items-center gap-2 rounded-[0.5rem] border border-line bg-transparent px-5 text-[0.95rem] font-medium text-ink no-underline transition-colors hover:border-[oklch(0.85_0.012_260)] hover:bg-bg-2"
+                >
+                  Log in
+                </Link>
+              </div>
+              <p className="mt-3 text-[0.8rem] text-ink-3">
+                Free · no account needed to start
+              </p>
             </div>
           </div>
         </section>

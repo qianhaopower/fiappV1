@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useAuthenticator } from '@aws-amplify/ui-react';
 import { HelpTooltip } from '@/components/HelpTooltip';
 import { StandardPage } from '@/components/layout';
 import { Card, Button, Loading, ErrorState, EmptyState } from '@/components/ui';
@@ -12,6 +13,14 @@ import { pillarColors } from '@/lib/design/pillarColors';
 import { pillarOrder, pillarLabels } from '@/lib/assessment/pillars';
 import type { Pillar } from '@/lib/assessment/pillars';
 import type { Practice } from '@/lib/practices/library';
+import { practicesById } from '@/lib/practices/library';
+import {
+  readLocalResult,
+  clearLocalResult,
+  ageInDays,
+  STALE_AGE_DAYS,
+} from '@/lib/assessment/localResult';
+import { trackEvent } from '@/lib/analytics';
 
 const MAX_SCORE = 5;
 
@@ -52,17 +61,21 @@ type SwitchState = {
 
 export default function ResultsPage() {
   const router = useRouter()
+  const { authStatus } = useAuthenticator((c) => [c.authStatus])
+  const isAnonymous = authStatus !== 'authenticated'
+
   const [assessment, setAssessment] = useState<AssessmentData | null>(null)
   const [suggestions, setSuggestions] = useState<Practice[] | null>(null)
   const [active, setActive] = useState<ActiveData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const [staleDays, setStaleDays] = useState<number | null>(null)
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({})
   const [inlineError, setInlineError] = useState<Record<string, string>>({})
   const [capNotice, setCapNotice] = useState<Record<string, number>>({})
   const [switchState, setSwitchState] = useState<SwitchState>(null)
 
-  const load = useCallback(async () => {
+  const loadAuthed = useCallback(async () => {
     setLoading(true)
     setError(false)
     try {
@@ -83,6 +96,7 @@ export default function ResultsPage() {
       if (activeRes.ok) {
         setActive(await activeRes.json() as ActiveData)
       }
+      setStaleDays(null)
     } catch {
       setError(true)
     } finally {
@@ -90,7 +104,49 @@ export default function ResultsPage() {
     }
   }, [])
 
-  useEffect(() => { load() }, [load])
+  const loadAnonymous = useCallback(() => {
+    setLoading(true)
+    setError(false)
+    const stored = readLocalResult()
+    if (!stored) {
+      router.replace('/assessment')
+      return
+    }
+    setAssessment({
+      scoresByPillar: stored.scoresByPillar,
+      focusPillar: stored.focusPillar,
+      lowestPillarId: stored.lowestPillarId,
+    })
+    const sugs = stored.suggestedPracticeIds
+      .map((id) => practicesById.get(id))
+      .filter((p): p is Practice => Boolean(p))
+    setSuggestions(sugs)
+    setActive(null)
+    const age = ageInDays(stored.takenAt)
+    setStaleDays(age >= STALE_AGE_DAYS ? Math.floor(age) : null)
+    setLoading(false)
+  }, [router])
+
+  useEffect(() => {
+    if (authStatus === 'configuring') return
+    if (isAnonymous) {
+      loadAnonymous()
+    } else {
+      loadAuthed()
+    }
+  }, [authStatus, isAnonymous, loadAuthed, loadAnonymous])
+
+  // Fire `results_viewed` once we have an assessment loaded and know the
+  // focus pillar. Effect deps include focusPillar so it fires exactly when
+  // the data lands, not before.
+  const focusPillarForTracking = assessment?.lowestPillarId ?? assessment?.focusPillar
+  useEffect(() => {
+    if (!focusPillarForTracking) return
+    trackEvent('results_viewed', {
+      is_anonymous: isAnonymous,
+      focus_pillar: focusPillarForTracking,
+    })
+  }, [focusPillarForTracking, isAnonymous])
 
   const statusById = useMemo(() => {
     const map = new Map<string, CardStatus>()
@@ -119,7 +175,7 @@ export default function ResultsPage() {
       const res = await callPractice({ mode: 'startPractice', practiceId: practice.id })
       const json = await res.json().catch(() => ({} as Record<string, unknown>))
       if (res.ok) {
-        await load()
+        await loadAuthed()
         router.push('/today')
         return
       }
@@ -155,15 +211,21 @@ export default function ResultsPage() {
         return
       }
       setSwitchState(null)
-      await load()
+      await loadAuthed()
       router.push('/today')
     } finally {
       setAction(newPractice.id, false)
     }
   }
 
+  function handleAnonymousRetake() {
+    clearLocalResult()
+    router.replace('/assessment')
+  }
+
   const scores = assessment?.scoresByPillar
   const focusPillar = assessment?.lowestPillarId ?? assessment?.focusPillar
+  const focusPillarLabel = focusPillar ? pillarLabels[focusPillar] : null
 
   return (
     <StandardPage
@@ -185,6 +247,19 @@ export default function ResultsPage() {
 
         {assessment && (
           <>
+            {staleDays !== null && (
+              <Card className="border-amber-300/60 bg-amber-50/60 dark:bg-amber-950/20">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-sm text-foreground">
+                    Your result is {staleDays} days old — things may have changed.
+                  </p>
+                  <Button variant="outline" size="sm" onClick={handleAnonymousRetake}>
+                    Retake assessment
+                  </Button>
+                </div>
+              </Card>
+            )}
+
             <Card className="border-primary/30 bg-primary/5">
               <div className="flex items-center gap-2 mb-2">
                 <p className="text-xs uppercase tracking-[0.2em] text-primary">Focus Pillar</p>
@@ -267,12 +342,12 @@ export default function ResultsPage() {
                               >
                                 {pillarLabels[practice.pillar]}
                               </span>
-                              {status === 'active' && (
+                              {!isAnonymous && status === 'active' && (
                                 <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-primary/10 text-primary border border-primary/30">
                                   Active
                                 </span>
                               )}
-                              {status === 'inactive' && (
+                              {!isAnonymous && status === 'inactive' && (
                                 <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-muted text-muted-foreground border border-border">
                                   Paused
                                 </span>
@@ -280,7 +355,7 @@ export default function ResultsPage() {
                             </div>
                             <p className="font-semibold text-foreground">{practice.title}</p>
                             <p className="text-sm text-muted-foreground">{practice.description}</p>
-                            {status === 'inactive' && (
+                            {!isAnonymous && status === 'inactive' && (
                               <p className="text-xs text-muted-foreground">
                                 You started this before — currently paused. Resume anytime.
                               </p>
@@ -292,28 +367,44 @@ export default function ResultsPage() {
                             )}
                           </div>
                           <div>
-                            {status === 'none' && (
-                              <Button variant="outline" disabled={busy} onClick={() => handleStart(practice)}>
-                                {busy ? '…' : 'Start this practice'}
+                            {isAnonymous ? (
+                              <Button asChild variant="outline">
+                                <Link
+                                  href="/auth"
+                                  onClick={() => trackEvent('signup_clicked', {
+                                    focus_pillar: focusPillarForTracking,
+                                    source: 'practice_card',
+                                  })}
+                                >
+                                  Sign up to start →
+                                </Link>
                               </Button>
+                            ) : (
+                              <>
+                                {status === 'none' && (
+                                  <Button variant="outline" disabled={busy} onClick={() => handleStart(practice)}>
+                                    {busy ? '…' : 'Start this practice'}
+                                  </Button>
+                                )}
+                                {status === 'inactive' && (
+                                  <Button variant="outline" disabled={busy} onClick={() => handleStart(practice)}>
+                                    {busy ? '…' : 'Resume'}
+                                  </Button>
+                                )}
+                                {status === 'active' && (
+                                  <Button asChild>
+                                    <Link href="/today">View on Today</Link>
+                                  </Button>
+                                )}
+                                {capNotice[practice.id] ? (
+                                  <CapLimitNotice cap={capNotice[practice.id]} />
+                                ) : inlineError[practice.id] ? (
+                                  <p className="text-xs text-destructive mt-1">
+                                    {inlineError[practice.id]}
+                                  </p>
+                                ) : null}
+                              </>
                             )}
-                            {status === 'inactive' && (
-                              <Button variant="outline" disabled={busy} onClick={() => handleStart(practice)}>
-                                {busy ? '…' : 'Resume'}
-                              </Button>
-                            )}
-                            {status === 'active' && (
-                              <Button asChild>
-                                <Link href="/today">View on Today</Link>
-                              </Button>
-                            )}
-                            {capNotice[practice.id] ? (
-                              <CapLimitNotice cap={capNotice[practice.id]} />
-                            ) : inlineError[practice.id] ? (
-                              <p className="text-xs text-destructive mt-1">
-                                {inlineError[practice.id]}
-                              </p>
-                            ) : null}
                           </div>
                         </div>
                       </Card>
@@ -331,20 +422,54 @@ export default function ResultsPage() {
               </div>
             </div>
 
-            <div className="pt-2 space-y-3">
-              <Button asChild size="lg" className="w-full sm:w-auto">
-                <Link href="/today">Go to Today →</Link>
-              </Button>
-              <div>
-                <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
-                  <Link href="/assessment">Retake assessment</Link>
-                </Button>
-                <p className="mt-1.5 text-xs text-muted-foreground">
-                  Your results update when you retake — useful after a few weeks of practice.{" "}
-                  <Link href="/faq" className="underline underline-offset-2 hover:text-foreground">Questions about your results?</Link>
-                </p>
+            {isAnonymous ? (
+              <div className="pt-2 space-y-4">
+                <Card className="border-primary/40 bg-primary/5">
+                  <div className="space-y-3">
+                    <p className="text-xs uppercase tracking-[0.2em] text-primary">Save your results</p>
+                    <p className="text-base text-foreground">
+                      Sign up free to start your {focusPillarLabel} practice — we&apos;ll save your
+                      results and set up a single daily check-in.
+                    </p>
+                    <Button asChild size="lg">
+                      <Link
+                        href="/auth"
+                        onClick={() => trackEvent('signup_clicked', {
+                          focus_pillar: focusPillarForTracking,
+                          source: 'results_bottom',
+                        })}
+                      >
+                        Sign up free →
+                      </Link>
+                    </Button>
+                  </div>
+                </Card>
+                <div>
+                  <button
+                    type="button"
+                    onClick={handleAnonymousRetake}
+                    className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-2"
+                  >
+                    Retake (clears your result)
+                  </button>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="pt-2 space-y-3">
+                <Button asChild size="lg" className="w-full sm:w-auto">
+                  <Link href="/today">Go to Today →</Link>
+                </Button>
+                <div>
+                  <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
+                    <Link href="/assessment">Retake assessment</Link>
+                  </Button>
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    Your results update when you retake — useful after a few weeks of practice.{" "}
+                    <Link href="/faq" className="underline underline-offset-2 hover:text-foreground">Questions about your results?</Link>
+                  </p>
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>

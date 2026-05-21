@@ -119,7 +119,10 @@ describe("POST /api/assessment", () => {
     expect(res2.status).toBe(400);
   });
 
-  it("returns 401 when unauthorized", async () => {
+  // The route used to require auth. After the anonymous-funnel refactor, an
+  // unauthenticated caller is a valid anonymous submission — compute-only,
+  // no DynamoDB writes. See _docs/plans/anonymous-assessment-funnel.md.
+  it("returns 200 anonymous response (no DynamoDB writes) when unauthenticated", async () => {
     getCurrentUserMock.mockRejectedValue(new Error("Unauthorized"));
 
     const req = new Request("http://localhost/api/assessment", {
@@ -128,7 +131,16 @@ describe("POST /api/assessment", () => {
     });
 
     const res = await POST(req);
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(200);
+
+    const json = await res.json();
+    expect(json.assessmentId).toBeUndefined();
+    expect(json.focusPillar).toBeDefined();
+    expect(json.lowestPillarId).toBe(json.focusPillar);
+    expect(json.suggestedPracticeIds).toHaveLength(3);
+
+    expect(putItemMock).not.toHaveBeenCalled();
+    expect(updateItemMock).not.toHaveBeenCalled();
   });
 
   it("returns 500 on dynamo failures", async () => {

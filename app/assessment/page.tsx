@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useAuthenticator } from "@aws-amplify/ui-react";
 import { assessmentQuestions } from "@/lib/assessment/questions";
 import { pillarColors } from "@/lib/design/pillarColors";
 import { NarrowFormPage } from "@/components/layout";
@@ -15,9 +16,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  readLocalDraft,
+  writeLocalDraft,
+  clearLocalDraft,
+  writeLocalResult,
+} from "@/lib/assessment/localResult";
+import type { Pillar } from "@/lib/assessment/pillars";
+import { trackEvent } from "@/lib/analytics";
 
 export default function AssessmentPage() {
   const router = useRouter();
+  const { authStatus } = useAuthenticator((c) => [c.authStatus]);
+  const isAnonymous = authStatus !== "authenticated";
   const total = assessmentQuestions.length;
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, boolean>>({});
@@ -25,6 +36,43 @@ export default function AssessmentPage() {
   const [error, setError] = useState<string | null>(null);
   const [introAccepted, setIntroAccepted] = useState(false);
   const [confirmRestart, setConfirmRestart] = useState(false);
+  const [hydratedFromDraft, setHydratedFromDraft] = useState(false);
+
+  // Fire once per page mount, after auth status has resolved (no point firing
+  // before we know if the user is anonymous).
+  useEffect(() => {
+    if (authStatus === "configuring") return;
+    trackEvent("assessment_started", { is_anonymous: isAnonymous });
+  }, [authStatus, isAnonymous]);
+
+  // On mount, restore in-progress answers from localStorage so a refresh or
+  // tab-close doesn't lose the user's work. Anonymous users especially — they
+  // have no server-side row to recover from. See plan §localStorage lifecycle.
+  useEffect(() => {
+    const draft = readLocalDraft();
+    if (draft && Object.keys(draft.answers).length > 0) {
+      setAnswers(draft.answers);
+      setIndex(Math.min(draft.index, total - 1));
+      setIntroAccepted(true);
+    }
+    setHydratedFromDraft(true);
+  }, [total]);
+
+  // Persist in-progress answers as they change. Skip until the hydration
+  // pass has finished — otherwise the initial mount writes an empty draft
+  // before we can read the existing one.
+  useEffect(() => {
+    if (!hydratedFromDraft) return;
+    if (!introAccepted) return;
+    if (Object.keys(answers).length === 0 && index === 0) return;
+    const existing = readLocalDraft();
+    writeLocalDraft({
+      version: 1,
+      answers,
+      index,
+      startedAt: existing?.startedAt ?? new Date().toISOString(),
+    });
+  }, [answers, index, introAccepted, hydratedFromDraft]);
 
   function getContrastingTextColor(hex: string) {
     const match = /^#?([0-9a-fA-F]{6})$/.exec(hex);
@@ -87,15 +135,41 @@ export default function AssessmentPage() {
         body: JSON.stringify({ answers }),
       });
 
-      if (res.status === 401 || res.status === 403) {
-        router.replace("/auth");
-        return;
-      }
-
       if (!res.ok) {
         setError("Something went wrong. Please try again.");
         return;
       }
+
+      const data = (await res.json()) as {
+        assessmentId?: string;
+        focusPillar: Pillar;
+        lowestPillarId: Pillar;
+        scoresByPillar: Record<Pillar, number>;
+        suggestedPracticeIds: string[];
+      };
+
+      // Persist for anonymous submissions only. Authed submissions already
+      // wrote ASSESS# server-side — /results in authed mode reads from the
+      // server, not localStorage. Writing here for authed users would just
+      // leave stale data behind after logout for the next visitor on this
+      // browser to stumble into.
+      if (!data.assessmentId) {
+        writeLocalResult({
+          version: 1,
+          answers,
+          scoresByPillar: data.scoresByPillar,
+          focusPillar: data.focusPillar,
+          lowestPillarId: data.lowestPillarId,
+          suggestedPracticeIds: data.suggestedPracticeIds,
+          takenAt: new Date().toISOString(),
+        });
+      }
+      clearLocalDraft();
+
+      trackEvent("assessment_submitted", {
+        is_anonymous: !data.assessmentId,
+        focus_pillar: data.focusPillar,
+      });
 
       router.replace("/results");
     } catch {
@@ -110,6 +184,7 @@ export default function AssessmentPage() {
     setIndex(0);
     setError(null);
     setSubmitting(false);
+    clearLocalDraft();
   }
 
   function confirmAndReset() {
