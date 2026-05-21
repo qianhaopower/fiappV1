@@ -99,10 +99,80 @@ test.describe("Anonymous funnel", () => {
     expect(await page.evaluate(() => localStorage.getItem("assessment.draft"))).toBeNull();
   });
 
+  test("cookie banner gates GA4 — no google.com requests until Accept", async ({ page }) => {
+    const googleRequests: string[] = [];
+    page.on("request", (req) => {
+      const url = req.url();
+      if (/(googletagmanager|google-analytics|googleadservices|doubleclick)\.com/.test(url)) {
+        googleRequests.push(url);
+      }
+    });
+
+    await page.goto("/");
+    // Give the page a beat for any unwanted scripts to fire.
+    await page.waitForTimeout(1500);
+    expect(googleRequests, "no google requests should fire before consent").toEqual([]);
+
+    // Banner present and we haven't accepted yet.
+    const banner = page.getByRole("dialog", { name: /cookie preferences/i });
+    await expect(banner).toBeVisible();
+
+    // Accept — GA4 should load.
+    await banner.getByRole("button", { name: /accept/i }).click();
+    await page.waitForTimeout(1500);
+    expect(googleRequests.length, "google requests should appear after Accept").toBeGreaterThan(0);
+  });
+
+  test("stale localStorage (>30 days takenAt) shows the age banner", async ({ page }) => {
+    await page.goto("/");
+    const stale = new Date(Date.now() - 45 * 86_400_000).toISOString();
+    await page.evaluate((takenAt) => {
+      localStorage.setItem(
+        "assessment.result",
+        JSON.stringify({
+          version: 1,
+          answers: {},
+          scoresByPillar: {
+            financial: 5, relationship: 5, information: 5,
+            emotional: 5, nutrition: 5, dynamic: 5, sleep: 0,
+          },
+          focusPillar: "sleep",
+          lowestPillarId: "sleep",
+          suggestedPracticeIds: [
+            "sleep-consistent-bedtime",
+            "sleep-morning-light",
+            "sleep-dim-before-bed",
+          ],
+          takenAt,
+        }),
+      );
+    }, stale);
+
+    await page.goto("/results");
+    await expect(page.getByText(/Your result is 45 days old/i)).toBeVisible({
+      timeout: 10_000,
+    });
+  });
+
+  test("AppShell is bypassed on anonymous /assessment and /results (no top nav)", async ({ page }) => {
+    await page.goto("/assessment");
+    await expect(page.getByRole("button", { name: /start assessment/i })).toBeVisible({
+      timeout: 10_000,
+    });
+    // The AppShell renders a nav with Today/Practices/Insights/Progress links.
+    // Anonymous visitors should NOT see it — those links would all 302 to /auth.
+    await expect(page.getByRole("link", { name: /^Today$/i })).not.toBeVisible();
+    await expect(page.getByRole("link", { name: /^Practices$/i })).not.toBeVisible();
+    await expect(page.getByRole("link", { name: /^Insights$/i })).not.toBeVisible();
+    await expect(page.getByRole("link", { name: /^Progress$/i })).not.toBeVisible();
+  });
+
   test("Retake (clears your result) wipes localStorage and routes to /assessment", async ({ page }) => {
-    // Seed a result so /results renders.
+    // Seed a result + dismiss the cookie banner (otherwise it overlays the
+    // bottom-of-page Retake link and intercepts the click).
     await page.goto("/");
     await page.evaluate(() => {
+      localStorage.setItem("cookie_consent", "declined");
       localStorage.setItem(
         "assessment.result",
         JSON.stringify({
