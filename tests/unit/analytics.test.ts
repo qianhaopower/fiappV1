@@ -40,9 +40,34 @@ describe("lib/analytics.trackEvent", () => {
     const gtag = vi.fn();
     setupWindow({ consent: "accepted", gtag });
     trackEvent("assessment_submitted", { focus_pillar: "sleep", is_anonymous: true });
+    // Booleans are stringified — see the comment in lib/analytics.ts for why.
     expect(gtag).toHaveBeenCalledWith("event", "assessment_submitted", {
       focus_pillar: "sleep",
+      is_anonymous: "true",
+    });
+  });
+
+  it("stringifies boolean params (false → 'false') so GA4 funnel filters match", () => {
+    const gtag = vi.fn();
+    setupWindow({ consent: "accepted", gtag });
+    trackEvent("assessment_started", { is_anonymous: false });
+    expect(gtag).toHaveBeenCalledWith("event", "assessment_started", {
+      is_anonymous: "false",
+    });
+  });
+
+  it("leaves non-boolean params untouched (strings + numbers)", () => {
+    const gtag = vi.fn();
+    setupWindow({ consent: "accepted", gtag });
+    trackEvent("assessment_question_answered", {
+      question_index: 17,
+      pillar: "sleep",
       is_anonymous: true,
+    });
+    expect(gtag).toHaveBeenCalledWith("event", "assessment_question_answered", {
+      question_index: 17,
+      pillar: "sleep",
+      is_anonymous: "true",
     });
   });
 
