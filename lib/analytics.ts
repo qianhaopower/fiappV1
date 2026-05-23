@@ -31,13 +31,25 @@ function getGtag(): GtagFn | null {
  * Send a GA4 custom event. Hard rules:
  * - Caller must NOT pass user IDs, emails, raw answers, or any PII.
  * - Caller may pass `is_anonymous`, `focus_pillar`, and counts/statuses.
+ *
+ * Booleans are converted to strings before sending. GA4's funnel filter
+ * "exactly matches true" does string comparison; sending a JS boolean
+ * causes the filter to silently miss matching events (confirmed during
+ * the 2026-05-22 WeChat soft launch — a real `results_viewed` event
+ * fired with is_anonymous=true but the funnel step counted 0).
  */
 export function trackEvent(name: string, params?: EventParams): void {
   const gtag = getGtag();
   if (!gtag) return;
   if (!isConsented()) return;
   try {
-    gtag("event", name, params ?? {});
+    const safeParams: Record<string, string | number | undefined> = {};
+    if (params) {
+      for (const [k, v] of Object.entries(params)) {
+        safeParams[k] = typeof v === "boolean" ? String(v) : v;
+      }
+    }
+    gtag("event", name, safeParams);
   } catch {
     // ignore
   }
